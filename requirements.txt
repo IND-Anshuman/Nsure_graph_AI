@@ -1,0 +1,16 @@
+spacy
+pydantic
+openai
+fastapi
+uvicorn
+requests
+python-dotenv
+sentence-transformers
+scikit-learn
+networkx
+python-louvain
+pdfplumber 
+trafilatura  
+beautifulsoup4
+neo4j
+google-generativeai
