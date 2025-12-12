@@ -201,9 +201,11 @@ def _get_entity_neighbors(graph: KnowledgeGraph, entity_id: str, hops: int = 1) 
     for edge in graph.edges:
         if edge.type in ["CO_OCCURS_WITH", "USED_WITH", "DEPLOYS_ON", "PROPOSED", 
                         "EVALUATED_ON", "PRESENTED_AT", "PUBLISHED_AT", "LOCATED_IN"]:
-            if edge.source == entity_id and graph.nodes.get(edge.target, {}).label == "ENTITY":
+            target_node = graph.nodes.get(edge.target)
+            source_node = graph.nodes.get(edge.source)
+            if edge.source == entity_id and target_node and target_node.label == "ENTITY":
                 neighbors.add(edge.target)
-            elif edge.target == entity_id and graph.nodes.get(edge.source, {}).label == "ENTITY":
+            elif edge.target == entity_id and source_node and source_node.label == "ENTITY":
                 neighbors.add(edge.source)
     
     # For 2-hop expansion
@@ -223,7 +225,8 @@ def _get_mentioning_sentences(graph: KnowledgeGraph, entity_id: str) -> Set[str]
     sentences = set()
     for edge in graph.edges:
         if edge.type == "MENTION_IN" and edge.source == entity_id:
-            if graph.nodes.get(edge.target, {}).label == "SENTENCE":
+            target_node = graph.nodes.get(edge.target)
+            if target_node and target_node.label == "SENTENCE":
                 sentences.add(edge.target)
     return sentences
 
@@ -235,7 +238,8 @@ def _get_parent_communities(graph: KnowledgeGraph, entity_id: str) -> Set[str]:
     communities = set()
     for edge in graph.edges:
         if edge.type == "MEMBER_OF" and edge.source == entity_id:
-            if graph.nodes.get(edge.target, {}).label == "COMMUNITY":
+            target_node = graph.nodes.get(edge.target)
+            if target_node and target_node.label == "COMMUNITY":
                 communities.add(edge.target)
     return communities
 
@@ -247,6 +251,7 @@ def _get_sentence_entities(graph: KnowledgeGraph, sent_id: str) -> Set[str]:
     entities = set()
     for edge in graph.edges:
         if edge.type == "MENTION_IN" and edge.target == sent_id:
-            if graph.nodes.get(edge.source, {}).label == "ENTITY":
+            source_node = graph.nodes.get(edge.source)
+            if source_node and source_node.label == "ENTITY":
                 entities.add(edge.source)
     return entities
