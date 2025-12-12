@@ -16,6 +16,12 @@ from ner import add_semantic_relation_edges
 from Community_processing import compute_multilevel_communities, build_and_add_community_nodes
 from Community_processing import build_retrieval_index, search_relevant_nodes
 
+# ---- new enhanced retrieval modules ----
+from phase8_retrieval_enhanced import build_retrieval_index_enhanced
+from hybrid_search import search_and_expand
+from llm_rerank import llm_rerank_candidates
+from llm_synthesis import llm_synthesize_answer, format_answer_output
+
 # ---- new persistence modules ----
 from graph_save import save_kg_to_graphml
 from graph_save import export_to_neo4j
@@ -99,20 +105,54 @@ def run_pipeline():
     verbose=True
 )
 
-    # ========= Phase 8: retrieval index build (optional) =========
-    print("[Phase 8] Building retrieval index (sentences + communities)...")
-    ids, embs = build_retrieval_index(graph)
+    # ========= Phase 8: Enhanced retrieval index build =========
+    print("[Phase 8] Building enhanced retrieval index...")
+    index_items, embeddings = build_retrieval_index_enhanced(
+        graph,
+        context_window_tokens=50,
+        include_entity_contexts=True,
+        verbose=True
+    )
 
-    # Small test query
-    if ids:
+    # Small test query with hybrid search
+    if index_items:
         query = "How does AutoGraphRAG build knowledge graphs and which tools does it use?"
-        print(f"\n[Query test] {query}")
-        results = search_relevant_nodes(query, ids, embs, top_k=5)
-        for nid, score in results:
-            node = graph.nodes[nid]
-            text = node.properties.get("text") or node.properties.get("summary")
-            print(f"- {nid} ({node.label}) score={score:.3f}")
-            print(f"  text: {text[:200]!r}")
+        print(f"\n[Query test - Hybrid Search] {query}")
+        
+        # Hybrid search
+        candidates = search_and_expand(
+            query=query,
+            graph=graph,
+            index_items=index_items,
+            embeddings=embeddings,
+            top_n_semantic=20,
+            top_k_final=40,
+            alpha=0.7,
+            beta=0.3,
+            expansion_hops=1,
+            verbose=True
+        )
+        
+        # Rerank
+        rerank_result = llm_rerank_candidates(
+            query=query,
+            candidates=candidates,
+            top_k=12,
+            use_cache=True,
+            verbose=True
+        )
+        
+        # Synthesize answer
+        synthesis_result = llm_synthesize_answer(
+            query=query,
+            evidence_candidates=rerank_result["ranked_candidates"],
+            use_cache=True,
+            verbose=True
+        )
+        
+        # Display answer
+        print("\n" + format_answer_output(synthesis_result))
+        
     else:
         print("[Phase 8] No nodes with text/summary to index.")
 
@@ -146,7 +186,7 @@ def run_pipeline():
         print("[INFO] NEO4J_PASSWORD not set. Skipping Neo4j export.")
 
     print("[Done] Pipeline finished.")
-    return graph, ids, embs
+    return graph, index_items, embeddings
 
 
 if __name__ == "__main__":
