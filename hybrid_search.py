@@ -4,7 +4,7 @@ Hybrid retrieval with dense semantic search + graph-based expansion.
 Combines semantic similarity scores with graph structure scores.
 """
 from __future__ import annotations
-from typing import List, Dict, Tuple, Set, Any
+from typing import List, Dict, Tuple, Set, Any, Optional
 from dataclasses import dataclass
 import numpy as np
 from data_corpus import KnowledgeGraph
@@ -23,8 +23,9 @@ class RetrievalCandidate:
     semantic_score: float        # cosine similarity to query
     graph_score: float           # score from graph expansion
     hybrid_score: float          # combined score
-    metadata: Dict[str, Any]     # additional metadata
-    retrieval_path: str          # how this was retrieved ("semantic", "expanded", "community")
+    cross_score: float = 0.0     # optional cross-encoder score
+    metadata: Optional[Dict[str, Any]] = None     # additional metadata
+    retrieval_path: str = ""          # how this was retrieved ("semantic", "expanded", "community")
 
 
 def search_and_expand(
@@ -38,6 +39,10 @@ def search_and_expand(
     beta: float = 0.3,
     expansion_hops: int = 1,
     include_community_expansion: bool = True,
+    min_hybrid_score: float = 0.15,
+    dedup_overlap_threshold: float = 0.9,
+    semantic_dedup_threshold: float = 0.88,
+    community_boost: float = 0.15,
     verbose: bool = False
 ) -> List[RetrievalCandidate]:
     """
@@ -83,20 +88,55 @@ def search_and_expand(
     if verbose:
         print(f"[Hybrid Search] Retrieved {len(top_indices)} items via semantic search")
     
+    def _community_level_weight(meta: Optional[Dict[str, Any]]) -> float:
+        if not meta:
+            return 1.0
+        level_raw = meta.get("level")
+        try:
+            level = int(level_raw) if level_raw is not None else 0
+        except Exception:
+            level = 0
+        # Prefer more concrete, lower-level communities.
+        # level 0 -> 1.2, level 1 -> 1.0, level 2 -> 0.8, >=3 -> 0.8
+        if level <= 0:
+            return 1.2
+        if level == 1:
+            return 1.0
+        return 0.8
+
+    def _community_coherence_weight(meta: Optional[Dict[str, Any]]) -> float:
+        if not meta:
+            return 1.0
+        try:
+            coh = float(meta.get("coherence", 0.0) or 0.0)
+        except Exception:
+            coh = 0.0
+        # map coherence in [0,1] to [0.8,1.2]
+        return 0.8 + 0.4 * max(0.0, min(1.0, coh))
+
+    def _base_graph_score_for_item(item: IndexItem, default_non_comm: float = 0.0) -> float:
+        if item.item_type.startswith("COMMUNITY"):
+            w_level = _community_level_weight(item.metadata)
+            w_coh = _community_coherence_weight(item.metadata)
+            return community_boost * w_level * w_coh
+        return default_non_comm
+
     # 2) Build initial candidate set
     candidates: Dict[str, RetrievalCandidate] = {}
+    id_to_index = {item.id: idx for idx, item in enumerate(index_items)}
     
     for idx in top_indices:
         item = index_items[idx]
         score = float(semantic_scores[idx])
         
+        base_graph_score = _base_graph_score_for_item(item, default_non_comm=0.0)
         candidates[item.id] = RetrievalCandidate(
             id=item.id,
             text=item.text,
             item_type=item.item_type,
             semantic_score=score,
-            graph_score=0.0,
-            hybrid_score=alpha * score,  # initially only semantic
+            graph_score=base_graph_score,
+            hybrid_score=alpha * score + beta * base_graph_score,
             metadata=item.metadata,
             retrieval_path="semantic"
         )
@@ -139,7 +179,7 @@ def search_and_expand(
     # 4) Add expanded items to candidates
     # Build mapping from id to index item
     id_to_item = {item.id: item for item in index_items}
-    
+
     for exp_id in expansion_set:
         if exp_id in candidates:
             # Already in candidates, boost graph score
@@ -149,16 +189,17 @@ def search_and_expand(
             if exp_id in id_to_item:
                 item = id_to_item[exp_id]
                 # Get semantic score (already computed if in index)
-                item_idx = next((i for i, it in enumerate(index_items) if it.id == exp_id), None)
+                item_idx = id_to_index.get(exp_id)
                 sem_score = float(semantic_scores[item_idx]) if item_idx is not None else 0.0
+                base_graph_score = _base_graph_score_for_item(item, default_non_comm=1.0)
                 
                 candidates[exp_id] = RetrievalCandidate(
                     id=item.id,
                     text=item.text,
                     item_type=item.item_type,
                     semantic_score=sem_score,
-                    graph_score=1.0,
-                    hybrid_score=alpha * sem_score + beta * 1.0,
+                    graph_score=base_graph_score,
+                    hybrid_score=alpha * sem_score + beta * base_graph_score,
                     metadata=item.metadata,
                     retrieval_path="expanded"
                 )
@@ -182,13 +223,51 @@ def search_and_expand(
     for cand in candidates.values():
         cand.hybrid_score = alpha * cand.semantic_score + beta * cand.graph_score
     
-    # 6) Sort by hybrid score and return top-k
+    # 6) Sort, filter by min score, and deduplicate similar texts
     sorted_candidates = sorted(candidates.values(), key=lambda c: c.hybrid_score, reverse=True)
-    
+
+    def _is_duplicate(text: str, kept: List[str], threshold: float) -> bool:
+        tokens = set(text.lower().split())
+        if not tokens:
+            return False
+        for other in kept:
+            other_tokens = set(other.lower().split())
+            if not other_tokens:
+                continue
+            overlap = len(tokens & other_tokens) / max(1, len(tokens | other_tokens))
+            if overlap >= threshold:
+                return True
+        return False
+
+    def _semantic_duplicate(cand: RetrievalCandidate, kept_candidates: List[RetrievalCandidate], threshold: float) -> bool:
+        if not kept_candidates:
+            return False
+        texts = [c.text for c in kept_candidates] + [cand.text]
+        embs = get_embeddings_with_cache(texts)
+        new_emb = embs[-1]
+        prev_embs = embs[:-1]
+        sims = compute_cosine_similarity(new_emb, prev_embs)
+        return float(np.max(sims)) >= threshold if len(sims) > 0 else False
+
+    final: List[RetrievalCandidate] = []
+    kept_texts: List[str] = []
+
+    for cand in sorted_candidates:
+        if cand.hybrid_score < min_hybrid_score:
+            continue
+        if _is_duplicate(cand.text, kept_texts, dedup_overlap_threshold):
+            continue
+        if _semantic_duplicate(cand, final, semantic_dedup_threshold):
+            continue
+        final.append(cand)
+        kept_texts.append(cand.text)
+        if len(final) >= top_k_final:
+            break
+
     if verbose:
-        print(f"[Hybrid Search] Returning top {top_k_final} candidates (from {len(sorted_candidates)} total)")
+        print(f"[Hybrid Search] Returning top {len(final)} candidates (from {len(sorted_candidates)} total)")
     
-    return sorted_candidates[:top_k_final]
+    return final
 
 
 def _get_entity_neighbors(graph: KnowledgeGraph, entity_id: str, hops: int = 1) -> Set[str]:

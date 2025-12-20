@@ -2,6 +2,7 @@
 
 import os
 from dataclasses import dataclass, field
+import logging
 from dotenv import load_dotenv
 from openai import OpenAI
 from sentence_transformers import SentenceTransformer
@@ -9,10 +10,12 @@ from typing import List, Dict, Set, Tuple
 import spacy
 from sklearn.cluster import AgglomerativeClustering
 import json
+import re
 import numpy as np
 from data_corpus import Entity, KGEdge, KnowledgeGraph, KGNode ,SentenceInfo
 import google.generativeai as genai
 from cache_utils import DiskJSONCache
+from itertools import combinations
 
 nlp = spacy.load("en_core_web_sm")
 
@@ -30,6 +33,82 @@ def get_emb_model() -> SentenceTransformer:
     if _EMB_MODEL is None:
         _EMB_MODEL = SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
     return _EMB_MODEL
+
+
+def _normalize_surface(surface: str) -> str:
+    doc = nlp(surface)
+    lemmas = [t.lemma_.lower() for t in doc if not t.is_stop and t.is_alpha]
+    base = " ".join(lemmas) or surface.lower()
+    base = re.sub(r"[^a-z0-9\s]", " ", base)
+    base = re.sub(r"\s+", " ", base)
+    return base.strip()
+
+
+def _find_acronym_pairs(text: str) -> Dict[str, str]:
+    """Return mapping of acronym -> longform for patterns like 'Long Form (LF)'"""
+    pairs: Dict[str, str] = {}
+    pattern = re.compile(r"([A-Za-z][A-Za-z\s]{3,})\s*\(([A-Z]{2,})\)")
+    for match in pattern.finditer(text):
+        long_form = match.group(1).strip()
+        acronym = match.group(2).strip()
+        pairs[acronym] = long_form
+    return pairs
+
+
+# -------------------------
+# Utilities
+# -------------------------
+def _strip_code_fences(s: str) -> str:
+    if not s:
+        return ""
+    s = s.strip()
+    if s.startswith("```"):
+        s = s.strip("`").strip()
+        if s.lower().startswith("json"):
+            s = s[4:].strip()
+    return s
+
+
+def _parse_json_safely(raw: str, default):
+    """Best-effort JSON parsing that tolerates fenced blocks and extra text.
+
+    - Strips triple backtick fences and leading 'json'
+    - Tries full parse
+    - Then tries to extract first top-level JSON object or array
+    - Returns `default` on failure
+    """
+    try:
+        cleaned = _strip_code_fences(raw)
+        if not cleaned:
+            return default
+        # First attempt: direct parse
+        return json.loads(cleaned)
+    except Exception:
+        pass
+
+    try:
+        cleaned = _strip_code_fences(raw)
+        # Try to find a JSON object
+        obj_start = cleaned.find("{")
+        obj_end = cleaned.rfind("}")
+        arr_start = cleaned.find("[")
+        arr_end = cleaned.rfind("]")
+
+        candidates = []
+        if obj_start != -1 and obj_end != -1 and obj_end > obj_start:
+            candidates.append(cleaned[obj_start:obj_end+1])
+        if arr_start != -1 and arr_end != -1 and arr_end > arr_start:
+            candidates.append(cleaned[arr_start:arr_end+1])
+
+        for cand in candidates:
+            try:
+                return json.loads(cand)
+            except Exception:
+                continue
+    except Exception:
+        pass
+
+    return default
 
 
 
@@ -80,19 +159,33 @@ def get_embeddings_with_cache(texts: List[str]) -> np.ndarray:
 
 def extract_candidate_phrases(text: str) -> List[str]:
     doc = nlp(text)
-    candidates: Set[str] = set()
+    candidates: Dict[str, str] = {}
+
+    acronym_map = _find_acronym_pairs(text)
+
+    def _try_add(raw: str):
+        cleaned = raw.strip()
+        if not cleaned or len(cleaned) > 80 or len(cleaned) < 2:
+            return
+        norm = _normalize_surface(cleaned)
+        if not norm:
+            return
+        candidates.setdefault(norm, cleaned)
 
     # Noun chunks
     for chunk in doc.noun_chunks:
-        phrase = chunk.text.strip()
-        if 2 <= len(phrase) <= 60:
-            candidates.add(phrase)
+        _try_add(chunk.text)
 
     # Named entities
     for ent in doc.ents:
-        candidates.add(ent.text.strip())
+        _try_add(ent.text)
 
-    return sorted(candidates)
+    # Acronym expansions
+    for acro, long_form in acronym_map.items():
+        _try_add(acro)
+        _try_add(long_form)
+
+    return sorted(set(candidates.values()))
 
 
 CLUSTER_LABEL_PROMPT = """
@@ -121,22 +214,45 @@ Return ONLY a single JSON object like:
 
 
 def label_cluster_with_llm(cluster_items: List[str]) -> Dict:
-    # Use gemini-2.0-flash which is the latest available model
-    model = genai.GenerativeModel("gemini-2.0-flash")
-    
+    """Label a surface-form cluster using Gemini.
+
+    Design choice: be *permissive* so we don't under-generate entities.
+    If the LLM call fails or returns malformed JSON, we treat the cluster
+    as an entity by default (is_entity=True).
+    """
+
     prompt = f"{CLUSTER_LABEL_PROMPT}\n\nCluster items:\n{json.dumps(cluster_items, ensure_ascii=False)}"
-    
-    response = model.generate_content(
-        prompt,
-        generation_config={"temperature": 0.1}
-    )
-    
-    raw = response.text.strip()
-    if raw.startswith("```"):
-        raw = raw.strip("`")
-        if raw.lower().startswith("json"):
-            raw = raw[4:]
-    data = json.loads(raw)
+
+    raw = ""
+    try:
+        # Use gemini-2.0-flash which is the latest available model
+        model = genai.GenerativeModel("gemini-2.0-flash")
+        response = model.generate_content(
+            prompt,
+            generation_config={"temperature": 0.1},
+        )
+        raw = getattr(response, "text", "") or ""
+    except Exception as exc:  # pragma: no cover - network / API issues
+        logging.warning("label_cluster_with_llm: LLM call failed: %s", exc)
+        raw = ""
+
+    # If parsing fails, default to treating the cluster as an entity
+    data = _parse_json_safely(raw, default={"is_entity": True})
+    if not isinstance(data, dict):
+        data = {"is_entity": True}
+
+    # Be generous: unless explicitly false, accept as entity
+    data.setdefault("is_entity", True)
+    if data["is_entity"] is False:
+        return {"is_entity": False}
+
+    # Ensure we always have a coarse label and canonical
+    label = data.get("label") or "ENTITY"
+    canon = data.get("canonical") or (cluster_items[0] if cluster_items else "")
+    canon = _normalize_surface(canon)
+
+    data["label"] = label
+    data["canonical"] = canon
     return data
 
 
@@ -145,8 +261,10 @@ def cluster_candidates(candidates: List[str], n_clusters: int = 5) -> Dict[int, 
         return {}
 
     embeddings = get_embeddings_with_cache(candidates)
+    # Use more clusters for larger candidate sets to avoid over-merging
+    desired_clusters = min(max(len(candidates) // 2, n_clusters), len(candidates))
     clustering = AgglomerativeClustering(
-        n_clusters=min(n_clusters, len(candidates))
+        n_clusters=desired_clusters
     )
     labels = clustering.fit_predict(embeddings)
 
@@ -174,17 +292,38 @@ def extract_semantic_entities_for_doc(doc_id: str, text: str) -> List[Entity]:
     """
     candidates = extract_candidate_phrases(text)
     clusters = cluster_candidates(candidates, n_clusters=6)
+    acronym_map = _find_acronym_pairs(text)
 
     all_entities: List[Entity] = []
 
+    # Helper to filter out obviously junk clusters (stopwords/numerics/one-char)
+    def _cluster_is_junk(items: List[str]) -> bool:
+        for s in items:
+            cleaned = _normalize_surface(s)
+            if not cleaned:
+                continue
+            # Skip purely numeric or single-character tokens
+            if cleaned.isdigit() or len(cleaned) <= 1:
+                continue
+            # Has some usable content
+            return False
+        return True
+
     for cluster_id, items in clusters.items():
-        meta = label_cluster_with_llm(items)
-        if not meta.get("is_entity", False):
+        if _cluster_is_junk(items):
             continue
 
-        canonical = meta.get("canonical") or items[0].lower().replace(" ", "_")
-        label = meta.get("label") or "ENTITY"
+        meta = label_cluster_with_llm(items)
+
+        is_entity = bool(meta.get("is_entity", True))
+        base_canonical = meta.get("canonical") or (items[0] if items else "")
+        base_canonical = _normalize_surface(acronym_map.get(base_canonical, base_canonical))
+        base_label = meta.get("label") or "ENTITY"
         desc = meta.get("description")
+
+        # If LLM says not an entity, still keep it as a DOMAIN node
+        if not is_entity:
+            base_label = "DOMAIN"
 
         for surface in items:
             start, end = find_span(text, surface)
@@ -193,13 +332,51 @@ def extract_semantic_entities_for_doc(doc_id: str, text: str) -> List[Entity]:
             all_entities.append(
                 Entity(
                     text=text[start:end],
-                    label=label,
+                    label=base_label,
                     start=start,
                     end=end,
                     source="embed_cluster_llm",
-                    canonical=canonical,
+                    canonical=base_canonical,
                     description=desc,
-                    context=text[max(0, start-50):min(len(text), end+50)],
+                    context=text[max(0, start-80):min(len(text), end+80)],
+                    doc_id=doc_id,
+                )
+            )
+
+    # --- Ensure minimum graph density per document ---
+    MIN_ENTITIES_PER_DOC = 10
+    if len(all_entities) < MIN_ENTITIES_PER_DOC:
+        doc = nlp(text)
+        freq: Dict[str, int] = {}
+        for chunk in doc.noun_chunks:
+            norm = _normalize_surface(chunk.text)
+            if not norm or norm.isdigit() or len(norm) <= 1:
+                continue
+            freq[norm] = freq.get(norm, 0) + 1
+
+        existing_canons = { _normalize_surface(e.canonical or e.text) for e in all_entities }
+
+        # Sort candidates by frequency descending
+        for norm, _count in sorted(freq.items(), key=lambda kv: kv[1], reverse=True):
+            if len(all_entities) >= MIN_ENTITIES_PER_DOC:
+                break
+            if norm in existing_canons:
+                continue
+
+            surface = norm
+            start, end = find_span(text, surface)
+            if start == -1:
+                continue
+            all_entities.append(
+                Entity(
+                    text=text[start:end],
+                    label="DOMAIN",
+                    start=start,
+                    end=end,
+                    source="auto_domain_promotion",
+                    canonical=norm,
+                    description=None,
+                    context=text[max(0, start-80):min(len(text), end+80)],
                     doc_id=doc_id,
                 )
             )
@@ -217,7 +394,7 @@ def build_entity_catalog(
 
     for doc_id, ents in all_entities_per_doc.items():
         for e in ents:
-            canon = (e.canonical or e.text.lower().strip())
+            canon = e.canonical or _normalize_surface(e.text)
             if canon not in catalog:
                 catalog[canon] = EntityCatalogEntry(
                     canonical=canon,
@@ -232,20 +409,70 @@ def build_entity_catalog(
     return catalog
 
 
+def merge_similar_catalog_entries(catalog: Dict[str, EntityCatalogEntry], similarity_threshold: float = 0.9) -> Dict[str, EntityCatalogEntry]:
+    """Merge catalog entries that are semantically close to reduce fragmentation."""
+    if not catalog:
+        return catalog
+
+    names = list(catalog.keys())
+    embeddings = get_embeddings_with_cache(names)
+    merged: Dict[str, EntityCatalogEntry] = {}
+    used: Set[int] = set()
+
+    for i, name in enumerate(names):
+        if i in used:
+            continue
+        base_entry = catalog[name]
+        base_vec = embeddings[i]
+        merged_aliases = set(base_entry.aliases)
+        merged_desc = set(base_entry.descriptions)
+        merged_sources = set(base_entry.sources)
+        merged_label = base_entry.label
+
+        for j in range(i + 1, len(names)):
+            if j in used:
+                continue
+            sim = float(np.dot(base_vec, embeddings[j]) / ((np.linalg.norm(base_vec) + 1e-9) * (np.linalg.norm(embeddings[j]) + 1e-9)))
+            if sim >= similarity_threshold:
+                other = catalog[names[j]]
+                merged_aliases |= other.aliases
+                merged_desc |= other.descriptions
+                merged_sources |= other.sources
+                used.add(j)
+
+        merged[name] = EntityCatalogEntry(
+            canonical=name,
+            label=merged_label,
+            aliases=merged_aliases,
+            descriptions=merged_desc,
+            sources=merged_sources,
+        )
+
+    return merged
+
+
 def add_entity_nodes(graph: KnowledgeGraph, catalog: Dict[str, EntityCatalogEntry]):
     for canon, entry in catalog.items():
         node_id = f"ent:{canon}"
+        node_label = "DOMAIN" if entry.label == "DOMAIN" else "ENTITY"
+        properties = {
+            "canonical": entry.canonical,
+            "type": entry.label,
+            "aliases": sorted(entry.aliases),
+            "descriptions": list(entry.descriptions),
+            "sources": list(entry.sources),
+        }
+        # Mark confidence lower for DOMAIN nodes that often come from promotion or non-entity clusters
+        if node_label == "DOMAIN":
+            properties["confidence"] = "low"
+        else:
+            properties["confidence"] = "high"
+
         graph.add_node(
             KGNode(
                 id=node_id,
-                label="ENTITY",
-                properties={
-                    "canonical": entry.canonical,
-                    "type": entry.label,
-                    "aliases": sorted(entry.aliases),
-                    "descriptions": list(entry.descriptions),
-                    "sources": list(entry.sources),
-                },
+                label=node_label,
+                properties=properties,
             )
         )
 
@@ -287,7 +514,12 @@ def add_mention_and_cooccurrence_edges(
                         source=ent_node_id,
                         target=sid,
                         type="MENTION_IN",
-                        properties={"surface": e.text, "doc_id": doc_id},
+                        properties={
+                            "surface": e.text,
+                            "doc_id": doc_id,
+                            "char_start": e.start,
+                            "char_end": e.end,
+                        },
                     )
                 )
                 entities_per_sentence.setdefault(sid, []).append((e, ent_node_id))
@@ -357,18 +589,27 @@ def extract_relations_for_sentence(
     
     prompt = f"{REL_EXTRACT_SYSTEM_PROMPT}\n\nExtract relations from:\n{json.dumps(user_payload, ensure_ascii=False)}"
 
-    response = model.generate_content(
-        prompt,
-        generation_config={"temperature": 0.1}
-    )
+    try:
+        response = model.generate_content(
+            prompt,
+            generation_config={"temperature": 0.1}
+        )
+        raw = getattr(response, "text", "") or ""
+    except Exception as exc:
+        logging.warning("extract_relations_for_sentence: LLM call failed: %s", exc)
+        raw = ""
 
-    raw = response.text.strip()
-    if raw.startswith("```"):
-        raw = raw.strip("`")
-        if raw.lower().startswith("json"):
-            raw = raw[4:]
-    data = json.loads(raw)
-    return data
+    data = _parse_json_safely(raw, default=[])
+    if not isinstance(data, list):
+        return []
+    # Optionally filter to ensure expected keys
+    cleaned: List[Dict] = []
+    for item in data:
+        if not isinstance(item, dict):
+            continue
+        if all(k in item for k in ("head", "relation", "tail")):
+            cleaned.append(item)
+    return cleaned
 
 def add_semantic_relation_edges(
     graph: KnowledgeGraph,

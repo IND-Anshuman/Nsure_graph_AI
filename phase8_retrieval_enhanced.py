@@ -9,7 +9,7 @@ Builds a unified index containing:
 - Document chunks (if present)
 """
 from __future__ import annotations
-from typing import List, Dict, Tuple, Any
+from typing import List, Dict, Tuple, Any, Callable
 from dataclasses import dataclass
 import numpy as np
 from data_corpus import KnowledgeGraph, KGNode
@@ -27,10 +27,16 @@ class IndexItem:
     metadata: Dict[str, Any]   # additional metadata (doc_id, level, canonical, etc.)
 
 
-def build_retrieval_index_enhanced(graph: KnowledgeGraph, 
-                                   context_window_tokens: int = 50,
-                                   include_entity_contexts: bool = True,
-                                   verbose: bool = True) -> Tuple[List[IndexItem], np.ndarray]:
+def build_retrieval_index_enhanced(
+    graph: KnowledgeGraph,
+    context_window_tokens: int = 50,
+    include_entity_contexts: bool = True,
+    chunk_size_words: int = 160,
+    chunk_overlap_words: int = 40,
+    min_sentence_chars: int = 25,
+    min_text_chars: int = 40,
+    verbose: bool = True,
+) -> Tuple[List[IndexItem], np.ndarray]:
     """
     Build a unified retrieval index from the knowledge graph.
     
@@ -53,24 +59,74 @@ def build_retrieval_index_enhanced(graph: KnowledgeGraph,
         Embedding matrix of shape [len(index_items), embedding_dim]
     """
     index_items: List[IndexItem] = []
+    seen_texts: set[str] = set()
+
+    def _normalize_text(t: str) -> str:
+        return " ".join(t.split()).strip().lower()
+
+    def _maybe_add(item: IndexItem) -> None:
+        norm = _normalize_text(item.text)
+        if len(norm) < min_text_chars:
+            return
+        if norm in seen_texts:
+            return
+        seen_texts.add(norm)
+        index_items.append(item)
+
+    def _chunk_text(doc_id: str, text: str) -> List[Tuple[str, str]]:
+        words = text.split()
+        chunks: List[Tuple[str, str]] = []
+        if not words:
+            return chunks
+        step = max(1, chunk_size_words - chunk_overlap_words)
+        for start in range(0, len(words), step):
+            end = min(len(words), start + chunk_size_words)
+            chunk_words = words[start:end]
+            if not chunk_words:
+                continue
+            chunk_text = " ".join(chunk_words)
+            chunk_id = f"chunk:{doc_id}:{start}-{end}"
+            chunks.append((chunk_id, chunk_text))
+            if end == len(words):
+                break
+        return chunks
     
-    # 1) Index SENTENCE nodes
+    # 0) Index DOCUMENT chunks (overlapping windows)
+    chunk_count = 0
+    for node_id, node in graph.nodes.items():
+        if node.label == "DOCUMENT":
+            doc_text = node.properties.get("text", "")
+            doc_id = node.properties.get("doc_id") or node_id.replace("doc:", "")
+            for chunk_id, chunk_text in _chunk_text(doc_id, doc_text):
+                _maybe_add(IndexItem(
+                    id=chunk_id,
+                    text=chunk_text,
+                    item_type="CHUNK",
+                    metadata={"doc_id": doc_id}
+                ))
+                chunk_count += 1
+
+    if verbose:
+        print(f"[Index] Added {chunk_count} CHUNK items")
+
+    # 1) Index SENTENCE nodes (filtering short/duplicate sentences)
     sentence_count = 0
     for node_id, node in graph.nodes.items():
         if node.label == "SENTENCE":
             text = node.properties.get("text", "")
-            if text:
-                index_items.append(IndexItem(
-                    id=node_id,
-                    text=text,
-                    item_type="SENTENCE",
-                    metadata={
-                        "doc_id": node.properties.get("doc_id"),
-                        "index": node.properties.get("index")
-                    }
-                ))
-                sentence_count += 1
-    
+            if not text or len(text.strip()) < min_sentence_chars:
+                continue
+            _maybe_add(IndexItem(
+                id=node_id,
+                text=text,
+                item_type="SENTENCE",
+                metadata={
+                    "doc_id": node.properties.get("doc_id"),
+                    "index": node.properties.get("index")
+                }
+            ))
+            sentence_count += 1
+
     if verbose:
         print(f"[Index] Added {sentence_count} SENTENCE nodes")
     
@@ -92,7 +148,7 @@ def build_retrieval_index_enhanced(graph: KnowledgeGraph,
             entity_text = ". ".join(str(p) for p in parts if p)
             
             if entity_text:
-                index_items.append(IndexItem(
+                _maybe_add(IndexItem(
                     id=node_id,
                     text=entity_text,
                     item_type="ENTITY",
@@ -146,7 +202,7 @@ def build_retrieval_index_enhanced(graph: KnowledgeGraph,
             entity_node = graph.nodes.get(entity_id)
             canonical = entity_node.properties.get("canonical", "") if entity_node else ""
             
-            index_items.append(IndexItem(
+            _maybe_add(IndexItem(
                 id=f"{entity_id}_ctx",
                 text=context_text,
                 item_type="ENTITY_CONTEXT",
@@ -166,24 +222,55 @@ def build_retrieval_index_enhanced(graph: KnowledgeGraph,
     for node_id, node in graph.nodes.items():
         if node.label == "COMMUNITY":
             # Use summary as primary text, fall back to title
-            summary = node.properties.get("summary")
+            summary = node.properties.get("summary") or node.properties.get("micro_summary")
+            micro = node.properties.get("micro_summary")
+            bullets = node.properties.get("extractive_bullets", [])
             title = node.properties.get("title")
             text = summary or title or ""
-            
+
+            level = node.properties.get("level")
+            coherence = node.properties.get("coherence")
+            comm_id = node.properties.get("comm_id")
+            members_count = node.properties.get("members_count")
+
+            base_meta = {
+                "level": level,
+                "comm_id": comm_id,
+                "members_count": members_count,
+                "title": title,
+                "sample_entities": node.properties.get("sample_entities", []),
+                "coherence": coherence,
+            }
+
             if text:
-                index_items.append(IndexItem(
+                _maybe_add(IndexItem(
                     id=node_id,
                     text=text,
                     item_type="COMMUNITY",
-                    metadata={
-                        "level": node.properties.get("level"),
-                        "comm_id": node.properties.get("comm_id"),
-                        "members_count": node.properties.get("members_count"),
-                        "title": title,
-                        "sample_entities": node.properties.get("sample_entities", [])
-                    }
+                    metadata=base_meta,
                 ))
                 community_count += 1
+
+            if micro:
+                meta_micro = dict(base_meta)
+                meta_micro.update({"base_id": node_id})
+                _maybe_add(IndexItem(
+                    id=f"{node_id}::micro",
+                    text=micro,
+                    item_type="COMMUNITY_MICRO",
+                    metadata=meta_micro,
+                ))
+
+            if bullets:
+                joined = " | ".join(str(b) for b in bullets)
+                meta_bullets = dict(base_meta)
+                meta_bullets.update({"base_id": node_id, "bullet_count": len(bullets)})
+                _maybe_add(IndexItem(
+                    id=f"{node_id}::bullets",
+                    text=joined,
+                    item_type="COMMUNITY_BULLETS",
+                    metadata=meta_bullets,
+                ))
     
     if verbose:
         print(f"[Index] Added {community_count} COMMUNITY nodes")

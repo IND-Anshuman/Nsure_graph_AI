@@ -143,6 +143,7 @@ def answer_query_with_hybrid_retrieval(
     synthesis_result = llm_synthesize_answer(
         query=query,
         evidence_candidates=ranked_candidates,
+        graph=graph,
         use_cache=True,
         verbose=verbose
     )

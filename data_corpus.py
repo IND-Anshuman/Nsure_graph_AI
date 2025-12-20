@@ -1,15 +1,17 @@
 #python -m spacy download en_core_web_sm
 from __future__ import annotations
 from dataclasses import dataclass, field
-from typing import List, Dict, Any, Optional, Tuple
+from typing import List, Dict, Any, Optional, Tuple, Set
 import os
 import io
 import re
 import pathlib
 import requests
+from requests import RequestException
 import pdfplumber
 import trafilatura
 import spacy
+from bs4 import BeautifulSoup
 from bs4 import BeautifulSoup
 
 nlp = spacy.load("en_core_web_sm")
@@ -55,6 +57,29 @@ class KnowledgeGraph:
         self.edges.append(edge)
 
 
+def prune_graph(graph: KnowledgeGraph, min_degree: int = 1, preserve_labels: Optional[Set[str]] = None) -> None:
+    """Remove orphan/low-degree nodes to keep the KG compact."""
+    preserve_labels = preserve_labels or set()
+    degree: Dict[str, int] = {}
+    for e in graph.edges:
+        degree[e.source] = degree.get(e.source, 0) + 1
+        degree[e.target] = degree.get(e.target, 0) + 1
+
+    to_remove = []
+    for node_id, node in graph.nodes.items():
+        if node.label in preserve_labels:
+            continue
+        if degree.get(node_id, 0) < min_degree:
+            to_remove.append(node_id)
+
+    if not to_remove:
+        return
+
+    for node_id in to_remove:
+        graph.nodes.pop(node_id, None)
+    graph.edges = [e for e in graph.edges if e.source not in to_remove and e.target not in to_remove]
+
+
 
 @dataclass
 class SentenceInfo:
@@ -74,6 +99,14 @@ def _clean_whitespace(text: str) -> str:
     text = re.sub(r"[ \t]+", " ", text)  # collapse spaces and tabs
     text = re.sub(r"\n{2,}", "\n\n", text)  # max 2 consecutive newlines
     return text.strip()
+
+
+def _normalize_text(text: str) -> str:
+    """Lowercase, collapse whitespace, strip punctuation for dedup checks."""
+    cleaned = _clean_whitespace(text).lower()
+    cleaned = re.sub(r"[^a-z0-9\s]", " ", cleaned)
+    cleaned = re.sub(r"\s+", " ", cleaned)
+    return cleaned.strip()
 
 
 # ---------- PDF EXTRACTION ----------
@@ -179,13 +212,89 @@ def build_corpus_from_sources(sources: List[str]) -> Dict[str, str]:
     """
     corpus: Dict[str, str] = {}
 
+    def _url_basename(u: str) -> str:
+        name = u.rstrip("/").split("/")[-1] or "index"
+        name = name.split("?")[0] or "index"
+        return name
+
+    def _find_cached_url_file(u: str) -> Optional[str]:
+        """Try to find a cached local copy for a URL.
+
+        Looks in:
+        - env KG_SOURCES_CACHE_DIR (if set)
+        - ./outputs
+        - current working directory
+        """
+        base = _url_basename(u)
+        # For safety, avoid creating directories implicitly here.
+        search_dirs: List[str] = []
+        cache_dir = os.getenv("KG_SOURCES_CACHE_DIR")
+        if cache_dir:
+            search_dirs.append(cache_dir)
+        search_dirs.append(os.path.join(os.getcwd(), "outputs"))
+        search_dirs.append(os.getcwd())
+
+        for d in search_dirs:
+            try:
+                candidate = os.path.join(d, base)
+            except Exception:
+                continue
+            if os.path.exists(candidate) and os.path.isfile(candidate):
+                return candidate
+        return None
+
+    def _maybe_cache_pdf_bytes(u: str, data: bytes) -> None:
+        """Best-effort cache of downloaded PDFs for offline reruns."""
+        try:
+            if not u.lower().endswith(".pdf"):
+                return
+            out_dir = os.getenv("KG_SOURCES_CACHE_DIR") or os.path.join(os.getcwd(), "outputs")
+            os.makedirs(out_dir, exist_ok=True)
+            filename = _url_basename(u)
+            path = os.path.join(out_dir, filename)
+            # Don't overwrite if already exists.
+            if os.path.exists(path):
+                return
+            with open(path, "wb") as f:
+                f.write(data)
+        except Exception:
+            # Cache failures should never fail ingestion.
+            return
+
     for src in sources:
         if _is_url(src):
-            text = _extract_text_from_url(src)
-            # Derive doc_id from URL path
-            name = src.rstrip("/").split("/")[-1] or "index"
-            name = name.split("?")[0] or "index"
+            # Derive doc_id from URL path early (also used by cache lookup).
+            name = _url_basename(src)
             doc_id = pathlib.Path(name).stem or "web_doc"
+
+            try:
+                # Special-case: if it's a PDF, fetch bytes so we can optionally cache them.
+                if src.lower().endswith(".pdf"):
+                    headers = {
+                        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+                    }
+                    resp = requests.get(src, timeout=30, headers=headers)
+                    resp.raise_for_status()
+                    _maybe_cache_pdf_bytes(src, resp.content)
+                    text = _extract_text_from_pdf_bytes(resp.content)
+                else:
+                    text = _extract_text_from_url(src)
+            except RequestException as e:
+                cached = _find_cached_url_file(src)
+                if cached and os.path.exists(cached):
+                    ext = pathlib.Path(cached).suffix.lower()
+                    if ext == ".pdf":
+                        text = _extract_text_from_pdf_file(cached)
+                    else:
+                        with open(cached, "r", encoding="utf-8", errors="ignore") as f:
+                            text = _clean_whitespace(f.read())
+                else:
+                    raise RuntimeError(
+                        "Failed to fetch URL source and no local cache was found. "
+                        f"URL: {src}\n"
+                        "To run offline, download the file and add it as a local path in main_pipeline.py sources, "
+                        "or place it in ./outputs (or set KG_SOURCES_CACHE_DIR)."
+                    ) from e
         else:
             # Local file
             path = os.path.abspath(src)
@@ -203,9 +312,36 @@ def build_corpus_from_sources(sources: List[str]) -> Dict[str, str]:
 
             doc_id = pathlib.Path(path).stem
 
-        corpus[doc_id] = text
+        corpus[doc_id] = _dedup_paragraphs(text)
 
     return corpus
+
+
+def _dedup_paragraphs(text: str, min_len: int = 60, overlap_threshold: float = 0.92) -> str:
+    """Remove near-duplicate paragraphs to reduce noisy edges."""
+    paragraphs = [p.strip() for p in text.split("\n\n") if p.strip()]
+    kept: List[str] = []
+    seen: List[Set[str]] = []
+
+    for p in paragraphs:
+        if len(p) < min_len:
+            continue
+        tokens = set(_normalize_text(p).split())
+        if not tokens:
+            continue
+        duplicate = False
+        for prev in seen:
+            overlap = len(tokens & prev) / max(1, len(tokens | prev))
+            if overlap >= overlap_threshold:
+                duplicate = True
+                break
+        if not duplicate:
+            kept.append(p)
+            seen.append(tokens)
+
+    if not kept:
+        return text
+    return "\n\n".join(kept)
 
 
 # ---------- SENTENCE SPLITTING (unchanged) ----------
@@ -213,6 +349,8 @@ def build_corpus_from_sources(sources: List[str]) -> Dict[str, str]:
 def add_document_and_sentence_nodes(
     graph: KnowledgeGraph,
     corpus: Dict[str, str],
+    min_sentence_chars: int = 25,
+    dedup_overlap_threshold: float = 0.9,
 ) -> Dict[str, SentenceInfo]:
     """
     Create DOCUMENT and SENTENCE nodes using spaCy sentence splitter.
@@ -231,14 +369,32 @@ def add_document_and_sentence_nodes(
             )
         )
 
+        seen_sentence_tokens: List[Set[str]] = []
+
         # Sentence nodes
         doc = nlp(text)
         for i, sent in enumerate(doc.sents):
+            cleaned_sent = sent.text.strip()
+            if len(cleaned_sent) < min_sentence_chars:
+                continue
+
+            tokens = set(_normalize_text(cleaned_sent).split())
+            if tokens:
+                duplicate = False
+                for prev in seen_sentence_tokens:
+                    overlap = len(tokens & prev) / max(1, len(tokens | prev))
+                    if overlap >= dedup_overlap_threshold:
+                        duplicate = True
+                        break
+                if duplicate:
+                    continue
+                seen_sentence_tokens.append(tokens)
+
             sent_id = f"sent:{doc_id}:{i}"
             sent_index[sent_id] = SentenceInfo(
                 sent_id=sent_id,
                 doc_id=doc_id,
-                text=sent.text,
+                text=cleaned_sent,
                 start_char=sent.start_char,
                 end_char=sent.end_char,
             )
@@ -249,8 +405,19 @@ def add_document_and_sentence_nodes(
                     properties={
                         "doc_id": doc_id,
                         "index": i,
-                        "text": sent.text,
+                        "text": cleaned_sent,
                     },
+                )
+            )
+
+            # Evidence edge back to document for traceability
+            graph.add_edge(
+                KGEdge(
+                    id=f"e:doc_sent:{doc_id}:{i}",
+                    source=doc_node_id,
+                    target=sent_id,
+                    type="HAS_SENTENCE",
+                    properties={"doc_id": doc_id, "index": i},
                 )
             )
 

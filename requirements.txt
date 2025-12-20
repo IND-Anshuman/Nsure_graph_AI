@@ -1,16 +1,33 @@
+# Core dependencies
 spacy
 pydantic
-openai
-fastapi
-uvicorn
-requests
 python-dotenv
+
+# LLM APIs
+openai
+google-generativeai
+
+# NLP & Embeddings
 sentence-transformers
 scikit-learn
+
+# Graph processing
 networkx
 python-louvain
-pdfplumber 
-trafilatura  
+
+# Text extraction
+pdfplumber
+trafilatura
 beautifulsoup4
+requests
+
+# Database (optional)
 neo4j
-google-generativeai
+
+# Web framework (optional)
+fastapi
+uvicorn
+
+# Additional utilities
+numpy
+tqdm
