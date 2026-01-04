@@ -4,57 +4,71 @@ LLM-grounded synthesis with evidence citation.
 Generates answers using only provided evidence and cites sources.
 """
 from __future__ import annotations
-from typing import List, Dict, Any, Tuple, Optional
+from typing import List, Dict, Any, Tuple, Optional, Set
 import json
 import os
-import google.generativeai as genai
-from openai import OpenAI
+import re
+try:
+    from openai import OpenAI  # type: ignore
+except Exception:  # pragma: no cover
+    OpenAI = None  # type: ignore
 from hybrid_search import RetrievalCandidate
 from data_corpus import KnowledgeGraph
 from cache_utils import DiskJSONCache
 
+from genai_compat import generate_text as genai_generate_text
 
-# Global cache for synthesis results
-_SYNTHESIS_CACHE = DiskJSONCache("cache_synthesis.json")
+
+# Global cache for synthesis results; bump version to invalidate stale results
+_SYNTHESIS_CACHE = DiskJSONCache("cache_synthesis_v3.json")
 
 
 SYNTHESIS_PROMPT = """
-You are an expert at answering questions using only provided evidence.
+You are an expert legal/constitutional analyst synthesizing answers from provided evidence.
+Your goal: provide a thorough, relationship-focused answer grounded in evidence.
 
-Evidence item fields:
-- id
-- type: "SENTENCE", "ENTITY_CONTEXT", "ENTITY", "COMMUNITY", "CHUNK", etc.
-- text
-- metadata
+Evidence item fields: id, type ("SENTENCE", "ENTITY_CONTEXT", "ENTITY", "COMMUNITY", etc.), text, metadata.
 
 CRITICAL RULES:
-1) Use ONLY the evidence below. No external knowledge.
-2) Answer concisely in <=120 words.
-3) Every claim must cite evidence IDs in square brackets immediately after the claim.
-4) Favor claims supported by >=2 evidence IDs when possible; otherwise cite the single strongest.
-5) If evidence is insufficient, say so explicitly and return a cautious answer.
-6) Prefer sentence-level evidence (type="SENTENCE" or "ENTITY_CONTEXT") as the primary basis for claims.
-7) Treat "COMMUNITY" or "CHUNK" items as secondary background; do not make claims that contradict the specific sentences.
-8) Output valid JSON only in the format below. No prose outside JSON.
+1) Ground EVERY claim strictly in the provided evidence. Zero external knowledge.
+2) SYNTHESIZE relationships, not just list facts.
+   - For relationship questions ("How does X empower Y?"): explain the mechanism, scope, and constraints.
+   - For balance/conflict questions: identify specific trade-offs and safeguards.
+   - For comparative questions ("How do A and B relate?"): describe dependencies, exceptions, and interactions.
+    - For interaction/override questions (e.g., exclusions vs statutory liability), you MUST describe the mechanics as steps:
+         (a) baseline rule/exclusion/exception,
+         (b) statutory/mandatory override trigger (what compels payment / what is overridden),
+         (c) consequence after override (e.g., recovery/reimbursement/right of recovery) IF evidenced.
+      IMPORTANT: "override" does not automatically mean "exclusion erased" — only say what the evidence supports.
+3) Answer in <=180 words with clear structure.
+4) Cite evidence IDs [id1, id2] immediately after each claim; prefer 2+ sources when possible.
+5) Highlight gaps in evidence; be explicit if answer is incomplete.
+6) Prefer sentence and entity-context evidence; use community/chunk summaries only as background.
+7) For constitutional/legal questions: identify relevant articles, their scope, and how they interact.
+8) Return strict JSON only; no prose outside JSON.
 
-Output JSON (no extra text):
+Style rules:
+- Avoid vague phrases like "trade-off" or "interplay" without specifying what fires, what is suspended, what survives, and what happens next.
+- Do not include irrelevant exceptions (e.g., war/nuclear) unless they directly connect to the asked interaction.
+
+Output JSON:
 {
-    "answer": "Concise answer with [evidence_id] citations",
+    "answer": "Synthesized answer with [id] citations; explain relationships and mechanisms",
     "used_evidence": ["id1", "id2", ...],
     "extracted_facts": [
-        {"fact": "Factual statement", "evidence_ids": ["id1", "id2"]},
+        {"fact": "Specific statement", "evidence_ids": ["id1", "id2"]},
         ...
     ],
     "confidence": "high|medium|low",
-    "insufficiency_note": "Optional explanation when evidence is insufficient"
+    "insufficiency_note": "Explain what evidence is missing or unclear"
 }
 
 Guidance:
-- Prefer specific, high-signal sentence or entity-context evidence; drop redundant items.
-- Avoid generic, high-level paraphrases that are not clearly anchored in the wording of the evidence.
-- If the evidence is mostly high-level community summaries, make this clear and lower confidence.
-- Keep style declarative and grounded; no hedging fillers.
-- 3–7 extracted facts are expected.
+- Answer relationship questions by explaining HOW and WHY, not just THAT.
+- Identify and explain exceptions, limitations, and safeguards.
+- Aggregate evidence across multiple sources to build a coherent picture.
+- If evidence contradicts or is sparse, state this clearly.
+- 4–8 extracted facts are expected for substantive questions.
 """
 
 
@@ -68,7 +82,7 @@ def _sort_evidence_by_type_and_score(evidence_candidates: List[RetrievalCandidat
 
     def _type_priority(t: str) -> int:
         t = (t or "").upper()
-        if t in {"SENTENCE", "ENTITY_CONTEXT"}:
+        if t in {"SENTENCE", "ENTITY_CONTEXT", "RELATION"}:
             return 0
         if t == "ENTITY":
             return 1
@@ -102,15 +116,14 @@ def _call_llm_with_fallback(prompt: str,
 
     if os.getenv("GOOGLE_API_KEY"):
         try:
-            model = genai.GenerativeModel(prefer_model)
-            resp = model.generate_content(prompt, generation_config={"temperature": temperature})
-            return resp.text.strip(), "google", prefer_model
+            text = genai_generate_text(prefer_model, prompt, temperature=temperature)
+            return (text or "").strip(), "google", prefer_model
         except Exception as e:
             last_error = e
             if verbose:
                 print(f"[Synthesis] Gemini failed, will try OpenAI fallback: {e}")
 
-    if os.getenv("OPENAI_API_KEY"):
+    if os.getenv("OPENAI_API_KEY") and OpenAI is not None:
         try:
             client = OpenAI()
             resp = client.chat.completions.create(
@@ -173,6 +186,68 @@ def _safe_float(x: Any, default: float = 0.0) -> float:
         return float(x)
     except Exception:
         return default
+
+
+def _expand_letter_range(a: str, b: str) -> List[str]:
+    a = (a or "").strip().lower()
+    b = (b or "").strip().lower()
+    if not a or not b or len(a) != 1 or len(b) != 1:
+        return []
+    if not a.isalpha() or not b.isalpha():
+        return []
+    start = ord(a)
+    end = ord(b)
+    if start > end:
+        start, end = end, start
+    return [chr(c) for c in range(start, end + 1)]
+
+
+def _query_article_node_ids(query: str) -> Set[str]:
+    """Extract article node ids from the query (art:3, art:31a, ...)."""
+    q = query or ""
+    ids: Set[str] = set()
+
+    for m in re.finditer(r"\bArticle\s+(\d{1,3})([A-Za-z]?)\b", q, flags=re.IGNORECASE):
+        num = m.group(1)
+        suf = (m.group(2) or "").lower()
+        ids.add(f"art:{num}{suf}")
+
+    for m in re.finditer(r"\b(\d{1,3})([A-Za-z])\s*[\u2013\u2014\-]\s*(\d{1,3})([A-Za-z])\b", q):
+        n1, a1, n2, a2 = m.group(1), m.group(2), m.group(3), m.group(4)
+        if n1 == n2:
+            for letter in _expand_letter_range(a1, a2):
+                ids.add(f"art:{n1}{letter}")
+        else:
+            ids.add(f"art:{n1}{a1.lower()}")
+            ids.add(f"art:{n2}{a2.lower()}")
+
+    return ids
+
+
+def _required_relation_types_for_query(query: str) -> Set[str]:
+    q = (query or "").lower()
+    req: Set[str] = set()
+
+    if "article 3" in q and ("safeguard" in q or "views" in q or "consider" in q or "recommend" in q or "consult" in q):
+        req |= {"REQUIRES_RECOMMENDATION_FROM", "REQUIRES_CONSULTATION_WITH", "CONSIDERS_VIEWS_OF"}
+
+    if "article 13" in q and ("31a" in q or "31b" in q or "31c" in q or "31a" in q.replace(" ", "")):
+        req |= {"OVERRIDES", "SAVES_LAWS_FROM_INVALIDATION", "SUBJECT_TO", "LIMITS"}
+
+    return req
+
+
+def _graph_has_required_relations(graph: KnowledgeGraph, node_ids: Set[str], required_types: Set[str]) -> Tuple[bool, Dict[str, int]]:
+    if not graph or not node_ids or not required_types:
+        return True, {}
+    counts: Dict[str, int] = {t: 0 for t in required_types}
+    for e in graph.edges:
+        if e.type not in required_types:
+            continue
+        if e.source in node_ids or e.target in node_ids:
+            counts[e.type] = counts.get(e.type, 0) + 1
+    ok = all(counts.get(t, 0) > 0 for t in required_types)
+    return ok, counts
 
 
 def _community_ids_from_evidence(evidence_candidates: List[RetrievalCandidate], top_k: int) -> List[str]:
@@ -335,8 +410,8 @@ def llm_synthesize_answer(
     fallback_openai_model: str = "gpt-4o-mini",
     temperature: float = 0.2,
     evidence_only: bool = False,
-    max_evidence_only: int = 8,
-    max_evidence_chars: int = 650,
+    max_evidence_only: int = 20,  # increased from 8 to capture more nuanced relationships
+    max_evidence_chars: int = 1200,  # increased from 650 for richer legal context
     keep_metadata_keys: Optional[List[str]] = None,
     use_cache: bool = True,
     verbose: bool = False
@@ -410,6 +485,7 @@ def llm_synthesize_answer(
     # Make cache key order-insensitive: evidence ordering can vary slightly due to upstream ranking.
     evidence_ids_sorted = sorted(evidence_ids)
     cache_key = DiskJSONCache.hash_key(
+            "synth_v5",
         query,
         json.dumps(evidence_ids_sorted, ensure_ascii=False),
         model_name,
@@ -498,6 +574,27 @@ def llm_synthesize_answer(
             "confidence": confidence,
             "insufficiency_note": insufficiency_note
         }
+
+        # Post-check: if question requires graph relations but KG lacks them, downgrade.
+        try:
+            if graph is not None:
+                node_ids = _query_article_node_ids(query)
+                required_types = _required_relation_types_for_query(query)
+                ok, counts = _graph_has_required_relations(graph, node_ids, required_types)
+                if not ok:
+                    synthesis_result["confidence"] = "low"
+                    missing = [t for t in sorted(required_types) if counts.get(t, 0) <= 0]
+                    note_bits = []
+                    note_bits.append("Graph lacks required legal relation edges for this question")
+                    if missing:
+                        note_bits.append("missing=" + ",".join(missing))
+                    if node_ids:
+                        note_bits.append("entities=" + ",".join(sorted(node_ids)))
+                    extra = "; ".join(note_bits)
+                    prior = synthesis_result.get("insufficiency_note")
+                    synthesis_result["insufficiency_note"] = (str(prior) + " | " + extra) if prior else extra
+        except Exception:
+            pass
         
         # Cache result
         if use_cache:

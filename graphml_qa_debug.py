@@ -321,9 +321,9 @@ def _call_planner_llm(prompt: str, *, prefer_model: str, fallback_model: str, te
     last_error = None
     if os.getenv("GOOGLE_API_KEY"):
         try:
-            model = genai.GenerativeModel(prefer_model)
-            resp = model.generate_content(prompt, generation_config={"temperature": temperature})
-            return (resp.text or "").strip()
+            from genai_compat import generate_text as genai_generate_text
+
+            return (genai_generate_text(prefer_model, prompt, temperature=temperature) or "").strip()
         except Exception as e:
             last_error = e
             if verbose:

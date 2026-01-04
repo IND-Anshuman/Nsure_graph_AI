@@ -211,7 +211,7 @@ class CompleteKnowledgeGraphPipeline:
             # Detect multi-level communities
             community_results = compute_multilevel_communities(
                 self.kg,
-                max_levels=2,
+                max_levels=None,
                 min_comm_size=1,
                 verbose=True,
             )

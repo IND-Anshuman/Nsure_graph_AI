@@ -5,12 +5,14 @@ Builds a unified index containing:
 - Sentences
 - Entities (canonical + first alias + first description)
 - Entity context windows (40-60 tokens around mentions)
+- Provision context windows (multi-sentence windows for Article/Section-like entities)
 - Community summaries (all levels)
 - Document chunks (if present)
 """
 from __future__ import annotations
-from typing import List, Dict, Tuple, Any, Callable
+from typing import List, Dict, Tuple, Any
 from dataclasses import dataclass
+import re
 import numpy as np
 from data_corpus import KnowledgeGraph, KGNode
 from embedding_cache import get_embeddings_with_cache
@@ -23,7 +25,7 @@ class IndexItem:
     """
     id: str                    # unique identifier (e.g., "sent:doc1:5", "ent:neo4j", "comm_l0:3")
     text: str                  # text to embed and search
-    item_type: str             # "SENTENCE", "ENTITY", "ENTITY_CONTEXT", "COMMUNITY", "CHUNK"
+    item_type: str             # "SENTENCE", "ENTITY", "ENTITY_CONTEXT", "PROVISION_CONTEXT", "COMMUNITY", "CHUNK"
     metadata: Dict[str, Any]   # additional metadata (doc_id, level, canonical, etc.)
 
 
@@ -31,6 +33,8 @@ def build_retrieval_index_enhanced(
     graph: KnowledgeGraph,
     context_window_tokens: int = 50,
     include_entity_contexts: bool = True,
+    include_provision_contexts: bool = True,
+    provision_window_sentences: int = 3,
     chunk_size_words: int = 160,
     chunk_overlap_words: int = 40,
     min_sentence_chars: int = 25,
@@ -48,6 +52,8 @@ def build_retrieval_index_enhanced(
         Number of tokens (approx) to include around entity mentions
     include_entity_contexts : bool
         Whether to include entity context windows in the index
+    include_provision_contexts : bool
+        Whether to include provision (Article/Section) multi-sentence context windows in the index
     verbose : bool
         Whether to print progress
     
@@ -61,16 +67,30 @@ def build_retrieval_index_enhanced(
     index_items: List[IndexItem] = []
     seen_texts: set[str] = set()
 
+    _PROVISION_CANON_RE = re.compile(r"\b(article|articles|section|sections)\s+\d+[a-z]?\b", re.IGNORECASE)
+
     def _normalize_text(t: str) -> str:
         return " ".join(t.split()).strip().lower()
 
+    def _min_chars_for_item(item: IndexItem) -> int:
+        # Legal corpora need very short ENTITY items (e.g., 'article 3', 'article 31a').
+        if item.item_type == "ENTITY":
+            return 6
+        if item.item_type == "RELATION":
+            return 12
+        if item.item_type == "COMMUNITY_MICRO":
+            return max(20, min_text_chars)
+        return min_text_chars
+
     def _maybe_add(item: IndexItem) -> None:
         norm = _normalize_text(item.text)
-        if len(norm) < min_text_chars:
+        if len(norm) < _min_chars_for_item(item):
             return
-        if norm in seen_texts:
-            return
-        seen_texts.add(norm)
+        # Dedup by text for long items; keep anchor items even if text overlaps.
+        if item.item_type not in {"ENTITY", "PROVISION_CONTEXT"}:
+            if norm in seen_texts:
+                return
+            seen_texts.add(norm)
         index_items.append(item)
 
     def _chunk_text(doc_id: str, text: str) -> List[Tuple[str, str]]:
@@ -162,6 +182,71 @@ def build_retrieval_index_enhanced(
     
     if verbose:
         print(f"[Index] Added {entity_count} ENTITY nodes")
+
+    # 2b) Index typed relation edges as text facts (structured evidence)
+    relation_count = 0
+    try:
+        from relation_schema import load_relation_schema, relation_edge_types_for_retrieval
+
+        legal_like = set(relation_edge_types_for_retrieval(load_relation_schema()))
+        # Keep PART_OF as relation evidence when present in the KG.
+        legal_like.add("PART_OF")
+    except Exception:
+        legal_like = {
+            "DEFINES",
+            "PROVIDES_FOR",
+            "EMPOWERS",
+            "REQUIRES",
+            "REQUIRES_RECOMMENDATION_FROM",
+            "REQUIRES_CONSULTATION_WITH",
+            "PROHIBITS",
+            "LIMITS",
+            "AMENDS",
+            "SUBJECT_TO",
+            "NOTWITHSTANDING",
+            "EXCEPTS",
+            "APPLIES_TO",
+            "BALANCES_WITH",
+            "CONSIDERS_VIEWS_OF",
+            "PROCEDURE_FOR",
+            "INTERPRETS",
+            "RELATED_TO",
+            "OVERRIDES",
+            "SAVES_LAWS_FROM_INVALIDATION",
+            "PART_OF",
+        }
+
+    for edge in graph.edges:
+        if edge.type not in legal_like:
+            continue
+        src = graph.nodes.get(edge.source)
+        tgt = graph.nodes.get(edge.target)
+        if not src or not tgt:
+            continue
+        if src.label != "ENTITY" or tgt.label != "ENTITY":
+            continue
+        sc = str(src.properties.get("canonical") or edge.source)
+        tc = str(tgt.properties.get("canonical") or edge.target)
+        sent_id = (edge.properties or {}).get("sentence_id")
+        rel_text = f"{sc} {edge.type} {tc}."
+        _maybe_add(IndexItem(
+            id=f"rel:{edge.id}",
+            text=rel_text,
+            item_type="RELATION",
+            metadata={
+                "edge_type": edge.type,
+                "source": edge.source,
+                "target": edge.target,
+                "source_canonical": sc,
+                "target_canonical": tc,
+                "sentence_id": sent_id,
+                "confidence": (edge.properties or {}).get("confidence"),
+            },
+        ))
+        relation_count += 1
+
+    if verbose:
+        print(f"[Index] Added {relation_count} RELATION items")
     
     # 3) Index ENTITY context windows (40-60 tokens around mentions)
     context_count = 0
@@ -216,6 +301,93 @@ def build_retrieval_index_enhanced(
     
     if verbose:
         print(f"[Index] Added {context_count} ENTITY_CONTEXT items")
+
+    # 3b) Index PROVISION context windows (multi-sentence windows around legal provision mentions)
+    provision_context_count = 0
+    if include_provision_contexts:
+        # Build quick lookup for sentence nodes by doc_id and index
+        doc_sent_by_index: Dict[str, Dict[int, Tuple[str, str]]] = {}
+        for node_id, node in graph.nodes.items():
+            if node.label != "SENTENCE":
+                continue
+            doc_id = node.properties.get("doc_id")
+            idx = node.properties.get("index")
+            text = node.properties.get("text", "")
+            # GraphML exports can stringify ints; accept digit strings.
+            if isinstance(idx, str) and idx.isdigit():
+                try:
+                    idx = int(idx)
+                except Exception:
+                    pass
+            if doc_id is None or idx is None or not isinstance(idx, int) or not text:
+                continue
+            doc_sent_by_index.setdefault(str(doc_id), {})[idx] = (node_id, text)
+
+        # Reuse entity_mentions computed above if available; otherwise compute it here.
+        try:
+            entity_mentions  # type: ignore[name-defined]
+        except NameError:
+            entity_mentions = {}
+            for edge in graph.edges:
+                if edge.type == "MENTION_IN":
+                    entity_mentions.setdefault(edge.source, []).append(edge.target)
+
+        for entity_id, sent_ids in entity_mentions.items():
+            entity_node = graph.nodes.get(entity_id)
+            if not entity_node or entity_node.label != "ENTITY":
+                continue
+
+            canonical = str(entity_node.properties.get("canonical", "") or "")
+            etype = entity_node.properties.get("type")
+            is_provision = (etype == "PROVISION") or bool(_PROVISION_CANON_RE.search(canonical))
+            if not is_provision:
+                continue
+
+            # Group mentions by document, then build a +/-N sentence window union.
+            doc_to_mention_idxs: Dict[str, List[int]] = {}
+            for sent_id in sent_ids:
+                sent_node = graph.nodes.get(sent_id)
+                if not sent_node:
+                    continue
+                doc_id = sent_node.properties.get("doc_id")
+                idx = sent_node.properties.get("index")
+                if doc_id is None or idx is None or not isinstance(idx, int):
+                    continue
+                doc_to_mention_idxs.setdefault(str(doc_id), []).append(idx)
+
+            for doc_id, mention_idxs in doc_to_mention_idxs.items():
+                sent_map = doc_sent_by_index.get(doc_id)
+                if not sent_map:
+                    continue
+                window_idxs: set[int] = set()
+                for mi in mention_idxs:
+                    for j in range(mi - provision_window_sentences, mi + provision_window_sentences + 1):
+                        if j in sent_map:
+                            window_idxs.add(j)
+                if not window_idxs:
+                    continue
+
+                ordered = sorted(window_idxs)
+                texts = [sent_map[i][1] for i in ordered]
+                context_text = " ".join(texts)
+
+                _maybe_add(IndexItem(
+                    id=f"{entity_id}::provctx:{doc_id}:{ordered[0]}-{ordered[-1]}",
+                    text=context_text,
+                    item_type="PROVISION_CONTEXT",
+                    metadata={
+                        "entity_id": entity_id,
+                        "canonical": canonical,
+                        "type": etype,
+                        "doc_id": doc_id,
+                        "mention_sentence_indexes": sorted(set(int(x) for x in mention_idxs)),
+                        "window_sentence_indexes": ordered,
+                    },
+                ))
+                provision_context_count += 1
+
+    if verbose:
+        print(f"[Index] Added {provision_context_count} PROVISION_CONTEXT items")
     
     # 4) Index COMMUNITY summaries (all levels)
     community_count = 0

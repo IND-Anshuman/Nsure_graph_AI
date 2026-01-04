@@ -2,11 +2,11 @@
 # -*- coding: utf-8 -*-
 from dotenv import load_dotenv
 from typing import Dict, List
-import google.generativeai as genai
 from data_corpus import KnowledgeGraph, Entity, prune_graph
 import os
 import argparse
 from pathlib import Path
+from concurrent.futures import ThreadPoolExecutor, as_completed
 # ---- pipeline phases ----
 from data_corpus import (
     build_corpus_from_sources,
@@ -16,12 +16,10 @@ from ner import extract_semantic_entities_for_doc
 from ner import build_entity_catalog, add_entity_nodes
 from ner import merge_similar_catalog_entries
 from ner import add_mention_and_cooccurrence_edges
+from ner import add_semantic_relation_edges
 from Community_processing import (
     compute_multilevel_communities,
     build_and_add_community_nodes,
-    build_retrieval_index,
-    search_relevant_nodes,
-    extract_typed_semantic_relations,
     classify_query,
     multi_hop_traversal,
     handle_abstention,
@@ -36,9 +34,11 @@ from llm_synthesis import llm_synthesize_answer, format_answer_output
 # ---- new persistence modules ----
 from graph_save import save_kg_to_graphml
 from graph_save import export_to_neo4j
+from kg_validate import validate_graph
+from relation_schema import load_relation_schema, community_edge_types_from_schema
 
 load_dotenv()
-genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
+
 
 
 def run_pipeline(queries: List[str] | None = None, verbose: bool = False):
@@ -51,7 +51,9 @@ def run_pipeline(queries: List[str] | None = None, verbose: bool = False):
         # "docs/my_paper.pdf",
         # "https://arxiv.org/pdf/2305.12345.pdf",
         # "https://some-blog-post.com/llm-graphrag",
-        "https://www.ijrti.org/papers/IJRTI2304061.pdf"
+        #"https://hcmimphal.nic.in/documents/constitutionofindiaacts.pdf"
+        #"https://www.ijrti.org/papers/IJRTI2304061.pdf"
+        "./IRDAN144RP0003V02201819_GEN3615.pdf"
     ]
     if not sources:
         # Fallback tiny demo text if no sources given
@@ -74,19 +76,40 @@ def run_pipeline(queries: List[str] | None = None, verbose: bool = False):
 
     # ========= Phase 2: AI-based entity discovery =========
     all_entities_per_doc: Dict[str, List[Entity]] = {}
-    for doc_id, text in corpus.items():
+    doc_workers = int(os.getenv("KG_DOC_WORKERS", "0") or 0)
+    if doc_workers <= 0:
+        # Good default for mostly-CPU regex + some I/O; keep modest to avoid oversubscription.
+        doc_workers = min(8, (os.cpu_count() or 4))
+
+    if len(corpus) <= 1 or doc_workers <= 1:
+        for doc_id, text in corpus.items():
+            if verbose:
+                print(f"[Phase 2] Extracting entities for doc: {doc_id}")
+            ents = extract_semantic_entities_for_doc(doc_id, text)
+            all_entities_per_doc[doc_id] = ents
+            if verbose:
+                print(f"  -> found {len(ents)} entities")
+    else:
         if verbose:
-            print(f"[Phase 2] Extracting entities for doc: {doc_id}")
-        ents = extract_semantic_entities_for_doc(doc_id, text)
-        all_entities_per_doc[doc_id] = ents
-        if verbose:
-            print(f"  -> found {len(ents)} entities")
+            print(f"[Phase 2] Extracting entities in parallel (workers={doc_workers})")
+        with ThreadPoolExecutor(max_workers=doc_workers) as ex:
+            futs = {ex.submit(extract_semantic_entities_for_doc, doc_id, text): doc_id for doc_id, text in corpus.items()}
+            for fut in as_completed(futs):
+                doc_id = futs[fut]
+                if verbose:
+                    print(f"[Phase 2] Completed entities for doc: {doc_id}")
+                ents = fut.result()
+                all_entities_per_doc[doc_id] = ents
+                if verbose:
+                    print(f"  -> found {len(ents)} entities")
 
     # ========= Phase 3: catalog + ENTITY nodes =========
     if verbose:
         print("[Phase 3] Building entity catalog & nodes...")
     catalog = build_entity_catalog(all_entities_per_doc)
-    catalog = merge_similar_catalog_entries(catalog)
+    if (os.getenv("KG_DISABLE_ENTITY_MERGE", "0") or "0").strip() != "1":
+        merge_thr = float(os.getenv("KG_ENTITY_MERGE_THRESHOLD", "0.99") or 0.99)
+        catalog = merge_similar_catalog_entries(catalog, similarity_threshold=merge_thr)
     add_entity_nodes(graph, catalog)
     if verbose:
         print(f"  -> catalog size: {len(catalog)} entities")
@@ -100,30 +123,28 @@ def run_pipeline(queries: List[str] | None = None, verbose: bool = False):
 
     # ========= Phase 5: semantic relation edges =========
     if verbose:
-        print("[Phase 5] Extracting typed semantic relations (rules + LLM fallback)...")
-    created_edges = extract_typed_semantic_relations(graph, all_entities_per_doc, sent_index, use_llm=True)
+        print("[Phase 5] Extracting typed semantic relations (legal-aware LLM)...")
+    created_edges = add_semantic_relation_edges(graph, all_entities_per_doc, sent_index)
     if verbose:
         print(f"  -> created {len(created_edges)} typed semantic edges; total edges now: {len(graph.edges)}")
 
     # ========= Phase 6: community detection =========
     if verbose:
         print("[Phase 6] Detecting entity communities...")
+    # Safer defaults to avoid community explosion; override via env if needed.
+    min_comm_size = int(os.getenv("KG_COMMUNITY_MIN_SIZE", "5") or 5)
+    max_levels_env = (os.getenv("KG_COMMUNITY_MAX_LEVELS", "") or "").strip().lower()
+    max_levels = None
+    if max_levels_env:
+        try:
+            max_levels = int(max_levels_env)
+        except Exception:
+            max_levels = None
     community_results = compute_multilevel_communities(
         graph,
-        max_levels=2,
-        min_comm_size=1,
-        edge_types=[
-            "CO_OCCURS_WITH",
-            "USED_WITH",
-            "DEPLOYS_ON",
-            "PROPOSED",
-            "EVALUATED_ON",
-            "APPLIED_IN",
-            "ENABLES",
-            "IMPROVES",
-            "CAUSES",
-            "SUBDOMAIN_OF",
-        ],
+        max_levels=max_levels,
+        min_comm_size=min_comm_size,
+        edge_types=community_edge_types_from_schema(load_relation_schema()),
         verbose=verbose,
     )
 
@@ -154,22 +175,8 @@ def run_pipeline(queries: List[str] | None = None, verbose: bool = False):
         # Default single demo query if none provided
         if not queries:
             queries = [
-                
-            "Q1. What major application areas of Artificial Intelligence are discussed in the paper?"
-            "Q2. According to the knowledge-graph structure built from the paper, how are AI application domains grouped into related communities?"
-            "Q3. Which specific medical fields are mentioned in the paper where AI is applied, and what roles does AI play in those fields?"
-            "Q4. How does the paper define Natural Language Processing (NLP), and what problem does it aim to solve?"
-            "Q5. What real-world systems mentioned in the paper demonstrate the use of NLP, and what is their practical impact?"
-            "Q6. How is Artificial Intelligence applied in the finance sector according to the paper?"
-            "Q7. What roles does AI play in agriculture as described in the paper?"
-            "Q8. Compare the use of AI in healthcare and finance as discussed in the paper."
-            "Q9. What relationships between Artificial Intelligence and its application domains can be inferred from the paper?"
-            "Q10. What challenges and limitations of deploying AI systems in real-world environments are discussed in the paper?"
-            "Q11. What areas of research and innovation related to AI are highlighted in the paper?"
-            "Q12. Which AI application domain appears most emphasized in the paper, based on frequency and detail?"
-            
-                
-            ]
+                "Which clauses should be modeled as terminal “no-coverage” nodes in the knowledge graph?"
+                ]
 
         all_summaries = []
         for i, query in enumerate(queries, start=1):
@@ -260,7 +267,14 @@ def run_pipeline(queries: List[str] | None = None, verbose: bool = False):
                 # For how/why queries, add multi-hop traversal evidence to explanation
                 if qtype == "howwhy":
                     # pick top entity ids from ranked candidates
-                    top_entity_ids = [c.get("id") for c in ranked if c.get("item_type") == "ENTITY"][:6]
+                    top_entity_ids = [
+                        (c.get("id") if isinstance(c, dict) else getattr(c, "id", None))
+                        for c in ranked
+                        if (
+                            (c.get("item_type") if isinstance(c, dict) else getattr(c, "item_type", None))
+                            == "ENTITY"
+                        )
+                    ][:6]
                     traversal = []
                     if top_entity_ids:
                         traversal = multi_hop_traversal(graph, top_entity_ids, hops=3)
@@ -283,15 +297,30 @@ def run_pipeline(queries: List[str] | None = None, verbose: bool = False):
     # ========= Graph maintenance =========
     prune_graph(graph, min_degree=1, preserve_labels={"DOCUMENT", "SENTENCE", "COMMUNITY"})
 
+    # ========= Integrity checks =========
+    try:
+        dangling, missing_refs, bad_member, bad_partof = validate_graph(graph)
+        if verbose:
+            print(
+                f"[Validate] dangling_edges={dangling} missing_refs={missing_refs} "
+                f"bad_MEMBER_OF={bad_member} bad_PART_OF={bad_partof}"
+            )
+    except Exception as e:
+        if verbose:
+            print(f"[Validate] skipped due to error: {e}")
+
     # ========= Simple graph statistics =========
     entity_count = sum(1 for n in graph.nodes.values() if n.label == "ENTITY")
     community_count = sum(1 for n in graph.nodes.values() if n.label == "COMMUNITY")
     cooccur_edges = sum(1 for e in graph.edges if e.type == "CO_OCCURS_WITH")
-    typed_rel_edges = sum(
-        1
-        for e in graph.edges
-        if e.type in {"APPLIED_IN", "ENABLES", "IMPROVES", "CAUSES", "SUBDOMAIN_OF"}
-    )
+    non_typed = {
+        "MENTION_IN",
+        "CO_OCCURS_WITH",
+        "HAS_SENTENCE",
+        "MEMBER_OF",
+        "PART_OF",
+    }
+    typed_rel_edges = sum(1 for e in graph.edges if e.type not in non_typed)
 
     if verbose:
         print("\n[Stats] ENTITY nodes:", entity_count)
@@ -309,8 +338,9 @@ def run_pipeline(queries: List[str] | None = None, verbose: bool = False):
 
     # 2) Neo4j (optional - only if you have Neo4j running)
     # Update credentials in .env or skip if Neo4j is not available
-    import os
-    neo4j_uri = os.getenv("NEO4J_URI", "neo4j://127.0.0.1:7687")
+
+    # For local single-instance Neo4j, bolt:// is typically correct.
+    neo4j_uri = os.getenv("NEO4J_URI", "bolt://127.0.0.1:7687")
     neo4j_user = os.getenv("NEO4J_USER", "neo4j")
     neo4j_password = os.getenv("NEO4J_PASSWORD")
     

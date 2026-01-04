@@ -6,7 +6,7 @@ python-dotenv
 # LLM APIs
 openai
 google-generativeai
-
+google-genai
 # NLP & Embeddings
 sentence-transformers
 scikit-learn
@@ -14,6 +14,8 @@ scikit-learn
 # Graph processing
 networkx
 python-louvain
+igraph
+leidenalg
 
 # Text extraction
 pdfplumber

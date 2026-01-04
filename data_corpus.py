@@ -6,15 +6,39 @@ import os
 import io
 import re
 import pathlib
-import requests
-from requests import RequestException
-import pdfplumber
-import trafilatura
-import spacy
-from bs4 import BeautifulSoup
-from bs4 import BeautifulSoup
+try:
+    import requests  # type: ignore
+    from requests import RequestException  # type: ignore
+except Exception:  # pragma: no cover
+    requests = None  # type: ignore
+    RequestException = Exception  # type: ignore
 
-nlp = spacy.load("en_core_web_sm")
+try:
+    import pdfplumber  # type: ignore
+except Exception:  # pragma: no cover
+    pdfplumber = None  # type: ignore
+
+try:
+    import trafilatura  # type: ignore
+except Exception:  # pragma: no cover
+    trafilatura = None  # type: ignore
+
+try:
+    import spacy  # type: ignore
+except Exception:  # pragma: no cover
+    spacy = None  # type: ignore
+
+try:
+    from bs4 import BeautifulSoup  # type: ignore
+except Exception:  # pragma: no cover
+    BeautifulSoup = None  # type: ignore
+
+nlp = None
+if spacy is not None:
+    try:
+        nlp = spacy.load("en_core_web_sm")
+    except Exception:
+        nlp = None
 
 
 
@@ -112,6 +136,8 @@ def _normalize_text(text: str) -> str:
 # ---------- PDF EXTRACTION ----------
 
 def _extract_text_from_pdf_bytes(data: bytes) -> str:
+    if pdfplumber is None:
+        raise RuntimeError("pdfplumber is required for PDF ingestion. Install requirements.txt.")
     with pdfplumber.open(io.BytesIO(data)) as pdf:
         pages_text = []
         for page in pdf.pages:
@@ -134,6 +160,8 @@ def _extract_text_with_trafilatura(url: str, html: str | None = None) -> str | N
     Try trafilatura's main-content extractor.
     If html is given, use it; otherwise trafilatura will fetch.
     """
+    if trafilatura is None:
+        return None
     if html is None:
         downloaded = trafilatura.fetch_url(url)
         if not downloaded:
@@ -150,6 +178,8 @@ def _extract_text_from_html_fallback(html: str) -> str:
     """
     If trafilatura fails, use a simple BeautifulSoup fallback.
     """
+    if BeautifulSoup is None:
+        raise RuntimeError("beautifulsoup4 is required for HTML fallback extraction. Install requirements.txt.")
     soup = BeautifulSoup(html, "html.parser")
 
     # Remove script/style
@@ -161,6 +191,8 @@ def _extract_text_from_html_fallback(html: str) -> str:
 
 
 def _extract_text_from_url(url: str) -> str:
+    if requests is None:
+        raise RuntimeError("requests is required for URL ingestion. Install requirements.txt.")
     # Add User-Agent to avoid 403 Forbidden errors
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
@@ -358,8 +390,19 @@ def add_document_and_sentence_nodes(
     """
     sent_index: Dict[str, SentenceInfo] = {}
 
-    for doc_id, text in corpus.items():
-        # Document node
+    if nlp is None:
+        raise RuntimeError(
+            "spaCy model 'en_core_web_sm' is required for sentence splitting. "
+            "Run: python -m spacy download en_core_web_sm"
+        )
+
+    spacy_n_process = int(os.getenv("KG_SPACY_N_PROCESS", "1") or 1)
+    spacy_batch_size = int(os.getenv("KG_SPACY_BATCH_SIZE", "0") or 0)
+
+    items = list(corpus.items())
+
+    # Create document nodes first so sentence insertion can be streamed.
+    for doc_id, text in items:
         doc_node_id = f"doc:{doc_id}"
         graph.add_node(
             KGNode(
@@ -369,14 +412,43 @@ def add_document_and_sentence_nodes(
             )
         )
 
+    # Use nlp.pipe only when explicitly enabled and there are multiple documents.
+    use_pipe = spacy_n_process > 1 and len(items) > 1
+    if use_pipe:
+        pipe_kwargs = {"n_process": spacy_n_process}
+        if spacy_batch_size and spacy_batch_size > 0:
+            pipe_kwargs["batch_size"] = spacy_batch_size
+        spacy_docs = nlp.pipe((text for _, text in items), **pipe_kwargs)
+    else:
+        spacy_docs = (nlp(text) for _, text in items)
+
+    for (doc_id, _text), doc in zip(items, spacy_docs):
+        doc_node_id = f"doc:{doc_id}"
         seen_sentence_tokens: List[Set[str]] = []
 
         # Sentence nodes
-        doc = nlp(text)
         for i, sent in enumerate(doc.sents):
             cleaned_sent = sent.text.strip()
             if len(cleaned_sent) < min_sentence_chars:
-                continue
+                # Some legal PDFs encode provision headings as extremely short
+                # sentences (e.g., "3." or "31A.") which are critical anchors
+                # for PROVISION mentions and PROVISION_CONTEXT windows.
+                keep_short = False
+
+                # Bare numbered heading at line start: 3. / 3.— / 31A.
+                if re.match(r"^\s*\d{1,3}[A-Za-z]?\s*[\.\u2013\u2014\-]{1,2}\s*$", cleaned_sent):
+                    keep_short = True
+
+                # Explicit legal citation without surrounding text: Article 3
+                if not keep_short and re.match(
+                    r"^\s*(?:Article|Section|Clause|Chapter|Part|Schedule|Rule|Regulation)\s+\d+[A-Za-z]?(?:\([0-9A-Za-z]+\))*\s*$",
+                    cleaned_sent,
+                    flags=re.IGNORECASE,
+                ):
+                    keep_short = True
+
+                if not keep_short:
+                    continue
 
             tokens = set(_normalize_text(cleaned_sent).split())
             if tokens:

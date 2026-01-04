@@ -4,20 +4,35 @@ LLM-based reranking of retrieval candidates.
 Uses an LLM to rank candidates by relevance to the query with caching.
 """
 from __future__ import annotations
-from typing import List, Dict, Any, Tuple
+from typing import List, Dict, Any, Tuple, Optional, TYPE_CHECKING
 import json
 import os
-import google.generativeai as genai
-from openai import OpenAI
+
+from genai_compat import generate_text as genai_generate_text, is_available as genai_is_available
+
+try:
+    from openai import OpenAI  # type: ignore
+except Exception:
+    OpenAI = None  # type: ignore
+
 from hybrid_search import RetrievalCandidate
 from cache_utils import DiskJSONCache
-from sentence_transformers import CrossEncoder
+
+try:
+    from sentence_transformers import CrossEncoder as _CrossEncoderRuntime  # type: ignore
+except Exception:
+    _CrossEncoderRuntime = None  # type: ignore
+
+if TYPE_CHECKING:
+    from sentence_transformers import CrossEncoder as CrossEncoder  # type: ignore
+else:
+    CrossEncoder = Any  # type: ignore
 
 
 # Global cache for reranking results
-_RERANK_CACHE = DiskJSONCache("cache_reranking.json")
-_CROSS_ENCODER: CrossEncoder | None = None
-_CROSS_ENCODER_NAME: str | None = None
+_RERANK_CACHE = DiskJSONCache("cache_reranking_v3.json")
+_CROSS_ENCODER: Optional[CrossEncoder] = None
+_CROSS_ENCODER_NAME: Optional[str] = None
 
 
 RERANK_PROMPT = """
@@ -52,10 +67,52 @@ Output JSON only (no prose):
 """
 
 
+def _safe_float(x: Any, default: float = 0.0) -> float:
+    try:
+        if x is None:
+            return default
+        return float(x)
+    except Exception:
+        return default
+
+
+def _extract_json_text(raw: str) -> str:
+    raw = (raw or "").strip()
+
+    # Handle fenced blocks like ```json ... ```
+    if raw.startswith("```"):
+        lines = raw.splitlines()
+        if len(lines) >= 2 and lines[0].strip().startswith("```"):
+            lines = lines[1:]
+        if lines and lines[-1].strip() == "```":
+            lines = lines[:-1]
+        raw = "\n".join(lines).strip()
+        if raw.lower().startswith("json"):
+            raw = raw[4:].strip()
+
+    # If there's extra text, try to extract the first JSON object
+    start = raw.find("{")
+    end = raw.rfind("}")
+    if start != -1 and end != -1 and end > start:
+        return raw[start : end + 1].strip()
+
+    return raw
+
+
+def _hybrid_rank(candidates: List[RetrievalCandidate]) -> List[RetrievalCandidate]:
+    return sorted(
+        candidates,
+        key=lambda c: _safe_float(getattr(c, "hybrid_score", 0.0), 0.0),
+        reverse=True,
+    )
+
+
 def _get_cross_encoder(model_name: str) -> CrossEncoder:
     global _CROSS_ENCODER, _CROSS_ENCODER_NAME
+    if _CrossEncoderRuntime is None:
+        raise RuntimeError("sentence-transformers is not installed (CrossEncoder unavailable)")
     if _CROSS_ENCODER is None or _CROSS_ENCODER_NAME != model_name:
-        _CROSS_ENCODER = CrossEncoder(model_name, device="cpu")
+        _CROSS_ENCODER = _CrossEncoderRuntime(model_name, device="cpu")
         _CROSS_ENCODER_NAME = model_name
     return _CROSS_ENCODER
 
@@ -82,17 +139,18 @@ def _call_llm_with_fallback(prompt: str,
     """
     last_error = None
 
-    if os.getenv("GOOGLE_API_KEY"):
+    google_key = os.getenv("GOOGLE_API_KEY")
+    if google_key and genai_is_available():
         try:
-            model = genai.GenerativeModel(prefer_model)
-            resp = model.generate_content(prompt, generation_config={"temperature": temperature})
-            return resp.text.strip(), "google", prefer_model
+            text = genai_generate_text(prefer_model, prompt, temperature=temperature)
+            return (text or "").strip(), "google", prefer_model
         except Exception as e:
             last_error = e
             if verbose:
                 print(f"[Rerank] Gemini failed, will try OpenAI fallback: {e}")
 
-    if os.getenv("OPENAI_API_KEY"):
+    openai_key = os.getenv("OPENAI_API_KEY")
+    if openai_key and OpenAI is not None:
         try:
             client = OpenAI()
             resp = client.chat.completions.create(
@@ -103,7 +161,7 @@ def _call_llm_with_fallback(prompt: str,
                 ],
                 temperature=temperature,
             )
-            return resp.choices[0].message.content.strip(), "openai", fallback_model
+            return (resp.choices[0].message.content or "").strip(), "openai", fallback_model
         except Exception as e:
             last_error = e
             if verbose:
@@ -166,77 +224,37 @@ def llm_rerank_candidates(
 
     # Fast path: no LLM calls.
     if mode == "none":
-        ranked = sorted(candidates, key=lambda c: float(getattr(c, "hybrid_score", 0.0) or 0.0), reverse=True)
-        ranked = ranked[:top_k]
+        ranked = _hybrid_rank(candidates)[:top_k]
         return {
             "ranked_candidates": ranked,
             "ranked_evidence_ids": [c.id for c in ranked],
             "rationale": "No rerank (hybrid_score order)"
         }
 
-        if not candidates:
-            return {
-                "ranked_candidates": [],
-                "ranked_evidence_ids": [],
-                "rationale": "No candidates provided"
-            }
-
-        mode = (rerank_mode or "llm").strip().lower()
-        if mode not in {"llm", "cross", "none"}:
-            mode = "llm"
-
-        # Fast path: no LLM calls.
-        if mode == "none":
-            ranked = sorted(candidates, key=lambda c: float(getattr(c, "hybrid_score", 0.0) or 0.0), reverse=True)
-            ranked = ranked[:top_k]
+    if mode == "cross":
+        try:
+            ranked = _score_with_cross_encoder(query, candidates, cross_encoder_model, top_k)
             return {
                 "ranked_candidates": ranked,
                 "ranked_evidence_ids": [c.id for c in ranked],
-                "rationale": "No rerank (hybrid_score order)"
-            }
-
-        if mode == "cross":
-            try:
-                ranked = _score_with_cross_encoder(query, candidates, cross_encoder_model, top_k)
-                return {
-                    "ranked_candidates": ranked,
-                    "ranked_evidence_ids": [c.id for c in ranked],
-                    "rationale": "Cross-encoder rerank (no LLM)"
-                }
-            except Exception as e:
-                if verbose:
-                    print(f"[Rerank] Cross-only mode failed, falling back to no rerank: {e}")
-                ranked = sorted(candidates, key=lambda c: float(getattr(c, "hybrid_score", 0.0) or 0.0), reverse=True)[:top_k]
-                return {
-                    "ranked_candidates": ranked,
-                    "ranked_evidence_ids": [c.id for c in ranked],
-                    "rationale": "Cross-only failed; used hybrid_score order"
-                }
                 "rationale": "Cross-encoder rerank (no LLM)"
             }
-        candidate_ids = [c.id for c in candidates]
-        # Make cache key order-insensitive: candidate ordering can vary slightly due to dedup/expansion.
-        candidate_ids_sorted = sorted(candidate_ids)
-        cache_key = DiskJSONCache.hash_key(
-            query,
-            json.dumps(candidate_ids_sorted, ensure_ascii=False),
-            model_name,
-            fallback_openai_model,
-            cross_encoder_model if use_cross_encoder else "no_cross",
-        )
+        except Exception as e:
+            if verbose:
                 print(f"[Rerank] Cross-only mode failed, falling back to no rerank: {e}")
-            ranked = sorted(candidates, key=lambda c: float(getattr(c, "hybrid_score", 0.0) or 0.0), reverse=True)[:top_k]
+            ranked = _hybrid_rank(candidates)[:top_k]
             return {
                 "ranked_candidates": ranked,
                 "ranked_evidence_ids": [c.id for c in ranked],
                 "rationale": "Cross-only failed; used hybrid_score order"
             }
-    
-    # Build cache key
-    candidate_ids = [c.id for c in candidates]
+
+    # Build cache key (LLM mode)
+    candidate_ids = sorted([c.id for c in candidates])
     cache_key = DiskJSONCache.hash_key(
+        "rerank_v4",
         query,
-        json.dumps(candidate_ids, sort_keys=True),
+        json.dumps(candidate_ids, ensure_ascii=False),
         "mode=llm",
         model_name,
         fallback_openai_model,
@@ -246,16 +264,24 @@ def llm_rerank_candidates(
     # Check cache
     if use_cache:
         cached = _RERANK_CACHE.get(cache_key)
-        if cached:
+        if isinstance(cached, dict) and cached.get("ranked_evidence_ids"):
             if verbose:
                 print("[Rerank] Using cached reranking result")
             # Reconstruct ranked candidates from cached ids
+            cached_ids = cached.get("ranked_evidence_ids", [])
+            # Ensure we still return a full top_k (cached results may be from older runs).
+            seen = set()
+            cached_ids = [cid for cid in cached_ids if isinstance(cid, str) and not (cid in seen or seen.add(cid))]
+            if len(cached_ids) < top_k:
+                filler = [c.id for c in _hybrid_rank(candidates) if c.id not in set(cached_ids)]
+                cached_ids.extend(filler[: max(0, top_k - len(cached_ids))])
+            cached_ids = cached_ids[:top_k]
             id_to_cand = {c.id: c for c in candidates}
-            ranked_cands = [id_to_cand[cid] for cid in cached["ranked_evidence_ids"] if cid in id_to_cand]
+            ranked_cands = [id_to_cand[cid] for cid in cached_ids if cid in id_to_cand]
             return {
                 "ranked_candidates": ranked_cands,
-                "ranked_evidence_ids": cached["ranked_evidence_ids"],
-                "rationale": cached["rationale"]
+                "ranked_evidence_ids": cached_ids,
+                "rationale": cached.get("rationale", "")
             }
     
     # Stage 1: cross-encoder rerank to trim candidate list
@@ -276,11 +302,11 @@ def llm_rerank_candidates(
     for i, cand in enumerate(stage1_list):
         evidence_items.append({
             "id": cand.id,
-            "type": cand.item_type,
-            "text": cand.text[:500],  # Limit text length to avoid token overflow
-            "semantic_score": round(cand.semantic_score, 3),
-            "graph_score": round(cand.graph_score, 3),
-            "cross_score": round(getattr(cand, "cross_score", 0.0), 3),
+            "type": getattr(cand, "item_type", None),
+            "text": (getattr(cand, "text", "") or "")[:500],  # Limit text length to avoid token overflow
+            "semantic_score": round(_safe_float(getattr(cand, "semantic_score", 0.0), 0.0), 3),
+            "graph_score": round(_safe_float(getattr(cand, "graph_score", 0.0), 0.0), 3),
+            "cross_score": round(_safe_float(getattr(cand, "cross_score", 0.0), 0.0), 3),
         })
     
     # Build prompt
@@ -304,24 +330,28 @@ def llm_rerank_candidates(
             verbose=verbose,
         )
         
-        # Strip markdown fences if present
-        if raw.startswith("```"):
-            raw = raw.strip("`").strip()
-            if raw.lower().startswith("json"):
-                raw = raw[4:].strip()
-        
+        raw = _extract_json_text(raw)
         result = json.loads(raw)
         
         # Validate result
         ranked_ids = result.get("ranked_evidence_ids", [])
         rationale = result.get("rationale", "")
 
+        # Normalize: unique, preserve order, keep only strings
+        seen = set()
+        ranked_ids = [rid for rid in ranked_ids if isinstance(rid, str) and not (rid in seen or seen.add(rid))]
+
+        # If model returns too few ids, fill deterministically from hybrid order
+        if len(ranked_ids) < top_k:
+            filler = [c.id for c in _hybrid_rank(candidates) if c.id not in set(ranked_ids)]
+            ranked_ids.extend(filler[: max(0, top_k - len(ranked_ids))])
+
         # Limit to top_k
         ranked_ids = ranked_ids[:top_k]
 
         # Fallback if model returned nothing
         if not ranked_ids:
-            fallback_ids = [c.id for c in candidates[:top_k]]
+            fallback_ids = [c.id for c in _hybrid_rank(candidates)[:top_k]]
             if verbose:
                 print("[Rerank] No ranked ids returned by LLM; falling back to hybrid order")
             ranked_ids = fallback_ids
@@ -360,6 +390,7 @@ def llm_rerank_candidates(
         
         # Fallback: return original order (by hybrid score)
         base_list = stage1_list if stage1_list else candidates
+        base_list = _hybrid_rank(base_list)
         fallback_ids = [c.id for c in base_list[:top_k]]
         return {
             "ranked_candidates": base_list[:top_k],

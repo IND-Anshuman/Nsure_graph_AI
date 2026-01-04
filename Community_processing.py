@@ -3,10 +3,24 @@ from __future__ import annotations
 from typing import Dict, List, Tuple, Set, Optional, Any
 from dataclasses import dataclass
 import networkx as nx
-import community as community_louvain  # python-louvain
+try:
+    import community as community_louvain  # type: ignore  # python-louvain
+except Exception:  # pragma: no cover
+    community_louvain = None  # type: ignore
 import json
 import numpy as np
+import os
 from embedding_cache import get_embeddings_with_cache
+
+# Optional: Leiden community detection (recommended for more stable, well-connected clusters)
+try:
+    import igraph as ig  # type: ignore
+    import leidenalg  # type: ignore
+except Exception:  # pragma: no cover - optional dependency
+    ig = None  # type: ignore
+    leidenalg = None  # type: ignore
+
+from genai_compat import generate_text as genai_generate_text
 
 try:
     import google.generativeai as genai  # type: ignore
@@ -30,9 +44,131 @@ except Exception:
 @dataclass
 class CommunityLevelResult:
     level: int
-    partition: Dict[str, int]              # node_id -> community_id
-    supergraph: nx.Graph                   # collapsed graph for this level (community nodes)
-    community_nodes: Dict[int, List[str]]  # community_id -> list of member node_ids
+    partition: Dict[str, int]                 # node_id (current level) -> community_id
+    supergraph: nx.Graph                      # collapsed graph; nodes are community node ids (comm_l{level}:{id})
+    community_nodes: Dict[int, List[str]]     # community_id -> list of member node_ids (current-level ids)
+    origin_members: Dict[int, List[str]]      # community_id -> list of original entity ids
+    modularity: Optional[float] = None
+    n_nodes: int = 0
+    n_communities: int = 0
+
+
+def _community_node_id(level: int, comm_id: int) -> str:
+    return f"comm_l{level}:{comm_id}"
+
+
+def _compute_entity_importance(entity_G: nx.Graph, seed: int = 0) -> Dict[str, float]:
+    """Compute a stable importance score per entity id.
+
+    Uses exact betweenness for small graphs, approximate betweenness for medium graphs,
+    and PageRank fallback for larger graphs.
+    """
+    n = entity_G.number_of_nodes()
+    if n == 0:
+        return {}
+
+    try:
+        if n <= 250:
+            return nx.betweenness_centrality(entity_G, normalized=True, weight="weight")
+        if n <= 2000:
+            k = min(250, n)
+            return nx.betweenness_centrality(entity_G, normalized=True, weight="weight", k=k, seed=seed)
+        return nx.pagerank(entity_G, weight="weight")
+    except Exception:
+        try:
+            return nx.pagerank(entity_G, weight="weight")
+        except Exception:
+            return {str(nid): 0.0 for nid in entity_G.nodes}
+
+
+def _reassign_small_communities(
+    G: nx.Graph,
+    partition: Dict[str, int],
+    min_comm_size: int,
+) -> Dict[str, int]:
+    """Merge communities smaller than min_comm_size into the best neighboring community.
+
+    This avoids creating singleton negative IDs which breaks hierarchy collapsing.
+    """
+    if min_comm_size <= 1:
+        return partition
+
+    # Build comm -> members
+    comm_members: Dict[int, List[str]] = {}
+    for node, comm in partition.items():
+        comm_members.setdefault(comm, []).append(node)
+
+    small_comms = {cid for cid, members in comm_members.items() if len(members) < min_comm_size}
+    if not small_comms:
+        return partition
+
+    new_partition = dict(partition)
+
+    for small_cid in small_comms:
+        members = comm_members.get(small_cid, [])
+        for node in members:
+            # Choose neighbor community with max total edge weight
+            best_comm: Optional[int] = None
+            best_w = 0.0
+            for neigh in G.neighbors(node):
+                neigh_comm = new_partition.get(neigh)
+                if neigh_comm is None or neigh_comm == small_cid:
+                    continue
+                w = float(G[node][neigh].get("weight", 1.0))
+                if w > best_w:
+                    best_w = w
+                    best_comm = neigh_comm
+            if best_comm is not None:
+                new_partition[node] = best_comm
+
+    return new_partition
+
+
+def _collapse_with_provenance(
+    G: nx.Graph,
+    partition: Dict[str, int],
+    level: int,
+    node_origin_members: Dict[str, Set[str]],
+) -> Tuple[nx.Graph, Dict[int, List[str]], Dict[int, List[str]]]:
+    """Collapse G into a supergraph whose nodes are community node ids.
+
+    Returns:
+      - supergraph H (nodes are comm_l{level}:{comm_id})
+      - community_nodes: comm_id -> list of member node ids (from G)
+      - origin_members: comm_id -> list of original entity ids
+    """
+    H = nx.Graph()
+
+    community_nodes: Dict[int, List[str]] = {}
+    for node, comm in partition.items():
+        community_nodes.setdefault(comm, []).append(node)
+
+    origin_members: Dict[int, List[str]] = {}
+    for comm_id, members in community_nodes.items():
+        origin: Set[str] = set()
+        for m in members:
+            origin |= node_origin_members.get(m, set())
+        origin_members[comm_id] = sorted(origin)
+        cid = _community_node_id(level, int(comm_id))
+        H.add_node(cid, members=list(members), origin_members=origin, internal_weight=0.0)
+
+    for u, v, data in G.edges(data=True):
+        cu = partition.get(u)
+        cv = partition.get(v)
+        if cu is None or cv is None:
+            continue
+        su = _community_node_id(level, int(cu))
+        sv = _community_node_id(level, int(cv))
+        w = float(data.get("weight", 1.0))
+        if su == sv:
+            H.nodes[su]["internal_weight"] = float(H.nodes[su].get("internal_weight", 0.0)) + w
+            continue
+        if H.has_edge(su, sv):
+            H[su][sv]["weight"] += w
+        else:
+            H.add_edge(su, sv, weight=w)
+
+    return H, community_nodes, origin_members
 
 
 # -------------------------
@@ -45,84 +181,225 @@ def _build_entity_graph(graph: KnowledgeGraph,
     edge_types: list of KGEdge.type to include as links (default uses CO_OCCURS_WITH and semantic edges)
     """
     if edge_types is None:
-        edge_types = [
-            "CO_OCCURS_WITH",
-            "USED_WITH",
-            "PROPOSED",
-            "EVALUATED_ON",
-            "DEPLOYS_ON",
-            # typed semantic relations from extract_typed_semantic_relations
-            "APPLIED_IN",
-            "ENABLES",
-            "IMPROVES",
-            "CAUSES",
-            "SUBDOMAIN_OF",
-        ]
+        # Prefer a single source of truth if provided.
+        try:
+            from relation_schema import load_relation_schema, community_edge_types_from_schema
+
+            edge_types = community_edge_types_from_schema(load_relation_schema())
+        except Exception:
+            edge_types = [
+                "CO_OCCURS_WITH",
+                "USED_WITH",
+                "PROPOSED",
+                "EVALUATED_ON",
+                "DEPLOYS_ON",
+                # typed semantic relations
+                "APPLIED_IN",
+                "ENABLES",
+                "IMPROVES",
+                "CAUSES",
+                "SUBDOMAIN_OF",
+            ]
+
+    include_domain = os.getenv("KG_COMMUNITY_INCLUDE_DOMAIN", "0") == "1"
+    min_edge_weight = float(os.getenv("KG_COMMUNITY_MIN_EDGE_WEIGHT", "0.0") or 0.0)
 
     G = nx.Graph()
-    # add entity and domain nodes
+    # Prefer ENTITY nodes; DOMAIN nodes tend to fragment and create singleton communities.
+    allowed_labels = {"ENTITY"} | ({"DOMAIN"} if include_domain else set())
     for node_id, node in graph.nodes.items():
-        if node.label in {"ENTITY", "DOMAIN"}:
+        if node.label in allowed_labels:
             G.add_node(node_id)
 
     # add edges with weight aggregation
+    # Heuristic:
+    # - CO_OCCURS_WITH: use computed weight/count if present
+    # - typed relations: use confidence if present
     for e in graph.edges:
-        if e.type in edge_types and e.source in G.nodes and e.target in G.nodes:
-            if G.has_edge(e.source, e.target):
-                G[e.source][e.target]["weight"] += float(e.properties.get("weight", 1.0))
-            else:
-                G.add_edge(e.source, e.target, weight=float(e.properties.get("weight", 1.0)))
+        if e.type not in edge_types:
+            continue
+        if e.source not in G.nodes or e.target not in G.nodes:
+            continue
+
+        props = e.properties or {}
+        if e.type == "CO_OCCURS_WITH":
+            w = float(props.get("weight", 0.0) or 0.0)
+            if w <= 0.0:
+                # fall back to count if weight wasn't computed
+                w = float(props.get("count", 1) or 1.0)
+        else:
+            # typed relation edge
+            w = float(props.get("confidence", 1.0) or 1.0)
+
+        # Filter extremely weak edges to reduce singleton communities.
+        if w < min_edge_weight:
+            continue
+
+        if G.has_edge(e.source, e.target):
+            G[e.source][e.target]["weight"] += w
+        else:
+            G.add_edge(e.source, e.target, weight=w)
+
+    # Hub downweighting: legal/finance corpora have generic hubs (e.g., insurer/insured/policy)
+    # that can collapse communities into one blob. This rebalances clustering without dropping nodes.
+    if (os.getenv("KG_COMMUNITY_HUB_DOWNWEIGHT", "1") or "1").strip() != "0" and G.number_of_nodes() > 0:
+        try:
+            deg_map = dict(G.degree(weight="weight"))
+            deg_vals = [float(v) for v in deg_map.values() if float(v) > 0.0]
+            if deg_vals:
+                pctl = float(os.getenv("KG_COMMUNITY_HUB_DEGREE_PCTL", "0.98") or 0.98)
+                pctl = min(0.999, max(0.5, pctl))
+                thr = float(np.quantile(np.array(deg_vals, dtype=np.float64), pctl))
+                penalty = float(os.getenv("KG_COMMUNITY_HUB_PENALTY", "0.2") or 0.2)
+                penalty = min(1.0, max(0.01, penalty))
+                hubs = {n for n, d in deg_map.items() if float(d) >= thr and float(d) > 0.0}
+                if hubs:
+                    for u, v, data in G.edges(data=True):
+                        if u in hubs or v in hubs:
+                            data["weight"] = float(data.get("weight", 1.0) or 1.0) * penalty
+        except Exception:
+            pass
 
     return G
 
 
-# -------------------------
-# Collapse graph helper
-# -------------------------
-def _collapse_graph_by_partition(G: nx.Graph, partition: Dict[str, int]) -> nx.Graph:
-    """
-    Collapse G nodes into supernodes based on partition {node: community}.
-    Resulting graph nodes are community ids as strings (e.g., 'c:42'), edges aggregated with weights.
-    """
-    H = nx.Graph()
-    # Build mapping community -> members
-    comm_members: Dict[int, List[str]] = {}
-    for node, comm in partition.items():
-        comm_members.setdefault(comm, []).append(node)
+def _partition_louvain(G: nx.Graph, *, seed: int = 0) -> Dict[str, int]:
+    if community_louvain is None:
+        raise RuntimeError("python-louvain is not installed (module 'community'). Install requirements.txt.")
+    try:
+        return community_louvain.best_partition(G, weight="weight", random_state=seed)
+    except TypeError:
+        return community_louvain.best_partition(G, weight="weight")
 
-    # Add supernodes
-    for comm in comm_members:
-        super_id = f"comm:{comm}"
-        H.add_node(super_id, members=comm_members[comm])
 
-    # Iterate original edges and add/aggregate to supergraph
+def _partition_leiden(G: nx.Graph, *, seed: int = 0, resolution: float = 1.0) -> Dict[str, int]:
+    """Run Leiden on a NetworkX graph.
+
+    Requires: `python-igraph` + `leidenalg`.
+    Uses RBConfigurationVertexPartition which supports a resolution parameter.
+    """
+    if ig is None or leidenalg is None:
+        raise RuntimeError("Leiden not available (install igraph and leidenalg)")
+    if G.number_of_nodes() == 0:
+        return {}
+
+    # Stable ordering
+    nodes = list(G.nodes())
+    idx = {n: i for i, n in enumerate(nodes)}
+    edges: List[Tuple[int, int]] = []
+    weights: List[float] = []
     for u, v, data in G.edges(data=True):
-        cu = partition.get(u)
-        cv = partition.get(v)
-        if cu is None or cv is None:
+        edges.append((idx[u], idx[v]))
+        weights.append(float(data.get("weight", 1.0) or 1.0))
+
+    g = ig.Graph(n=len(nodes), edges=edges, directed=False)
+    g.es["weight"] = weights
+
+    # RBConfiguration is a robust default; it behaves like modularity with resolution.
+    part = leidenalg.find_partition(
+        g,
+        leidenalg.RBConfigurationVertexPartition,
+        weights="weight",
+        resolution_parameter=float(resolution),
+        seed=int(seed),
+    )
+
+    membership = list(part.membership)
+    return {str(nodes[i]): int(membership[i]) for i in range(len(nodes))}
+
+
+def _score_partition(G: nx.Graph, partition: Dict[str, int]) -> Tuple[float, int]:
+    """Score a partition with a bias against community explosion.
+
+    Returns (score, n_communities).
+    We use modularity when available and penalize too many communities.
+    """
+    n_nodes = max(1, G.number_of_nodes())
+    ncom = len(set(partition.values())) if partition else 0
+
+    modularity = 0.0
+    try:
+        modularity = float(community_louvain.modularity(partition, G, weight="weight"))
+    except Exception:
+        modularity = 0.0
+
+    # Penalize fragmentation. lambda defaults to 0.08; tune via env.
+    lam = float(os.getenv("KG_COMMUNITY_FRAGMENT_PENALTY", "0.08") or 0.08)
+    score = modularity - lam * (ncom / float(n_nodes))
+    return float(score), int(ncom)
+
+
+def _choose_partition(G: nx.Graph, *, seed: int, min_comm_size: int) -> Tuple[str, Dict[str, int], Optional[float]]:
+    """Choose a partition method based on env.
+
+    KG_COMMUNITY_METHOD:
+      - louvain
+      - leiden
+      - auto (default): prefer Leiden if installed, else Louvain
+      - ensemble: compute both (if possible), pick best score (modularity - fragmentation penalty)
+    """
+    method = (os.getenv("KG_COMMUNITY_METHOD", "auto") or "auto").strip().lower()
+    resolution = float(os.getenv("KG_COMMUNITY_RESOLUTION", "1.0") or 1.0)
+
+    candidates: List[Tuple[str, Dict[str, int]]] = []
+    errors: List[str] = []
+
+    def _add(name: str, part: Dict[str, int]) -> None:
+        if part:
+            # Merge tiny communities for stability/quality
+            part = _reassign_small_communities(G, part, min_comm_size=min_comm_size)
+        candidates.append((name, part))
+
+    if method in {"louvain"}:
+        _add("louvain", _partition_louvain(G, seed=seed))
+    elif method in {"leiden"}:
+        _add("leiden", _partition_leiden(G, seed=seed, resolution=resolution))
+    elif method in {"ensemble"}:
+        _add("louvain", _partition_louvain(G, seed=seed))
+        try:
+            _add("leiden", _partition_leiden(G, seed=seed, resolution=resolution))
+        except Exception as e:
+            errors.append(str(e))
+    else:
+        # auto
+        if ig is not None and leidenalg is not None:
+            try:
+                _add("leiden", _partition_leiden(G, seed=seed, resolution=resolution))
+            except Exception as e:
+                errors.append(str(e))
+        _add("louvain", _partition_louvain(G, seed=seed))
+
+    # pick the best scored partition
+    best_name = "louvain"
+    best_part: Dict[str, int] = candidates[-1][1] if candidates else {}
+    best_mod: Optional[float] = None
+    best_score = float("-inf")
+    for name, part in candidates:
+        if not part:
             continue
-        su = f"comm:{cu}"
-        sv = f"comm:{cv}"
-        w = float(data.get("weight", 1.0))
-        if su == sv:
-            # internal edges - optionally track internal weight as node attr
-            H.nodes[su].setdefault("internal_weight", 0.0)
-            H.nodes[su]["internal_weight"] += w
-            continue
-        if H.has_edge(su, sv):
-            H[su][sv]["weight"] += w
-        else:
-            H.add_edge(su, sv, weight=w)
-    return H
+        score, _ncom = _score_partition(G, part)
+        if score > best_score:
+            best_score = score
+            best_name = name
+            best_part = part
+            try:
+                best_mod = float(community_louvain.modularity(part, G, weight="weight"))
+            except Exception:
+                best_mod = None
+
+    return best_name, best_part, best_mod
 
 
 # -------------------------
 # Multi-level community detection
 # -------------------------
 def compute_multilevel_communities(graph: KnowledgeGraph,
-                                  max_levels: int = 2,
+                                  max_levels: Optional[int] = None,
                                   min_comm_size: int = 1,
                                   edge_types: Optional[List[str]] = None,
+                                  seed: int = 0,
+                                  stop_min_nodes: int = 4,
+                                  stop_compression_ratio: float = 0.95,
                                   verbose: bool = True) -> List[CommunityLevelResult]:
     """
     Compute hierarchical communities.
@@ -142,67 +419,57 @@ def compute_multilevel_communities(graph: KnowledgeGraph,
     if verbose:
         print(f"[communities] Entity graph nodes: {G0.number_of_nodes()}, edges: {G0.number_of_edges()}")
 
-    # Level loop with stability guards
+    # Track provenance: each current_graph node maps to a set of original entity ids
+    node_origin_members: Dict[str, Set[str]] = {str(n): {str(n)} for n in G0.nodes}
+
+    # Level loop with stability guards (depth is data-driven unless max_levels is set)
     current_graph = G0
-    previous_ncom = None
-    for level in range(0, max_levels + 1):
+    previous_ncom: Optional[int] = None
+    max_depth_guard = 64
+    level = 0
+    while True:
         if current_graph.number_of_nodes() == 0:
             if verbose:
                 print(f"[communities] Level {level}: graph empty, stopping.")
             break
 
-        # run Louvain (python-louvain)
-        partition = community_louvain.best_partition(current_graph, weight="weight")
-        # Filter tiny communities if required (optional)
-        # Build community -> members mapping
-        comm_members: Dict[int, List[str]] = {}
-        for node, comm in partition.items():
-            comm_members.setdefault(comm, []).append(node)
+        # choose community method (Louvain/Leiden/ensemble)
+        chosen, partition, modularity = _choose_partition(current_graph, seed=seed, min_comm_size=min_comm_size)
 
-        # Remove communities smaller than min_comm_size by reassigning them to -1 (or keep)
-        if min_comm_size > 1:
-            removed = []
-            for comm_id, members in list(comm_members.items()):
-                if len(members) < min_comm_size:
-                    removed.append(comm_id)
-            # Mark small communities with unique negative ids to avoid collapsing them alone
-            if removed:
-                for small in removed:
-                    for n in comm_members[small]:
-                        partition[n] = -1_000_000 - small  # unique negative cluster id
-                # recompute mapping
-                comm_members = {}
-                for node, comm in partition.items():
-                    comm_members.setdefault(comm, []).append(node)
-
-        # collect result for this level
-        supergraph = _collapse_graph_by_partition(current_graph, partition)
-
-        # convert supergraph node labels from 'comm:X' to int ids for convenience
-        # community_nodes mapping (comm_id_int -> members)
-        community_nodes: Dict[int, List[str]] = {}
-        for node, comm in partition.items():
-            # if partition came from supergraph, comm may be like 'comm:42' -> keep as int if possible
-            community_nodes.setdefault(int(comm), []).append(node)
+        # collect result for this level with provenance
+        supergraph, community_nodes, origin_members = _collapse_with_provenance(
+            current_graph, partition, level=level, node_origin_members=node_origin_members
+        )
 
         result = CommunityLevelResult(
             level=level,
             partition=dict(partition),
             supergraph=supergraph,
             community_nodes=community_nodes,
+            origin_members=origin_members,
+            modularity=modularity,
+            n_nodes=int(current_graph.number_of_nodes()),
+            n_communities=int(len(community_nodes)),
         )
         results.append(result)
 
         # Always compute ncom; it's used by stability guards below.
         ncom = len(set(partition.values()))
         if verbose:
-            print(f"[communities] Level {level}: found {ncom} communities")
+            mod_s = f", modularity={modularity:.4f}" if modularity is not None else ""
+            print(f"[communities] Level {level}: found {ncom} communities{mod_s} (method={chosen})")
+
+        # explicit cap if requested
+        if max_levels is not None and level >= max_levels:
+            if verbose:
+                print(f"[communities] Stopping: reached max_levels={max_levels}")
+            break
 
         # Stability guards: stop if trivial or no structural gain
-        # - fewer than 4 nodes
-        if current_graph.number_of_nodes() < 4:
+        # - too few nodes
+        if current_graph.number_of_nodes() < stop_min_nodes:
             if verbose:
-                print(f"[communities] Stopping: graph has fewer than 4 nodes ({current_graph.number_of_nodes()})")
+                print(f"[communities] Stopping: graph has fewer than {stop_min_nodes} nodes ({current_graph.number_of_nodes()})")
             break
         # - only one community
         if ncom <= 1:
@@ -214,6 +481,13 @@ def compute_multilevel_communities(graph: KnowledgeGraph,
             if verbose:
                 print(f"[communities] Stopping: communities ({ncom}) == nodes ({current_graph.number_of_nodes()})")
             break
+        # - barely any compression
+        if current_graph.number_of_nodes() > 0:
+            ratio = ncom / float(current_graph.number_of_nodes())
+            if ratio >= stop_compression_ratio:
+                if verbose:
+                    print(f"[communities] Stopping: compression ratio too high ({ratio:.3f} >= {stop_compression_ratio})")
+                break
         # - no meaningful structural gain compared to previous level
         if previous_ncom is not None and previous_ncom == ncom:
             if verbose:
@@ -221,31 +495,26 @@ def compute_multilevel_communities(graph: KnowledgeGraph,
             break
         previous_ncom = ncom
 
-        # Prepare next level: current_graph = supergraph with nodes renamed to community ids (ints)
-        # Create a relabeled graph where node names are ints (community ids)
-        next_graph = nx.Graph()
-        for super_n, data in supergraph.nodes(data=True):
-            # super_n is like 'comm:42' -> extract int
-            try:
-                cid = int(str(super_n).split(":")[1])
-            except Exception:
-                cid = hash(super_n)
-            next_graph.add_node(cid, **data)
+        # Guard against runaway depth
+        if level >= max_depth_guard:
+            if verbose:
+                print(f"[communities] Stopping: reached depth guard {max_depth_guard}")
+            break
 
-        for u, v, d in supergraph.edges(data=True):
-            try:
-                uid = int(str(u).split(":")[1])
-                vid = int(str(v).split(":")[1])
-            except Exception:
-                uid = hash(u)
-                vid = hash(v)
-            w = float(d.get("weight", 1.0))
-            if next_graph.has_edge(uid, vid):
-                next_graph[uid][vid]["weight"] += w
+        # Prepare next level: supergraph nodes are community node ids
+        next_origin: Dict[str, Set[str]] = {}
+        for cid, data in supergraph.nodes(data=True):
+            origin = data.get("origin_members")
+            if isinstance(origin, set):
+                next_origin[str(cid)] = set(origin)
+            elif isinstance(origin, (list, tuple)):
+                next_origin[str(cid)] = {str(x) for x in origin}
             else:
-                next_graph.add_edge(uid, vid, weight=w)
+                next_origin[str(cid)] = set()
 
-        current_graph = next_graph
+        current_graph = supergraph
+        node_origin_members = next_origin
+        level += 1
 
     return results
 
@@ -254,72 +523,62 @@ def compute_multilevel_communities(graph: KnowledgeGraph,
 # Community nodes creation & linking into KG
 # -------------------------
 _SUMMARY_PROMPT = """
-You will receive a list of entities (canonical, type, descriptions).
+You will receive:
+1) A list of entities (canonical, type, descriptions)
+2) A small set of evidence sentences (sentence_id, text)
 
 Return strictly JSON with:
 {
     "title": "3-6 word title",
     "micro_summary": "<=60 tokens, noun-phrase start, no filler",
-    "extractive_bullets": ["3-5 bullet-like fact sentences, terse"]
+    "extractive_bullets": ["3-5 short fact sentences"],
+    "citations": {
+        "micro_summary": ["sent:..."],
+        "bullets": [["sent:..."], ["sent:..."]]
+    }
 }
 
 Rules:
 - Be concise and factual; no meta-commentary.
-- Prefer extractive wording grounded in the entities/descriptions.
+- Ground claims in the evidence sentences; every bullet should cite at least one sentence_id.
+- If evidence is insufficient, keep bullets generic and cite what you have.
 - Do not repeat the title text inside the bullets.
 """
 
-def _summarize_community_with_llm(genai_module,
-                                  entity_infos: List[Dict[str, Any]],
-                                  model_name: str = "gemini-1.5-pro",
-                                  temperature: float = 0.3) -> Dict[str, str]:
+def _summarize_community_with_llm(
+        genai_module,
+        entity_infos: List[Dict[str, Any]],
+        evidence_sentences: Optional[List[Dict[str, Any]]] = None,
+        model_name: str = "gemini-1.5-pro",
+        temperature: float = 0.3,
+) -> Dict[str, Any]:
     """
     Use Google Generative AI (Gemini) to summarize a community.
     - genai_module: the imported google.generativeai module (configured).
     - entity_infos: list of {"canonical":..., "type":..., "descriptions":[...]}
     Returns dict with "title" and "summary".
     """
-    if genai_module is None:
-        return {"title": None, "summary": None}
+    # NOTE: We intentionally do not depend on a specific Google SDK here.
+    # Calls are routed through genai_compat so both `google-generativeai` and
+    # `google-genai` work.
 
     # build canonical key for caching (coerce everything to string)
-    keys = [str(e.get("canonical", "") or "") for e in entity_infos]
-    key_raw = "||".join(sorted(keys))
+    keys = [str(e.get("canonical", "") or "") for e in (entity_infos or [])]
+    sent_ids = [str(s.get("sentence_id", "") or "") for s in (evidence_sentences or [])]
+    key_raw = "||".join(sorted(keys)) + "##" + "||".join(sorted(sent_ids))
     if _COMM_SUMMARY_CACHE is not None:
         cached = _COMM_SUMMARY_CACHE.get(key_raw)
         if cached:
             return cached
 
-    # Prepare Gemini content parts (system + user)
-    contents = [
-        {"role": "system", "parts": [{"text": _SUMMARY_PROMPT}]},
-        {"role": "user", "parts": [{"text": json.dumps(entity_infos, ensure_ascii=False)}]},
-    ]
+    payload = {"entities": entity_infos, "evidence_sentences": (evidence_sentences or [])}
+    prompt = _SUMMARY_PROMPT.strip() + "\n\nInput:\n" + json.dumps(payload, ensure_ascii=False)
+    raw = (genai_generate_text(model_name, prompt, temperature=temperature) or "").strip()
 
-    # Build model handle and call generate_content
-    model = genai_module.GenerativeModel(model_name)
-    try:
-        response = model.generate_content(
-            contents=contents,
-            generation_config={"temperature": temperature},
-        )
-    except Exception:
+    if not raw:
         if _COMM_SUMMARY_CACHE is not None:
             _COMM_SUMMARY_CACHE.set(key_raw, {"title": None, "micro_summary": None, "extractive_bullets": []})
         return {"title": None, "micro_summary": None, "extractive_bullets": []}
-
-    # Extract text from Gemini response (different SDK versions sometimes return different fields)
-    raw = ""
-    if hasattr(response, "text") and response.text:
-        raw = response.text
-    else:
-        # fallback to candidates list if present
-        try:
-            raw = response.candidates[0].content
-        except Exception:
-            raw = ""
-
-    raw = raw.strip()
 
     # sanitize fences and leading "json" markers
     if raw.startswith("```"):
@@ -334,6 +593,7 @@ def _summarize_community_with_llm(genai_module,
             "title": obj.get("title"),
             "micro_summary": obj.get("micro_summary") or obj.get("summary"),
             "extractive_bullets": obj.get("extractive_bullets") or [],
+            "citations": obj.get("citations") or {},
         }
     except Exception:
         # fallback: minimal attempt to salvage text
@@ -342,6 +602,134 @@ def _summarize_community_with_llm(genai_module,
     if _COMM_SUMMARY_CACHE is not None:
         _COMM_SUMMARY_CACHE.set(key_raw, out)
     return out
+
+
+def _collect_evidence_sentences_for_members(
+    graph: KnowledgeGraph,
+    members: List[str],
+    *,
+    max_sentences: int = 12,
+) -> List[Dict[str, Any]]:
+    """Collect top evidence sentences for a community, grounded via MENTION_IN edges."""
+    if not members or max_sentences <= 0:
+        return []
+    member_set = {str(m) for m in members}
+    counts: Dict[str, int] = {}
+    for e in graph.edges:
+        if e.type != "MENTION_IN":
+            continue
+        if e.source not in member_set:
+            continue
+        sid = str(e.target)
+        if not sid.startswith("sent:"):
+            continue
+        counts[sid] = counts.get(sid, 0) + 1
+
+    ranked = sorted(counts.items(), key=lambda kv: kv[1], reverse=True)[:max_sentences]
+    out: List[Dict[str, Any]] = []
+    for sid, c in ranked:
+        node = graph.nodes.get(sid)
+        if not node or not isinstance(node.properties, dict):
+            continue
+        txt = str(node.properties.get("text") or "").strip()
+        if not txt:
+            continue
+        out.append({"sentence_id": sid, "text": txt, "mention_count": int(c)})
+    return out
+
+
+def _add_semantic_part_communities(graph: KnowledgeGraph, *, verbose: bool = True) -> Dict[str, str]:
+    """Create semantic constitution communities: one per PART.
+
+    Requires ARTICLE->PART edges of type PART_OF (created deterministically in ner.py).
+    The resulting communities help retrieval expansion without relying on statistical clustering.
+    """
+    enabled = (os.getenv("KG_SEMANTIC_PART_COMMUNITIES", "1") or "1").strip() != "0"
+    if not enabled:
+        return {}
+
+    # Discover PART nodes
+    part_nodes: List[KGNode] = []
+    for node in graph.nodes.values():
+        if node.label != "ENTITY":
+            continue
+        ntype = (node.properties or {}).get("type")
+        if ntype == "PART" or str(node.id).startswith("part:"):
+            part_nodes.append(node)
+
+    if not part_nodes:
+        return {}
+
+    # Precompute article members by PART_OF edges
+    part_to_articles: Dict[str, Set[str]] = {p.id: set() for p in part_nodes}
+    for e in graph.edges:
+        if e.type != "PART_OF":
+            continue
+        # Only treat ENTITY->ENTITY edges as constitutional structure
+        src = graph.nodes.get(e.source)
+        tgt = graph.nodes.get(e.target)
+        if not src or not tgt:
+            continue
+        if src.label != "ENTITY" or tgt.label != "ENTITY":
+            continue
+        if not str(src.id).startswith("art:"):
+            continue
+        if tgt.id in part_to_articles:
+            part_to_articles[tgt.id].add(src.id)
+
+    # Create community nodes + MEMBER_OF edges
+    comm_map: Dict[str, str] = {}
+    edge_counter = len(graph.edges)
+    for p in sorted(part_nodes, key=lambda n: str(n.id)):
+        members = sorted(part_to_articles.get(p.id, set()))
+        if not members:
+            continue
+
+        part_key = str(p.id).split(":", 1)[1] if ":" in str(p.id) else str(p.id)
+        comm_id = f"comm_part:{part_key}"
+
+        # Stable, non-LLM summary: use PART description/title if present
+        title = (p.properties or {}).get("description") or (p.properties or {}).get("canonical") or str(p.id)
+        title = str(title).strip()
+        micro = f"Constitutional Part grouping; contains {len(members)} Articles."
+
+        if comm_id not in graph.nodes:
+            graph.add_node(
+                KGNode(
+                    id=comm_id,
+                    label="COMMUNITY",
+                    properties={
+                        "level": 0,
+                        "comm_id": part_key,
+                        "members_count": len(members),
+                        "title": title,
+                        "summary": micro,
+                        "micro_summary": micro,
+                        "extractive_bullets": [title],
+                        "coherence": 1.0,
+                        "method": "semantic_part",
+                        "part_node_id": p.id,
+                    },
+                )
+            )
+            if verbose:
+                print(f"[semantic communities] Added {comm_id} (members={len(members)})")
+
+        comm_map[p.id] = comm_id
+
+        for mid in members:
+            edge_id = f"e:sem_part:{edge_counter}"; edge_counter += 1
+            graph.add_edge(
+                KGEdge(
+                    id=edge_id,
+                    source=mid,
+                    target=comm_id,
+                    type="MEMBER_OF",
+                    properties={"level": 0, "method": "semantic_part", "part": part_key},
+                )
+            )
+
+    return comm_map
 
 
 def build_and_add_community_nodes(graph: KnowledgeGraph,
@@ -357,27 +745,85 @@ def build_and_add_community_nodes(graph: KnowledgeGraph,
     - community_results: output of compute_multilevel_communities (list indexed by level)
     - client: optional OpenAI client for summaries (if None, summaries will be absent)
     """
+    # Always add semantic Part-based communities first (legal backbone).
+    try:
+        _add_semantic_part_communities(graph, verbose=verbose)
+    except Exception:
+        pass
+    # Avoid flooding the KG with low-signal community nodes.
+    # This is separate from min_comm_size (used during partitioning) because you may want
+    # to keep assignments but only materialize larger communities as explicit nodes.
+    min_comm_node_size = int(os.getenv("KG_MIN_COMMUNITY_NODE_SIZE", "3") or 3)
+
+    # If higher-level hierarchy collapses (common on small/noisy graphs), skip materializing it.
+    skip_degenerate_levels = (os.getenv("KG_SKIP_DEGENERATE_COMMUNITY_LEVELS", "1") or "1").strip() != "0"
+    modularity_floor = float(os.getenv("KG_COMMUNITY_MODULARITY_FLOOR", "0.000001") or 0.000001)
+
+    # Community summaries can be expensive (LLM). Default to sequential; allow opt-in parallelism.
+    disable_summaries = (os.getenv("KG_DISABLE_COMMUNITY_SUMMARIES", "0") or "0").strip() == "1"
+    summary_workers = int(os.getenv("KG_COMMUNITY_SUMMARY_WORKERS", "1") or 1)
+    summary_workers = max(1, min(summary_workers, 16))
+
     # Map: (level, comm_id) -> community_node_id string
     comm_node_map: Dict[Tuple[int, int], str] = {}
 
     # Precompute centrality on the entity graph so we can rank members by importance
     entity_G = _build_entity_graph(graph)
-    centrality_scores = {}
-    try:
-        centrality_scores = nx.betweenness_centrality(entity_G, normalized=True)
-    except Exception:
-        centrality_scores = {n: 0.0 for n in entity_G.nodes}
+    centrality_scores = _compute_entity_importance(entity_G, seed=0)
+
+    # Filter out degenerate levels before materializing nodes.
+    filtered_results: List[CommunityLevelResult] = []
+    for res in community_results:
+        if not skip_degenerate_levels:
+            filtered_results.append(res)
+            continue
+        ncom = int(res.n_communities or 0)
+        mod = res.modularity
+        mod_v = float(mod) if mod is not None else None
+        if res.level >= 1 and (ncom <= 1 or (mod_v is not None and mod_v <= modularity_floor)):
+            if verbose:
+                print(f"[communities] Skipping degenerate level {res.level} (ncom={ncom}, modularity={mod_v})")
+            continue
+        filtered_results.append(res)
+
+    community_results = filtered_results
+
+    def _build_summary(ent_infos: List[Dict[str, Any]], evidence_sents: List[Dict[str, Any]]) -> Dict[str, Any]:
+        if disable_summaries or genai is None:
+            return {"title": None, "micro_summary": None, "extractive_bullets": []}
+        return _summarize_community_with_llm(genai, ent_infos, evidence_sents)
 
     # First pass: create community nodes for each level
+    # Optionally parallelize summary generation; node insertion stays on main thread.
+    pending: List[Tuple[int, int, str, List[str], List[Dict[str, Any]], List[Dict[str, Any]], float, float]] = []
     for res in community_results:
         level = res.level
         # community nodes in res.community_nodes: {comm_id: [member_node_ids]}
         for comm_id, members in res.community_nodes.items():
-            comm_node_id = f"comm_l{level}:{comm_id}"
+            if len(members) < min_comm_node_size:
+                continue
+            comm_node_id = _community_node_id(level, comm_id)
+
+            # Compute cohesion signals from the collapsed supergraph:
+            # - internal_weight: sum of edge weights within the community in the prior graph
+            # - external_weight: total weight of edges from this community to other communities
+            sg_node_id = _community_node_id(level, int(comm_id))
+            internal_weight = 0.0
+            external_weight = 0.0
+            try:
+                if sg_node_id in res.supergraph:
+                    internal_weight = float(res.supergraph.nodes[sg_node_id].get("internal_weight", 0.0) or 0.0)
+                    for _u, _v, data in res.supergraph.edges(sg_node_id, data=True):
+                        external_weight += float((data or {}).get("weight", 1.0) or 0.0)
+            except Exception:
+                internal_weight = 0.0
+                external_weight = 0.0
+
             # prepare props
-            # pick most central members for summary (centrality-aware sampling)
-            ranked_members = sorted(members, key=lambda n: centrality_scores.get(n, 0.0), reverse=True)
-            sample_entities = ranked_members[:include_entity_sample]
+            # pick most central ORIGINAL entities for summary (provenance-aware)
+            origin = res.origin_members.get(comm_id, [])
+            ranked_origin = sorted(origin, key=lambda n: centrality_scores.get(n, 0.0), reverse=True)
+            sample_entities = ranked_origin[:include_entity_sample]
             # fetch descriptions/types from KG nodes if present
             ent_infos = []
             for n in sample_entities:
@@ -387,58 +833,82 @@ def build_and_add_community_nodes(graph: KnowledgeGraph,
                     "type": node.properties.get("type") if node else None,
                     "descriptions": node.properties.get("descriptions", []) if node else []
                 })
-            # get summary via LLM if client provided
-            summary_obj = _summarize_community_with_llm(genai, ent_infos) if genai is not None else {"title": None, "micro_summary": None, "extractive_bullets": []}
-
-            # Lightweight fallback summaries if LLM returns empty
-            if not summary_obj.get("micro_summary"):
-                sample_labels = [f"{info.get('canonical')} ({info.get('type') or 'entity'})" for info in ent_infos]
-                summary_obj["micro_summary"] = ", ".join(sample_labels)[:220] or None
-            if not summary_obj.get("extractive_bullets"):
-                summary_obj["extractive_bullets"] = [info.get("canonical") for info in ent_infos if info.get("canonical")] 
-
-            # Compute coherence: internal vs external edge weight
-            internal_weight = 0.0
-            external_weight = 0.0
-            # res.supergraph nodes may have 'internal_weight' stored
-            try:
-                super_n = f"comm:{comm_id}"
-                internal_weight = float(res.supergraph.nodes.get(super_n, {}).get("internal_weight", 0.0))
-                # external weight is sum of incident edge weights
-                ext_w = 0.0
-                for _, _, d in res.supergraph.edges(super_n, data=True):
-                    ext_w += float(d.get("weight", 0.0))
-                external_weight = ext_w
-            except Exception:
-                internal_weight = 0.0
-                external_weight = 0.0
-
-            coherence = 0.0
-            denom = internal_weight + external_weight
-            if denom > 0.0:
-                coherence = internal_weight / denom
-
-            graph.add_node(
-                KGNode(
-                    id=comm_node_id,
-                    label="COMMUNITY",
-                    properties={
-                        "level": level,
-                        "comm_id": comm_id,
-                        "members_count": len(members),
-                        "title": summary_obj.get("title"),
-                        "summary": summary_obj.get("micro_summary"),
-                        "micro_summary": summary_obj.get("micro_summary"),
-                        "extractive_bullets": summary_obj.get("extractive_bullets", []),
-                        "coherence": float(coherence),
-                        "internal_weight": float(internal_weight),
-                        "external_weight": float(external_weight),
-                    },
-                )
+            evidence_sents = _collect_evidence_sentences_for_members(
+                graph,
+                members,
+                max_sentences=int(os.getenv("KG_COMMUNITY_SUMMARY_MAX_SENTENCES", "12") or 12),
             )
-            comm_node_map[(level, comm_id)] = comm_node_id
-            if verbose:
-                print(f"[communities] Added COMMUNITY node {comm_node_id} (members={len(members)})")
+            pending.append((level, comm_id, comm_node_id, members, ent_infos, evidence_sents, float(internal_weight), float(external_weight)))
+
+    summaries: Dict[Tuple[int, int], Dict[str, Any]] = {}
+    if pending:
+        if summary_workers <= 1 or len(pending) <= 4:
+            for (level, comm_id, _comm_node_id, _members, ent_infos, evidence_sents, _iw, _ew) in pending:
+                summaries[(level, comm_id)] = _build_summary(ent_infos, evidence_sents)
+        else:
+            from concurrent.futures import ThreadPoolExecutor, as_completed
+            with ThreadPoolExecutor(max_workers=summary_workers) as ex:
+                futs = {
+                    ex.submit(_build_summary, ent_infos, evidence_sents): (level, comm_id)
+                    for (level, comm_id, _cid, _m, ent_infos, evidence_sents, _iw, _ew) in pending
+                }
+                for fut in as_completed(futs):
+                    key = futs[fut]
+                    try:
+                        summaries[key] = fut.result() or {"title": None, "micro_summary": None, "extractive_bullets": []}
+                    except Exception:
+                        summaries[key] = {"title": None, "micro_summary": None, "extractive_bullets": []}
+
+    for (level, comm_id, comm_node_id, members, ent_infos, evidence_sents, internal_weight, external_weight) in pending:
+        summary_obj = summaries.get((level, comm_id), {"title": None, "micro_summary": None, "extractive_bullets": []})
+
+        # Lightweight fallback summaries if LLM returns empty
+        if not summary_obj.get("micro_summary"):
+            sample_labels = [f"{info.get('canonical')} ({info.get('type') or 'entity'})" for info in ent_infos]
+            summary_obj["micro_summary"] = ", ".join(sample_labels)[:220] or None
+        if not summary_obj.get("extractive_bullets"):
+            summary_obj["extractive_bullets"] = [info.get("canonical") for info in ent_infos if info.get("canonical")] 
+
+        # Compute coherence: internal vs external edge weight
+        coherence = 0.0
+        denom = float(internal_weight) + float(external_weight)
+        if denom > 0.0:
+            coherence = float(internal_weight) / denom
+
+        # Find the CommunityLevelResult for this level to attach modularity.
+        res_mod = None
+        for r in community_results:
+            if r.level == level:
+                res_mod = r
+                break
+
+        props = {
+            "level": level,
+            "comm_id": comm_id,
+            "members_count": len(members),
+            "origin_members_count": len(res_mod.origin_members.get(comm_id, [])) if res_mod is not None else None,
+            "title": summary_obj.get("title"),
+            "summary": summary_obj.get("micro_summary"),
+            "micro_summary": summary_obj.get("micro_summary"),
+            "extractive_bullets": summary_obj.get("extractive_bullets", []),
+            "citations": summary_obj.get("citations") if isinstance(summary_obj, dict) else None,
+            "evidence_sentence_ids": [str(s.get("sentence_id")) for s in (evidence_sents or []) if s.get("sentence_id")],
+            "coherence": float(coherence),
+            "internal_weight": float(internal_weight),
+            "external_weight": float(external_weight),
+            "modularity": (res_mod.modularity if res_mod is not None else None),
+        }
+
+        graph.add_node(
+            KGNode(
+                id=comm_node_id,
+                label="COMMUNITY",
+                properties=props,
+            )
+        )
+        comm_node_map[(level, comm_id)] = comm_node_id
+        if verbose:
+            print(f"[communities] Added COMMUNITY node {comm_node_id} (members={len(members)})")
 
     # Second pass: add MEMBER_OF edges from entity -> comm_l0 and PART_OF between community levels
     edge_counter = len(graph.edges)
@@ -449,6 +919,8 @@ def build_and_add_community_nodes(graph: KnowledgeGraph,
             level0 = community_results[0]
             for comm_id, members in level0.community_nodes.items():
                 comm_node_id = comm_node_map.get((0, comm_id))
+                if not comm_node_id:
+                    continue
                 for member_node in members:
                     # add MEMBER_OF edge
                     edge_id = f"e:comm_member:{edge_counter}"; edge_counter += 1
@@ -465,37 +937,21 @@ def build_and_add_community_nodes(graph: KnowledgeGraph,
     # PART_OF edges between community levels: (COMM_Lk) -[:PART_OF]-> (COMM_Lk+1)
     if create_partof_edges:
         for lvl in range(0, len(community_results) - 1):
-            lower = community_results[lvl]
             upper = community_results[lvl + 1]
-            # mapping from lower community id -> upper community id:
-            # For each member of lower.community_nodes, look up its partition in upper.partition
-            for lower_cid, lower_members in lower.community_nodes.items():
-                # majority-vote mapping: count upper community assignments among members
-                upcount: Dict[int, int] = {}
-                for member in lower_members:
-                    upcid = upper.partition.get(member)
-                    if upcid is not None:
-                        upcount[upcid] = upcount.get(upcid, 0) + 1
-                if not upcount:
-                    continue
-                # pick upper community with maximum votes
-                best_upcid, best_count = max(upcount.items(), key=lambda kv: kv[1])
-                # require majority (>50%) or at least one member if community small
-                majority_threshold = max(1, (len(lower_members) // 2) + 1)
-                if best_count >= majority_threshold:
-                    lower_node_id = comm_node_map.get((lvl, lower_cid))
-                    upper_node_id = comm_node_map.get((lvl + 1, best_upcid))
-                    if lower_node_id and upper_node_id:
-                        edge_id = f"e:comm_partof:{edge_counter}"; edge_counter += 1
-                        graph.add_edge(
-                            KGEdge(
-                                id=edge_id,
-                                source=lower_node_id,
-                                target=upper_node_id,
-                                type="PART_OF",
-                                properties={"from_level": lvl, "to_level": lvl + 1, "vote_count": best_count, "members_total": len(lower_members)}
-                            )
+            # upper.partition maps child node id (comm_l{lvl}:{child}) -> upper comm id
+            for child_node_id, parent_comm_id in upper.partition.items():
+                parent_node_id = _community_node_id(lvl + 1, int(parent_comm_id))
+                if child_node_id in graph.nodes and parent_node_id in graph.nodes:
+                    edge_id = f"e:comm_partof:{edge_counter}"; edge_counter += 1
+                    graph.add_edge(
+                        KGEdge(
+                            id=edge_id,
+                            source=str(child_node_id),
+                            target=parent_node_id,
+                            type="PART_OF",
+                            properties={"from_level": lvl, "to_level": lvl + 1},
                         )
+                    )
 
     # Mark bridge members with betweenness centrality to highlight connectors
     try:
@@ -526,7 +982,7 @@ def _mark_bridge_members(graph: KnowledgeGraph, edge_types: Optional[List[str]] 
     G = _build_entity_graph(graph, edge_types=edge_types)
     if G.number_of_nodes() == 0:
         return
-    centrality = nx.betweenness_centrality(G, normalized=True)
+    centrality = _compute_entity_importance(G, seed=0)
     if not centrality:
         return
     # pick top-k by centrality
@@ -543,148 +999,6 @@ def _mark_bridge_members(graph: KnowledgeGraph, edge_types: Optional[List[str]] 
             edge.properties = props
     # nothing else to add here; we only annotate existing MEMBER_OF edges
     return None
-
-
-def extract_typed_semantic_relations(
-    graph: KnowledgeGraph,
-    all_entities_per_doc: Dict[str, List[Any]],
-    sent_index: Dict[str, SentenceInfo],
-    use_llm: bool = True,
-) -> List[KGEdge]:
-    """
-    Extract typed semantic relations between entities using deterministic rules with optional LLM fallback.
-    Stores KGEdge objects in the graph with types among
-    APPLIED_IN, ENABLES, IMPROVES, CAUSES, SUBDOMAIN_OF and a confidence score.
-    Returns list of created edges.
-    """
-    created: List[KGEdge] = []
-    # Deterministic keyword map -> (relation, confidence)
-    rule_map = [
-        (r"appl(ies|ied) to|applied in|applies in|applied to", "APPLIED_IN", 0.92),
-        (r"enable|enables|enabled", "ENABLES", 0.9),
-        (r"improv|improves|better", "IMPROVES", 0.88),
-        (r"cause|causes|leads to|results in", "CAUSES", 0.9),
-        (r"subdomain|subset|specializ", "SUBDOMAIN_OF", 0.85),
-    ]
-
-    import re
-    from datetime import datetime
-    from uuid import uuid4
-
-    # Iterate sentences via sent_index mapping: sent_id -> SentenceInfo
-    for sent_id, sent_info in sent_index.items():
-        node = graph.nodes.get(sent_id)
-        if not node or node.label != "SENTENCE":
-            continue
-
-        text = (node.properties or {}).get("text") or getattr(sent_info, "text", "") or ""
-        text_l = text.lower()
-
-        # find entity mentions in this sentence via MENTION_IN edges
-        mentions: List[Tuple[str, int]] = []  # (entity_node_id, char_start)
-        for e in graph.edges:
-            if e.type == "MENTION_IN" and e.target == sent_id:
-                src = e.source
-                src_node = graph.nodes.get(src)
-                if not src_node or src_node.label not in {"ENTITY", "DOMAIN"}:
-                    continue
-                try:
-                    cs = int((e.properties or {}).get("char_start", -1))
-                except Exception:
-                    cs = -1
-                mentions.append((src, cs))
-
-        if len(mentions) < 2:
-            continue
-
-        # order mentions by position to give a directional bias (head -> tail)
-        mentions.sort(key=lambda m: m[1])
-
-        # for each ordered pair of mentions, try to detect relation
-        for i in range(len(mentions)):
-            for j in range(i + 1, len(mentions)):
-                a, _ = mentions[i]
-                b, _ = mentions[j]
-                rel: Optional[str] = None
-                conf: float = 0.0
-
-                # deterministic rules
-                for pat, rtype, score in rule_map:
-                    if re.search(pat, text_l):
-                        rel = rtype
-                        conf = score
-                        break
-
-                # fallback to LLM if enabled and no deterministic match
-                if rel is None and use_llm and genai is not None:
-                    prompt = {
-                        "role": "system",
-                        "parts": [
-                            {
-                                "text": (
-                                    "Identify the most likely semantic relation between two entities mentioned in a sentence. "
-                                    "Return strict JSON: {\"relation\": <ONE OF APPLIED_IN|ENABLES|IMPROVES|CAUSES|SUBDOMAIN_OF|NONE>, \"confidence\": float(0-1)}\n"
-                                )
-                            }
-                        ],
-                    }
-                    user = {
-                        "role": "user",
-                        "parts": [
-                            {
-                                "text": json.dumps(
-                                    {
-                                        "sentence": text,
-                                        "entity_a": a,
-                                        "entity_b": b,
-                                    }
-                                )
-                            }
-                        ],
-                    }
-                    try:
-                        model = genai.GenerativeModel("gemini-1.5-pro")
-                        resp = model.generate_content(
-                            contents=[prompt, user], generation_config={}
-                        )
-                        raw = ""
-                        if hasattr(resp, "text") and resp.text:
-                            raw = resp.text
-                        else:
-                            raw = getattr(resp, "candidates", [{}])[0].get(
-                                "content", ""
-                            )
-                        raw = raw.strip().strip("`")
-                        parsed = json.loads(raw)
-                        rel = parsed.get("relation")
-                        conf = float(parsed.get("confidence", 0.6))
-                    except Exception:
-                        rel = None
-                        conf = 0.0
-
-                if not rel or rel == "NONE":
-                    continue
-
-                # create typed edge from a -> b
-                edge_id = f"e:typed_rel:{uuid4().hex}"
-                props = {
-                    "doc_id": getattr(sent_info, "doc_id", None),
-                    "sentence_id": sent_id,
-                    "confidence": float(conf),
-                    "source_sent": text,
-                    "timestamp": datetime.utcnow().isoformat(),
-                }
-                edge = KGEdge(
-                    id=edge_id,
-                    source=a,
-                    target=b,
-                    type=rel,
-                    properties=props,
-                )
-                graph.add_edge(edge)
-                created.append(edge)
-
-    return created
 
 
 def multi_hop_traversal(
@@ -780,34 +1094,3 @@ def handle_abstention(graph: KnowledgeGraph, query: str):
     node_id = f"abstain:{uuid4().hex}"
     graph.add_node(KGNode(id=node_id, label="ABSTENTION", properties={"query": query, "timestamp": datetime.utcnow().isoformat(), "evidence_count": 0}))
     return node_id
-
-
-def build_retrieval_index(graph: KnowledgeGraph):
-    """Precompute embeddings for SENTENCE and COMMUNITY nodes."""
-    items = []  # (node_id, text)
-    for node in graph.nodes.values():
-        if node.label == "SENTENCE":
-            items.append((node.id, node.properties["text"]))
-        elif node.label == "COMMUNITY":
-            # use summary as text
-            txt = node.properties.get("summary") or node.properties.get("title")
-            if txt:
-                items.append((node.id, txt))
-
-    texts = [t for _, t in items]
-    embeddings = get_embeddings_with_cache(texts)
-    ids = [i for i, _ in items]
-    return ids, embeddings
-
-
-def search_relevant_nodes(
-    query: str,
-    ids: List[str],
-    embeddings: np.ndarray,
-    top_k: int = 5,
-) -> List[Tuple[str, float]]:
-    q_emb = get_embeddings_with_cache([query])[0]
-
-    sims = embeddings @ q_emb / (np.linalg.norm(embeddings, axis=1) * np.linalg.norm(q_emb) + 1e-9)
-    idxs = np.argsort(-sims)[:top_k]
-    return [(ids[i], float(sims[i])) for i in idxs]

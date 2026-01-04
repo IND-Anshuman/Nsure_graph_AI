@@ -6,6 +6,9 @@ import json
 
 def _serialize_value(value):
     """Convert Python objects to GraphML-compatible types."""
+    # GraphML supports primitive types; keep ints/floats/bools as-is.
+    if isinstance(value, (int, float, bool)):
+        return value
     if isinstance(value, (list, dict, set)):
         return json.dumps(value, ensure_ascii=False)
     elif value is None:

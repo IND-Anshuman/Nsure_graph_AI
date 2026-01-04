@@ -1,0 +1,8 @@
+{"raw_relation": "COVERS", "normalized_relation": "COVERS", "head": "insurance", "tail": "that", "sentence_id": "sent:IRDAN144RP0003V02201819_GEN3615:48", "confidence": 0.5}
+{"raw_relation": "COVERS", "normalized_relation": "COVERS", "head": "insurance", "tail": "vehicle", "sentence_id": "sent:IRDAN144RP0003V02201819_GEN3615:90", "confidence": 0.6}
+{"raw_relation": "COVERS", "normalized_relation": "COVERS", "head": "insurance", "tail": "vehicle", "sentence_id": "sent:IRDAN144RP0003V02201819_GEN3615:90", "confidence": 0.6}
+{"raw_relation": "NOT_LIABLE_FOR", "normalized_relation": "NOT_LIABLE_FOR", "head": "the company", "tail": "any claim", "sentence_id": "sent:IRDAN144RP0003V02201819_GEN3615:22", "confidence": 0.65}
+{"raw_relation": "COVERS", "normalized_relation": "COVERS", "head": "insurance", "tail": "vehicle", "sentence_id": "sent:IRDAN144RP0003V02201819_GEN3615:90", "confidence": 0.6}
+{"raw_relation": "NOT_LIABLE_FOR", "normalized_relation": "NOT_LIABLE_FOR", "head": "the company", "tail": "any claim", "sentence_id": "sent:IRDAN144RP0003V02201819_GEN3615:22", "confidence": 0.65}
+{"raw_relation": "NOT_LIABLE_FOR", "normalized_relation": "NOT_LIABLE_FOR", "head": "the company", "tail": "liability", "sentence_id": "sent:IRDAN144RP0003V02201819_GEN3615:28", "confidence": 0.65}
+{"raw_relation": "SETTLES", "normalized_relation": "SETTLES", "head": "the company", "tail": "any claim", "sentence_id": "sent:IRDAN144RP0003V02201819_GEN3615:213", "confidence": 0.9}
