@@ -609,21 +609,33 @@ def _collect_evidence_sentences_for_members(
     members: List[str],
     *,
     max_sentences: int = 12,
+    mention_map: Optional[Dict[str, Dict[str, int]]] = None,
 ) -> List[Dict[str, Any]]:
     """Collect top evidence sentences for a community, grounded via MENTION_IN edges."""
     if not members or max_sentences <= 0:
         return []
-    member_set = {str(m) for m in members}
+
     counts: Dict[str, int] = {}
-    for e in graph.edges:
-        if e.type != "MENTION_IN":
-            continue
-        if e.source not in member_set:
-            continue
-        sid = str(e.target)
-        if not sid.startswith("sent:"):
-            continue
-        counts[sid] = counts.get(sid, 0) + 1
+    if mention_map is not None:
+        # Fast path: aggregate precomputed entity->sentence mention counts.
+        for m in members:
+            smap = mention_map.get(str(m))
+            if not smap:
+                continue
+            for sid, c in smap.items():
+                counts[sid] = counts.get(sid, 0) + int(c)
+    else:
+        # Fallback: scan edges (legacy behavior).
+        member_set = {str(m) for m in members}
+        for e in graph.edges:
+            if e.type != "MENTION_IN":
+                continue
+            if e.source not in member_set:
+                continue
+            sid = str(e.target)
+            if not sid.startswith("sent:"):
+                continue
+            counts[sid] = counts.get(sid, 0) + 1
 
     ranked = sorted(counts.items(), key=lambda kv: kv[1], reverse=True)[:max_sentences]
     out: List[Dict[str, Any]] = []
@@ -635,6 +647,24 @@ def _collect_evidence_sentences_for_members(
         if not txt:
             continue
         out.append({"sentence_id": sid, "text": txt, "mention_count": int(c)})
+    return out
+
+
+def _precompute_mention_in_sentence_counts(graph: KnowledgeGraph) -> Dict[str, Dict[str, int]]:
+    """Build map: entity_id -> {sent_id -> mention_count} from MENTION_IN edges."""
+    out: Dict[str, Dict[str, int]] = {}
+    for e in graph.edges:
+        if e.type != "MENTION_IN":
+            continue
+        src = str(e.source)
+        sid = str(e.target)
+        if not sid.startswith("sent:"):
+            continue
+        smap = out.get(src)
+        if smap is None:
+            smap = {}
+            out[src] = smap
+        smap[sid] = smap.get(sid, 0) + 1
     return out
 
 
@@ -771,6 +801,9 @@ def build_and_add_community_nodes(graph: KnowledgeGraph,
     entity_G = _build_entity_graph(graph)
     centrality_scores = _compute_entity_importance(entity_G, seed=0)
 
+    # Precompute evidence grounding map once (dominant cost otherwise).
+    mention_map = _precompute_mention_in_sentence_counts(graph)
+
     # Filter out degenerate levels before materializing nodes.
     filtered_results: List[CommunityLevelResult] = []
     for res in community_results:
@@ -837,6 +870,7 @@ def build_and_add_community_nodes(graph: KnowledgeGraph,
                 graph,
                 members,
                 max_sentences=int(os.getenv("KG_COMMUNITY_SUMMARY_MAX_SENTENCES", "12") or 12),
+                mention_map=mention_map,
             )
             pending.append((level, comm_id, comm_node_id, members, ent_infos, evidence_sents, float(internal_weight), float(external_weight)))
 

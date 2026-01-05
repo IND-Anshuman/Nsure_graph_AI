@@ -27,7 +27,9 @@ class DiskJSONCache:
             self._data = {}
 
     def get(self, key: str) -> Optional[Any]:
-        return self._data.get(key)
+        # Guard reads as well: callers may use this cache across threads.
+        with self._lock:
+            return self._data.get(key)
 
     def set(self, key: str, value: Any) -> None:
         with self._lock:

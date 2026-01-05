@@ -3,9 +3,13 @@
 import os
 from dataclasses import dataclass, field
 from dataclasses import asdict
+from functools import lru_cache
 import logging
 from dotenv import load_dotenv
-from openai import OpenAI
+try:
+    from openai import OpenAI  # type: ignore
+except Exception:
+    OpenAI = None  # type: ignore
 from sentence_transformers import SentenceTransformer
 from typing import List, Dict, Set, Tuple, Optional, Any
 import spacy
@@ -183,52 +187,14 @@ class EntityCatalogEntry:
     sources: Set[str] = field(default_factory=set)
 
 def get_embeddings_with_cache(texts: List[str]) -> np.ndarray:
+    """Compatibility shim.
+
+    Route embedding computation to the centralized embedding cache.
+    This keeps embedding values consistent while enabling a much faster cache backend.
     """
-    texts -> matrix [len(texts), dim], caching each text's embedding as a list of floats.
-    """
-    dim_default = int(os.getenv("KG_EMBEDDING_DIM", "384") or 384)
-    model_name = os.getenv("KG_EMBEDDING_MODEL", "sentence-transformers/all-MiniLM-L6-v2")
-    model = get_emb_model()
-    cached_vectors: List[Tuple[int, List[float]]] = []
-    missing_indices: List[int] = []
-    missing_texts: List[str] = []
+    from embedding_cache import get_embeddings_with_cache as _get
 
-    # 1) Check cache
-    for idx, t in enumerate(texts):
-        digest = hashlib.sha256((t or "").encode("utf-8", errors="ignore")).hexdigest()
-        key = DiskJSONCache.hash_key("emb_v2", model_name, str(dim_default), digest)
-        cached = _EMB_CACHE.get(key)
-        if cached is None:
-            cached = _EMB_CACHE.get(t)  # legacy
-        if cached is not None:
-            cached_vectors.append((idx, cached))
-        else:
-            missing_indices.append(idx)
-            missing_texts.append(t)
-
-    # 2) Compute embeddings for missing texts (if any)
-    if missing_texts:
-        if model is None:
-            new_embs = _hash_embed(missing_texts, dim=dim_default)
-        else:
-            new_embs = model.encode(missing_texts, convert_to_numpy=True)
-        for i, vec in enumerate(new_embs):
-            idx = missing_indices[i]
-            vec_list = np.asarray(vec, dtype=float).tolist()
-            digest = hashlib.sha256((texts[idx] or "").encode("utf-8", errors="ignore")).hexdigest()
-            key = DiskJSONCache.hash_key("emb_v2", model_name, str(dim_default), digest)
-            _EMB_CACHE.set(key, vec_list)
-            cached_vectors.append((idx, vec_list))
-
-    # 3) Assemble into final numpy array in correct order
-    # We know the dimension from any cached vector or new emb
-    dim = len(cached_vectors[0][1]) if cached_vectors else dim_default
-    mat = np.zeros((len(texts), dim), dtype=float)
-
-    for idx, vec_list in cached_vectors:
-        mat[idx, :] = np.array(vec_list, dtype=float)
-
-    return mat
+    return _get(texts)
 
 
 _GENERIC_ENTITY_STOPWORDS: Set[str] = {
@@ -779,18 +745,37 @@ def extract_candidate_phrases(text: str) -> List[str]:
         _try_add(surface, score_add=score)
 
     # spaCy-based candidates per chunk
-    for (cs, _ce, chunk) in chunks:
-        if not chunk.strip():
-            continue
-        try:
-            doc = nlp(chunk)
-        except Exception:
-            continue
+    # Use nlp.pipe for batching (and optional multiprocessing) to reduce overhead.
+    chunk_texts = [chunk for (_cs, _ce, chunk) in chunks if (chunk or "").strip()]
+    if chunk_texts:
+        spacy_batch_size = int(os.getenv("KG_SPACY_BATCH_SIZE", "32") or 32)
+        spacy_n_process = int(os.getenv("KG_SPACY_N_PROCESS", "1") or 1)
+        if spacy_batch_size <= 0:
+            spacy_batch_size = 32
+        if spacy_n_process <= 0:
+            spacy_n_process = 1
 
-        for chunk_np in doc.noun_chunks:
-            _try_add(chunk_np.text, score_add=1)
-        for ent in doc.ents:
-            _try_add(ent.text, score_add=3)
+        pipe_kwargs: Dict[str, Any] = {"batch_size": spacy_batch_size}
+        if spacy_n_process > 1:
+            pipe_kwargs["n_process"] = spacy_n_process
+
+        try:
+            docs_iter = nlp.pipe(chunk_texts, **pipe_kwargs)
+        except TypeError:
+            # Older spaCy may not accept n_process.
+            pipe_kwargs.pop("n_process", None)
+            docs_iter = nlp.pipe(chunk_texts, **pipe_kwargs)
+        except Exception:
+            docs_iter = (nlp(c) for c in chunk_texts)
+
+        for doc in docs_iter:
+            try:
+                for chunk_np in doc.noun_chunks:
+                    _try_add(chunk_np.text, score_add=1)
+                for ent in doc.ents:
+                    _try_add(ent.text, score_add=3)
+            except Exception:
+                continue
 
     # Acronym expansions (doc-wide)
     for acro, long_form in acronym_map.items():
@@ -990,6 +975,7 @@ def _canon_for_payload(e: Entity) -> str:
     return canon
 
 
+@lru_cache(maxsize=50000)
 def _pattern_from_surface(surface: str) -> Optional[re.Pattern]:
     s = (surface or "").strip()
     if not s:
@@ -1005,6 +991,7 @@ def _pattern_from_surface(surface: str) -> Optional[re.Pattern]:
     return re.compile(esc, flags=re.IGNORECASE)
 
 
+@lru_cache(maxsize=50000)
 def _surface_variants(surface: str) -> List[str]:
     """Generate surface variants to improve mention linking in finance/legal text.
 
@@ -1051,7 +1038,13 @@ def _surface_variants(surface: str) -> List[str]:
     return cleaned
 
 
-def find_spans(text: str, surface: str, *, max_spans: int) -> List[Tuple[int, int]]:
+def find_spans(
+    text: str,
+    surface: str,
+    *,
+    max_spans: int,
+    word_set: Optional[Set[str]] = None,
+) -> List[Tuple[int, int]]:
     """Find multiple occurrences of a surface form in text.
 
     - Case-insensitive
@@ -1062,8 +1055,23 @@ def find_spans(text: str, surface: str, *, max_spans: int) -> List[Tuple[int, in
         return []
     spans: List[Tuple[int, int]] = []
 
+    # Optional fast reject: if any meaningful token from the variant cannot
+    # exist in the document, skip regex scanning entirely.
+    # This is conservative (only rejects when a token is absent), and is meant
+    # to reduce the common case of many candidate surfaces that never appear.
+    enable_prefilter = (os.getenv("KG_SPAN_PREFILTER", "1") or "1").strip() != "0"
+
     # Try a small set of robust variants before giving up.
     for variant in _surface_variants(surface):
+        if enable_prefilter and word_set is not None:
+            try:
+                toks = re.findall(r"[a-z0-9]+", (variant or "").lower())
+                # Only enforce for tokens length>=3 to avoid rejecting short
+                # acronyms/single letters that are noisy to index.
+                if any((len(t) >= 3 and t not in word_set) for t in toks):
+                    continue
+            except Exception:
+                pass
         pat = _pattern_from_surface(variant)
         if pat is None:
             continue
@@ -1127,6 +1135,15 @@ def extract_semantic_entities_for_doc(doc_id: str, text: str) -> List[Entity]:
     except Exception:
         pass
 
+    # Build one token-set index for the whole document and reuse it for all span lookups.
+    # This dramatically reduces time spent scanning text for non-present surfaces.
+    doc_word_set: Optional[Set[str]] = None
+    if (os.getenv("KG_SPAN_PREFILTER", "1") or "1").strip() != "0":
+        try:
+            doc_word_set = set(re.findall(r"[a-z0-9]+", (text or "").lower()))
+        except Exception:
+            doc_word_set = None
+
     candidates = extract_candidate_phrases(text)
     clusters = cluster_candidates(candidates, n_clusters=6)
     acronym_map = _find_acronym_pairs(text)
@@ -1155,6 +1172,41 @@ def extract_semantic_entities_for_doc(doc_id: str, text: str) -> List[Entity]:
         for items in (cluster_items_ranked[:max_llm_clusters] if max_llm_clusters > 0 else [])
     )
 
+    # Pre-label LLM-eligible clusters in parallel to reduce wall-clock time.
+    # This does not change which clusters are labeled; it only overlaps network latency.
+    llm_meta_by_cluster: Dict[int, Dict[str, Any]] = {}
+    if (not disable_llm) and llm_allowed_signatures:
+        label_workers = int(os.getenv("KG_LLM_LABEL_WORKERS", "2") or 2)
+        if label_workers < 1:
+            label_workers = 1
+
+        def _default_meta(items: List[str]) -> Dict[str, Any]:
+            return {
+                "is_entity": True,
+                "label": "ENTITY",
+                "canonical": _normalize_surface(items[0] if items else ""),
+                "description": None,
+            }
+
+        if label_workers > 1:
+            with ThreadPoolExecutor(max_workers=label_workers) as ex:
+                futs = {}
+                for cluster_id, items in clusters.items():
+                    sig = DiskJSONCache.hash_key("cluster_sig_v1", json.dumps(sorted(set(items)), ensure_ascii=False))
+                    if sig in llm_allowed_signatures:
+                        futs[ex.submit(label_cluster_with_llm, items)] = (cluster_id, items)
+
+                for fut in as_completed(futs):
+                    cluster_id, items = futs[fut]
+                    try:
+                        meta = fut.result()
+                        if isinstance(meta, dict):
+                            llm_meta_by_cluster[cluster_id] = meta
+                        else:
+                            llm_meta_by_cluster[cluster_id] = _default_meta(items)
+                    except Exception:
+                        llm_meta_by_cluster[cluster_id] = _default_meta(items)
+
     max_mentions_per_surface = int(os.getenv("KG_MAX_MENTIONS_PER_SURFACE", "8"))
     max_mentions_per_doc = int(os.getenv("KG_MAX_MENTIONS_PER_DOC", "2500"))
 
@@ -1169,6 +1221,8 @@ def extract_semantic_entities_for_doc(doc_id: str, text: str) -> List[Entity]:
         except Exception:
             pass
 
+    spans_cache: Dict[Tuple[str, int], List[Tuple[int, int]]] = {}
+
     for cluster_id, items in clusters.items():
         if _cluster_is_junk(items):
             continue
@@ -1179,7 +1233,9 @@ def extract_semantic_entities_for_doc(doc_id: str, text: str) -> List[Entity]:
         else:
             sig = DiskJSONCache.hash_key("cluster_sig_v1", json.dumps(sorted(set(items)), ensure_ascii=False))
             if sig in llm_allowed_signatures:
-                meta = label_cluster_with_llm(items)
+                meta = llm_meta_by_cluster.get(cluster_id)
+                if not isinstance(meta, dict):
+                    meta = label_cluster_with_llm(items)
             else:
                 meta = {"is_entity": True, "label": "ENTITY", "canonical": _normalize_surface(items[0] if items else ""), "description": None}
 
@@ -1212,7 +1268,11 @@ def extract_semantic_entities_for_doc(doc_id: str, text: str) -> List[Entity]:
                 surface_label = base_label
                 surface_desc = desc
 
-            spans = find_spans(text, surface, max_spans=max_mentions_per_surface)
+            cache_key = (surface, max_mentions_per_surface)
+            spans = spans_cache.get(cache_key)
+            if spans is None:
+                spans = find_spans(text, surface, max_spans=max_mentions_per_surface, word_set=doc_word_set)
+                spans_cache[cache_key] = spans
             if not spans:
                 continue
             for start, end in spans:
@@ -1256,7 +1316,7 @@ def extract_semantic_entities_for_doc(doc_id: str, text: str) -> List[Entity]:
             if norm in existing_canons:
                 continue
 
-            spans = find_spans(text, norm, max_spans=1)
+            spans = find_spans(text, norm, max_spans=1, word_set=doc_word_set)
             if not spans:
                 continue
             start, end = spans[0]

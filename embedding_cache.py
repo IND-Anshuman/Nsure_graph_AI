@@ -6,6 +6,8 @@ Reuses the existing DiskJSONCache infrastructure for storing and retrieving embe
 from __future__ import annotations
 from typing import List, Optional
 import numpy as np
+import threading
+import sqlite3
 try:
     from sentence_transformers import SentenceTransformer  # type: ignore
 except Exception:  # pragma: no cover
@@ -16,7 +18,75 @@ import os
 
 # Global instances
 _EMB_MODEL: Optional["SentenceTransformer"] = None  # type: ignore[name-defined]
-_EMB_CACHE = DiskJSONCache("cache_embeddings.json")
+_JSON_CACHE = DiskJSONCache("cache_embeddings.json")
+
+
+class _SQLiteKV:
+    """Tiny sqlite-backed KV store for embeddings.
+
+    Stores float32 vectors as raw bytes.
+    This avoids rewriting a large JSON file on every insert.
+    """
+
+    def __init__(self, path: str):
+        self.path = path
+        self._lock = threading.Lock()
+        self._conn = sqlite3.connect(self.path, check_same_thread=False)
+        self._conn.execute("PRAGMA journal_mode=WAL;")
+        self._conn.execute("PRAGMA synchronous=NORMAL;")
+        self._conn.execute("PRAGMA temp_store=MEMORY;")
+        self._conn.execute(
+            "CREATE TABLE IF NOT EXISTS kv (k TEXT PRIMARY KEY, dim INTEGER NOT NULL, v BLOB NOT NULL)"
+        )
+        self._conn.commit()
+
+    def get_many(self, keys: List[str]) -> dict[str, np.ndarray]:
+        if not keys:
+            return {}
+        out: dict[str, np.ndarray] = {}
+        # Chunk to avoid sqlite's max variable count.
+        chunk = 500
+        with self._lock:
+            for i in range(0, len(keys), chunk):
+                ks = keys[i : i + chunk]
+                qmarks = ",".join(["?"] * len(ks))
+                cur = self._conn.execute(f"SELECT k, dim, v FROM kv WHERE k IN ({qmarks})", ks)
+                for k, dim, blob in cur.fetchall():
+                    arr = np.frombuffer(blob, dtype=np.float32)
+                    if int(dim) > 0 and arr.size != int(dim):
+                        continue
+                    out[str(k)] = arr
+        return out
+
+    def set_many(self, items: List[tuple[str, np.ndarray]]) -> None:
+        if not items:
+            return
+        rows: List[tuple[str, int, bytes]] = []
+        for k, vec in items:
+            v = np.asarray(vec, dtype=np.float32).reshape(-1)
+            rows.append((k, int(v.size), v.tobytes()))
+        with self._lock:
+            self._conn.executemany(
+                "INSERT OR REPLACE INTO kv (k, dim, v) VALUES (?, ?, ?)",
+                rows,
+            )
+            self._conn.commit()
+
+
+_SQLITE_CACHE: Optional[_SQLiteKV] = None
+
+
+def _get_cache_backend() -> str:
+    return (os.getenv("KG_EMBEDDING_CACHE_BACKEND", "sqlite") or "sqlite").strip().lower()
+
+
+def _get_sqlite_cache() -> _SQLiteKV:
+    global _SQLITE_CACHE
+    if _SQLITE_CACHE is not None:
+        return _SQLITE_CACHE
+    path = os.getenv("KG_EMBEDDING_SQLITE_PATH", "cache_embeddings.sqlite3")
+    _SQLITE_CACHE = _SQLiteKV(path)
+    return _SQLITE_CACHE
 
 
 def _hash_embed(texts: List[str], *, dim: int = 384) -> np.ndarray:
@@ -92,9 +162,6 @@ def get_embeddings_with_cache(texts: List[str]) -> np.ndarray:
         return np.array([]).reshape(0, 384)  # default dim
 
     model = get_embedding_model()
-    cached_vectors: List[tuple[int, List[float]]] = []
-    missing_indices: List[int] = []
-    missing_texts: List[str] = []
 
     model_id = os.getenv("KG_EMBEDDING_MODEL", "sentence-transformers/all-MiniLM-L6-v2")
     dim_default = int(os.getenv("KG_EMBEDDING_DIM", "384") or 384)
@@ -104,39 +171,81 @@ def get_embeddings_with_cache(texts: List[str]) -> np.ndarray:
         digest = hashlib.sha256((t or "").encode("utf-8", errors="ignore")).hexdigest()
         return DiskJSONCache.hash_key("emb_v2", model_id, str(dim_default), digest)
 
-    # 1) Check cache for each text
-    for idx, text in enumerate(texts):
-        key = _cache_key_for_text(text)
-        cached = _EMB_CACHE.get(key)
-        if cached is None:
-            # Back-compat: old cache used raw text as key.
-            cached = _EMB_CACHE.get(text)
-        if cached is not None:
-            cached_vectors.append((idx, cached))
+    # Dedupe: same text should be embedded once, then fanned out.
+    # This reduces cache lookups and embedding work substantially.
+    text_to_indices: dict[str, List[int]] = {}
+    unique_texts: List[str] = []
+    for idx, t in enumerate(texts):
+        t2 = str(t or "")
+        if t2 in text_to_indices:
+            text_to_indices[t2].append(idx)
         else:
-            missing_indices.append(idx)
-            missing_texts.append(text)
+            text_to_indices[t2] = [idx]
+            unique_texts.append(t2)
 
-    # 2) Compute embeddings for missing texts
+    unique_keys = [_cache_key_for_text(t) for t in unique_texts]
+    backend = _get_cache_backend()
+
+    # 1) Fetch cached vectors for unique texts
+    key_to_vec: dict[str, np.ndarray] = {}
+    if backend == "sqlite":
+        key_to_vec = _get_sqlite_cache().get_many(unique_keys)
+
+    # Back-compat JSON lookups (also used when backend is forced to json)
+    if backend != "sqlite":
+        for k, t in zip(unique_keys, unique_texts):
+            cached = _JSON_CACHE.get(k)
+            if cached is None:
+                cached = _JSON_CACHE.get(t)
+            if cached is not None:
+                try:
+                    key_to_vec[k] = np.asarray(cached, dtype=np.float32).reshape(-1)
+                except Exception:
+                    pass
+
+    # 2) Compute missing embeddings (unique)
+    missing_texts: List[str] = []
+    missing_keys: List[str] = []
+    for t, k in zip(unique_texts, unique_keys):
+        if k not in key_to_vec:
+            missing_texts.append(t)
+            missing_keys.append(k)
+
     if missing_texts:
         if model is None:
             new_embs = _hash_embed(missing_texts, dim=dim_default)
         else:
-            new_embs = model.encode(missing_texts, convert_to_numpy=True)
-        for i, vec in enumerate(new_embs):
-            idx = missing_indices[i]
-            vec_list = np.asarray(vec, dtype=float).tolist()
-            key = _cache_key_for_text(texts[idx])
-            _EMB_CACHE.set(key, vec_list)
-            cached_vectors.append((idx, vec_list))
+            batch_size = int(os.getenv("KG_EMBEDDING_BATCH_SIZE", "64") or 64)
+            show_progress = (os.getenv("KG_EMBEDDING_SHOW_PROGRESS", "0") or "0").strip() == "1"
+            # These knobs do not change embedding values; they only affect throughput.
+            new_embs = model.encode(
+                missing_texts,
+                convert_to_numpy=True,
+                batch_size=max(1, batch_size),
+                show_progress_bar=show_progress,
+            )
+
+        # Persist missing vectors in chosen backend
+        if backend == "sqlite":
+            _get_sqlite_cache().set_many([(k, np.asarray(v, dtype=np.float32)) for k, v in zip(missing_keys, new_embs)])
+        else:
+            for k, v in zip(missing_keys, new_embs):
+                _JSON_CACHE.set(k, np.asarray(v, dtype=float).tolist())
+
+        for k, v in zip(missing_keys, new_embs):
+            key_to_vec[k] = np.asarray(v, dtype=np.float32).reshape(-1)
 
     # 3) Assemble into final numpy array in correct order
-    dim = len(cached_vectors[0][1]) if cached_vectors else dim_default
-    mat = np.zeros((len(texts), dim), dtype=float)
-
-    for idx, vec_list in cached_vectors:
-        mat[idx, :] = np.array(vec_list, dtype=float)
-
+    # Determine dim from any available vector.
+    any_vec = next(iter(key_to_vec.values()), None)
+    dim = int(any_vec.size) if any_vec is not None else dim_default
+    mat = np.zeros((len(texts), dim), dtype=np.float32)
+    for t, k in zip(unique_texts, unique_keys):
+        vec = key_to_vec.get(k)
+        if vec is None:
+            continue
+        for idx in text_to_indices.get(t, []):
+            mat[idx, :] = vec
     return mat
 
 

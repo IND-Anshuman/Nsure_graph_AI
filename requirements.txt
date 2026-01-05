@@ -29,6 +29,7 @@ neo4j
 # Web framework (optional)
 fastapi
 uvicorn
+flask
 
 # Additional utilities
 numpy
