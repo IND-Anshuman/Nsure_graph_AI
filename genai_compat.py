@@ -1,10 +1,9 @@
-"""Compatibility wrapper for Google's GenAI Python SDKs.
+"""Compatibility wrapper for Google's GenAI Python SDK.
 
-This repo historically mixed two different packages:
-- google-generativeai  -> imported as `import google.generativeai as genai` (has genai.configure + genai.GenerativeModel)
-- google-genai         -> imported as `from google import genai` or `import google.genai` (uses Client().models.generate_content)
+This module uses the google-genai package:
+- google-genai -> imported as `from google import genai` (uses Client().models.generate_content)
 
-This module provides a tiny stable surface used by the rest of the codebase.
+This module provides a stable surface used by the rest of the codebase.
 """
 
 from __future__ import annotations
@@ -13,14 +12,8 @@ from typing import Optional
 import os
 
 
-# Prefer the older SDK if present since much of the project was written for it.
-try:  # google-generativeai
-    import google.generativeai as _gai  # type: ignore
-except Exception:  # pragma: no cover
-    _gai = None  # type: ignore
-
-try:  # google-genai (new)
-    # NOTE: Some environments expose this as `from google import genai`.
+# Use the new google-genai SDK
+try:
     from google import genai as _genai  # type: ignore
 except Exception:  # pragma: no cover
     _genai = None  # type: ignore
@@ -31,7 +24,7 @@ _configured = False
 
 
 def is_available() -> bool:
-    return _gai is not None or _genai is not None
+    return _genai is not None
 
 
 def init(api_key: Optional[str] = None) -> None:
@@ -43,14 +36,6 @@ def init(api_key: Optional[str] = None) -> None:
 
     key = (api_key or os.getenv("GOOGLE_API_KEY") or "").strip()
     if not key:
-        _configured = True
-        return
-
-    if _gai is not None:
-        try:
-            _gai.configure(api_key=key)  # type: ignore[attr-defined]
-        except Exception:
-            pass
         _configured = True
         return
 
@@ -75,14 +60,6 @@ def generate_text(model: str, prompt: str, *, temperature: float = 0.1) -> str:
     if not prompt:
         return ""
 
-    if _gai is not None:
-        try:
-            m = _gai.GenerativeModel(model)  # type: ignore[attr-defined]
-            resp = m.generate_content(prompt, generation_config={"temperature": float(temperature)})
-            return (getattr(resp, "text", "") or "").strip()
-        except Exception:
-            return ""
-
     if _genai is not None:
         global _client
         if _client is None:
@@ -96,7 +73,8 @@ def generate_text(model: str, prompt: str, *, temperature: float = 0.1) -> str:
                 config={"temperature": float(temperature)},
             )
             return (getattr(resp, "text", "") or "").strip()
-        except Exception:
+        except Exception as e:
+            print(f"[GenAI] google-genai error: {e}")
             return ""
 
     return ""

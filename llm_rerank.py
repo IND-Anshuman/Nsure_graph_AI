@@ -330,7 +330,13 @@ def llm_rerank_candidates(
             verbose=verbose,
         )
         
+        if not raw or not raw.strip():
+            raise ValueError("LLM returned empty response")
+        
         raw = _extract_json_text(raw)
+        if not raw or not raw.strip():
+            raise ValueError("No JSON content found in LLM response")
+            
         result = json.loads(raw)
         
         # Validate result

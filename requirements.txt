@@ -5,7 +5,6 @@ python-dotenv
 
 # LLM APIs
 openai
-google-generativeai
 google-genai
 # NLP & Embeddings
 sentence-transformers
@@ -30,6 +29,7 @@ neo4j
 fastapi
 uvicorn
 flask
+flask-cors
 
 # Additional utilities
 numpy

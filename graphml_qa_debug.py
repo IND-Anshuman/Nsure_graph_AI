@@ -34,7 +34,6 @@ import time
 
 import networkx as nx
 from dotenv import load_dotenv
-import google.generativeai as genai
 from openai import OpenAI
 
 from data_corpus import KnowledgeGraph, KGNode, KGEdge

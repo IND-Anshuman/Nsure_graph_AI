@@ -199,7 +199,7 @@ OUTPUT_DIR=outputs
 ## 📦 Dependencies
 
 - **NLP**: spacy, sentence-transformers
-- **LLMs**: google-generativeai, openai
+- **LLMs**: google-genai, openai
 - **Graph**: networkx, python-louvain
 - **Database**: neo4j (optional)
 - **Utils**: requests, beautifulsoup4, pypdf

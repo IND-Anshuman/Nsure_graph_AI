@@ -24,51 +24,62 @@ _SYNTHESIS_CACHE = DiskJSONCache("cache_synthesis_v3.json")
 
 
 SYNTHESIS_PROMPT = """
-You are an expert legal/constitutional analyst synthesizing answers from provided evidence.
-Your goal: provide a thorough, relationship-focused answer grounded in evidence.
+You are an expert analyst synthesizing comprehensive, well-structured answers from provided evidence.
+Your goal: provide a thorough, descriptive, and relationship-focused answer that reads naturally while being grounded in evidence.
 
 Evidence item fields: id, type ("SENTENCE", "ENTITY_CONTEXT", "ENTITY", "COMMUNITY", etc.), text, metadata.
 
 CRITICAL RULES:
 1) Ground EVERY claim strictly in the provided evidence. Zero external knowledge.
-2) SYNTHESIZE relationships, not just list facts.
-   - For relationship questions ("How does X empower Y?"): explain the mechanism, scope, and constraints.
-   - For balance/conflict questions: identify specific trade-offs and safeguards.
-   - For comparative questions ("How do A and B relate?"): describe dependencies, exceptions, and interactions.
-    - For interaction/override questions (e.g., exclusions vs statutory liability), you MUST describe the mechanics as steps:
+2) SYNTHESIZE relationships and provide detailed explanations, not just list facts.
+   - For relationship questions ("How does X relate to Y?"): explain the mechanism, scope, constraints, and implications.
+   - For balance/conflict questions: identify specific trade-offs, safeguards, and their rationale.
+   - For comparative questions ("How do A and B relate?"): describe dependencies, exceptions, interactions, and context.
+   - For interaction/override questions: describe the mechanics step-by-step:
          (a) baseline rule/exclusion/exception,
-         (b) statutory/mandatory override trigger (what compels payment / what is overridden),
-         (c) consequence after override (e.g., recovery/reimbursement/right of recovery) IF evidenced.
-      IMPORTANT: "override" does not automatically mean "exclusion erased" — only say what the evidence supports.
-3) Answer in <=180 words with clear structure.
-4) Cite evidence IDs [id1, id2] immediately after each claim; prefer 2+ sources when possible.
-5) Highlight gaps in evidence; be explicit if answer is incomplete.
-6) Prefer sentence and entity-context evidence; use community/chunk summaries only as background.
-7) For constitutional/legal questions: identify relevant articles, their scope, and how they interact.
+         (b) triggering conditions and override mechanisms,
+         (c) consequences and resulting state.
+3) Write your answer  with clear, flowing paragraphs.
+4) DO NOT include evidence IDs like [id1, id2] in the answer text. Write naturally without citations.
+   Instead, track which evidence you use internally and list the IDs in the "used_evidence" field.
+5) Be descriptive and comprehensive:
+   - Provide context and background where relevant
+   - Explain WHY things work the way they do
+   - Include specific details from the evidence
+   - Connect related concepts and show relationships
+   - Use examples from the evidence to illustrate points
+6) Prefer sentence and entity-context evidence for concrete details; use community/chunk summaries for broader context.
+7) For legal/technical questions: identify relevant provisions, their scope, how they interact, and practical implications.
 8) Return strict JSON only; no prose outside JSON.
 
-Style rules:
-- Avoid vague phrases like "trade-off" or "interplay" without specifying what fires, what is suspended, what survives, and what happens next.
-- Do not include irrelevant exceptions (e.g., war/nuclear) unless they directly connect to the asked interaction.
+Style Guidelines:
+- Write in clear, complete sentences with natural flow
+- Use transition words to connect ideas (however, additionally, consequently, etc.)
+- Avoid vague phrases like "interplay" - be specific about what happens
+- Structure your answer with logical progression (general → specific, or problem → solution)
+- When evidence is insufficient, explain what's missing without being overly cautious
+- Maintain professional but accessible tone
 
-Output JSON:
+Output JSON Format:
 {
-    "answer": "Synthesized answer with [id] citations; explain relationships and mechanisms",
-    "used_evidence": ["id1", "id2", ...],
+    "answer": "A comprehensive, naturally-written answer without any [id] citations. Write 1-2 well-structured paragraphs that thoroughly explain the topic, relationships, and implications based on the evidence. Focus on clarity, detail, and natural readability.",
+    "used_evidence": ["id1", "id2", "id3", ...],
     "extracted_facts": [
-        {"fact": "Specific statement", "evidence_ids": ["id1", "id2"]},
+        {"fact": "Specific factual statement from evidence", "evidence_ids": ["id1", "id2"]},
+        {"fact": "Another key fact with supporting evidence", "evidence_ids": ["id3"]},
         ...
     ],
     "confidence": "high|medium|low",
-    "insufficiency_note": "Explain what evidence is missing or unclear"
+    "insufficiency_note": "Only if evidence is incomplete: explain what specific information is missing"
 }
 
-Guidance:
-- Answer relationship questions by explaining HOW and WHY, not just THAT.
-- Identify and explain exceptions, limitations, and safeguards.
-- Aggregate evidence across multiple sources to build a coherent picture.
-- If evidence contradicts or is sparse, state this clearly.
-- 4–8 extracted facts are expected for substantive questions.
+Quality Expectations:
+- Answer should read like a well-informed explanation, not a list of facts
+- Each paragraph should have a clear focus and transition smoothly
+- Include sufficient detail that the reader understands not just WHAT, but HOW and WHY
+- Balance comprehensiveness with readability
+- 5-10 extracted facts for substantive questions
+- Used evidence should include all IDs that informed your answer
 """
 
 
@@ -552,12 +563,18 @@ def llm_synthesize_answer(
             verbose=verbose,
         )
         
+        if not raw or not raw.strip():
+            raise ValueError("LLM returned empty response")
+        
         # Strip markdown fences if present
         if raw.startswith("```"):
             raw = raw.strip("`").strip()
             if raw.lower().startswith("json"):
                 raw = raw[4:].strip()
         
+        if not raw or not raw.strip():
+            raise ValueError("No JSON content found in LLM response after cleaning")
+            
         result = json.loads(raw)
         
         # Validate and extract fields

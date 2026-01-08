@@ -35,6 +35,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from dotenv import load_dotenv
 from flask import Flask, jsonify, request
+from flask_cors import CORS
 from werkzeug.utils import secure_filename
 
 from graph_maker import build_knowledge_graph
@@ -51,6 +52,15 @@ load_dotenv()
 
 app = Flask(__name__)
 app.url_map.strict_slashes = False
+
+# Enable CORS for frontend communication
+CORS(app, resources={
+    r"/*": {
+        "origins": ["http://localhost:3000", "http://localhost:5173"],
+        "methods": ["GET", "POST", "OPTIONS"],
+        "allow_headers": ["Content-Type"],
+    }
+})
 
 
 _API_CACHE_DIR = Path(os.getenv("KG_API_CACHE_DIR", "outputs/api_cache"))

@@ -20,12 +20,7 @@ except Exception:  # pragma: no cover - optional dependency
     ig = None  # type: ignore
     leidenalg = None  # type: ignore
 
-from genai_compat import generate_text as genai_generate_text
-
-try:
-    import google.generativeai as genai  # type: ignore
-except Exception:  # pragma: no cover - optional dependency
-    genai = None  # type: ignore
+from genai_compat import generate_text as genai_generate_text, is_available as genai_is_available
 
 # Optional: use OpenAI for summaries if you have client object
 # from openai import OpenAI  # assumed earlier in pipeline if needed
