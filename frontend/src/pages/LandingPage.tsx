@@ -1,10 +1,12 @@
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Card } from "@/components/ui/card";
 import { motion } from "framer-motion";
-import { Github, ArrowRight, Network, Sparkles, Zap, Brain } from "lucide-react";
+import { Github, ArrowRight, Sparkles, Zap, Brain, Search, Layers, FileText, Link2, CheckCircle } from "lucide-react";
 import { BackgroundParticles } from "@/components/BackgroundParticles";
 import { FloatingShapes, AnimatedWave, OrbitingElements } from "@/components/VibrantEffects";
+import { NsureLogo } from "@/components/NsureLogo";
 
 export function LandingPage() {
   return (
@@ -26,12 +28,11 @@ export function LandingPage() {
               className="flex items-center gap-3"
             >
               <motion.div 
-                className="w-10 h-10 rounded-lg bg-gradient-to-br from-primary to-emerald-600 flex items-center justify-center shadow-lg relative"
+                className="w-12 h-12 rounded-lg flex items-center justify-center shadow-lg relative overflow-hidden"
                 whileHover={{ rotate: 360, scale: 1.1 }}
                 transition={{ duration: 0.6 }}
               >
-                <div className="absolute inset-0 rounded-lg bg-gradient-to-br from-violet-500 to-fuchsia-500 opacity-0 hover:opacity-100 transition-opacity duration-300" />
-                <Network className="w-6 h-6 text-background relative z-10" />
+                <NsureLogo className="w-full h-full relative z-10" />
                 <motion.div
                   className="absolute inset-0 rounded-lg"
                   animate={{
@@ -167,6 +168,89 @@ export function LandingPage() {
                   </Button>
                 </motion.div>
               </Link>
+            </motion.div>
+
+            {/* Novelty & Benefits for Policy Documents */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.6, duration: 0.6 }}
+              className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-16"
+            >
+              <Card className="p-6 glass-effect border-2 border-cyan-500/20 bg-secondary/30">
+                <div className="flex items-center gap-3 mb-3">
+                  <Search className="w-5 h-5 text-cyan-400" />
+                  <h3 className="font-semibold">Get Answers From Policies</h3>
+                </div>
+                <p className="text-sm text-muted-foreground leading-relaxed">
+                  Ask natural-language questions and receive precise answers sourced from large policy documents, without skimming hundreds of pages. The system understands policy language, sections, and definitions.
+                </p>
+              </Card>
+
+              <Card className="p-6 glass-effect border-2 border-violet-500/20 bg-secondary/30">
+                <div className="flex items-center gap-3 mb-3">
+                  <Layers className="w-5 h-5 text-violet-400" />
+                  <h3 className="font-semibold">GraphRAG Novelty</h3>
+                </div>
+                <p className="text-sm text-muted-foreground leading-relaxed">
+                  We combine semantic search with a knowledge graph of entities and relationships. This hybrid retrieval (GraphRAG) preserves context, reduces hallucinations, and surfaces relevant clauses and cross-references.
+                </p>
+              </Card>
+
+              <Card className="p-6 glass-effect border-2 border-fuchsia-500/20 bg-secondary/30">
+                <div className="flex items-center gap-3 mb-3">
+                  <FileText className="w-5 h-5 text-fuchsia-400" />
+                  <h3 className="font-semibold">Traceable Evidence</h3>
+                </div>
+                <p className="text-sm text-muted-foreground leading-relaxed">
+                  Every answer includes evidence snippets and citations, so users can verify the source in the policy document. Confidence labels and insufficiency notes improve trust and auditability.
+                </p>
+              </Card>
+            </motion.div>
+
+            {/* How It Works */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.7, duration: 0.6 }}
+              className="mb-16"
+            >
+              <Card className="p-8 glass-effect border-2 border-primary/20 bg-secondary/30">
+                <div className="flex items-center gap-2 mb-6">
+                  <Link2 className="w-5 h-5 text-primary" />
+                  <h3 className="text-lg font-bold">How Nsure AI extracts answers from large policy documents</h3>
+                </div>
+                <div className="grid md:grid-cols-2 gap-6 text-sm">
+                  <div className="space-y-3">
+                    <div className="flex items-start gap-2">
+                      <CheckCircle className="w-4 h-4 text-emerald-400 mt-0.5" />
+                      <p className="text-muted-foreground">
+                        Ingests documents and builds a knowledge graph of entities, definitions, and relations (sections, clauses, references).
+                      </p>
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <CheckCircle className="w-4 h-4 text-emerald-400 mt-0.5" />
+                      <p className="text-muted-foreground">
+                        Creates a semantic index to understand queries beyond keywords, aligning them to relevant policy context.
+                      </p>
+                    </div>
+                  </div>
+                  <div className="space-y-3">
+                    <div className="flex items-start gap-2">
+                      <CheckCircle className="w-4 h-4 text-emerald-400 mt-0.5" />
+                      <p className="text-muted-foreground">
+                        Reranks candidates with GraphRAG to preserve relationships and reduce off-topic results.
+                      </p>
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <CheckCircle className="w-4 h-4 text-emerald-400 mt-0.5" />
+                      <p className="text-muted-foreground">
+                        Synthesizes a final answer with citations, confidence, and evidence snippets for instant verification.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </Card>
             </motion.div>
 
             <motion.div

@@ -8,7 +8,8 @@ import { Card } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { FileUploadZone, FileList } from "@/components/FileUpload";
 import { FloatingShapes } from "@/components/VibrantEffects";
-import { queryFromFile, type Answer, type QueryResponse } from "@/lib/api";
+import { NsureLogo } from "@/components/NsureLogo";
+import { queryFromFile, type QueryResponse } from "@/lib/api";
 
 interface UploadedFile {
   id: string;
@@ -20,14 +21,24 @@ interface UploadedFile {
 
 interface DisplayAnswer {
   question: string;
-  answer: string;
+  answer: unknown;
   extracted_facts?: Array<{
     fact: string;
     evidence_ids: string[];
   }>;
   insufficiency_note?: string;
   confidence?: string;
-  used_evidence?: string[];
+  evidence_texts?: string[];
+}
+
+function renderAnswerText(value: unknown): string {
+  if (typeof value === "string") return value;
+  if (value == null) return "";
+  try {
+    return JSON.stringify(value, null, 2);
+  } catch {
+    return String(value);
+  }
 }
 
 export function AgentPage() {
@@ -80,9 +91,9 @@ export function AgentPage() {
             skip_neo4j: true,
           },
           qa: {
-            top_n_semantic: 20,
-            top_k_final: 40,
-            rerank_top_k: 12,
+            top_n_semantic: Number(import.meta.env.VITE_TOP_N_SEMANTIC) || 20,
+            top_k_final: Number(import.meta.env.VITE_TOP_K_FINAL) || 40,
+            rerank_top_k: Number(import.meta.env.VITE_RERANK_TOP_K) || 25,
           },
           cache: {
             enabled: true,
@@ -100,7 +111,7 @@ export function AgentPage() {
         extracted_facts: ans.result.extracted_facts,
         insufficiency_note: ans.result.insufficiency_note,
         confidence: ans.result.confidence,
-        used_evidence: ans.result.used_evidence,
+        evidence_texts: ans.result.evidence_texts || ans.result.used_evidence,
       }));
 
       setAnswers(transformedAnswers);
@@ -140,14 +151,6 @@ export function AgentPage() {
       />
       
       <header className="border-b border-border/50 backdrop-blur-sm bg-background/30 sticky top-0 z-50 glass-effect relative">
-        <motion.div
-          className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-transparent via-primary to-transparent"
-          animate={{
-            opacity: [0.3, 1, 0.3],
-            scaleX: [0.8, 1, 0.8],
-          }}
-          transition={{ duration: 3, repeat: Infinity }}
-        />
         <div className="container mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
@@ -157,17 +160,11 @@ export function AgentPage() {
                 className="flex items-center gap-3"
               >
                 <motion.div 
-                  className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-emerald-600 flex items-center justify-center shadow-lg relative overflow-hidden"
+                  className="w-10 h-10 rounded-lg flex items-center justify-center shadow-lg relative overflow-hidden"
                   whileHover={{ rotate: 180, scale: 1.1 }}
                   transition={{ duration: 0.5 }}
                 >
-                  <motion.div
-                    className="absolute inset-0 bg-gradient-to-br from-violet-500 to-fuchsia-500"
-                    initial={{ opacity: 0 }}
-                    whileHover={{ opacity: 1 }}
-                    transition={{ duration: 0.3 }}
-                  />
-                  <Network className="w-5 h-5 text-background relative z-10" />
+                  <NsureLogo className="w-full h-full relative z-10" />
                   <motion.div
                     className="absolute inset-0"
                     animate={{
@@ -182,22 +179,10 @@ export function AgentPage() {
                 </motion.div>
                 <span className="text-lg font-bold tracking-tight">Nsure AI</span>
               </motion.div>
-              <motion.div
-                animate={{
-                  boxShadow: [
-                    "0 0 0 0 rgba(94, 234, 212, 0)",
-                    "0 0 0 4px rgba(94, 234, 212, 0.1)",
-                    "0 0 0 0 rgba(94, 234, 212, 0)",
-                  ],
-                }}
-                transition={{ duration: 2, repeat: Infinity }}
-                className="rounded-full"
-              >
-                <Badge variant="outline" className="text-xs glass-effect">
-                  <Cpu className="w-3 h-3 mr-1" />
-                  GraphRAG Knowledge System
-                </Badge>
-              </motion.div>
+              <Badge variant="outline" className="text-xs glass-effect">
+                <Cpu className="w-3 h-3 mr-1" />
+                GraphRAG Knowledge System
+              </Badge>
             </div>
 
             <div className="flex items-center gap-2">
@@ -223,28 +208,21 @@ export function AgentPage() {
               transition={{ duration: 0.5 }}
             >
               <div className="relative">
-                <motion.div
-                  className="absolute -inset-0.5 bg-gradient-to-r from-cyan-500 via-violet-500 to-fuchsia-500 rounded-xl opacity-20 blur"
-                  animate={{
-                    opacity: [0.2, 0.4, 0.2],
-                  }}
-                  transition={{ duration: 3, repeat: Infinity }}
-                />
-                <Card className="p-8 glass-effect border-2 border-primary/20 hover:border-primary/40 transition-all relative backdrop-blur-xl bg-secondary/30">
-                  <div className="flex items-start gap-4 mb-6">
+                <Card className="p-4 glass-effect border-2 border-primary/20 hover:border-primary/40 transition-all relative backdrop-blur-xl bg-secondary/30">
+                  <div className="flex items-start gap-2 mb-2">
                     <motion.div
-                      className="w-12 h-12 rounded-xl bg-gradient-to-br from-cyan-500/20 to-violet-500/20 flex items-center justify-center border border-cyan-500/30"
+                      className="w-6 h-6 rounded-lg bg-gradient-to-br from-cyan-500/20 to-violet-500/20 flex items-center justify-center border border-cyan-500/30"
                       whileHover={{ rotate: 90, scale: 1.1 }}
                       transition={{ type: "spring", stiffness: 200 }}
                     >
-                      <Layers className="w-6 h-6 text-cyan-400" />
+                      <Layers className="w-4 h-4 text-cyan-400" />
                     </motion.div>
                     <div className="flex-1">
-                      <h2 className="text-2xl font-bold mb-2 bg-gradient-to-r from-foreground to-foreground/60 bg-clip-text">
+                      <h2 className="text-base font-bold mb-0.5 bg-gradient-to-r from-foreground to-foreground/60 bg-clip-text">
                         Document Upload
                       </h2>
-                      <p className="text-sm text-muted-foreground">
-                        Drag & drop your files or browse to begin analysis
+                      <p className="text-[11px] text-muted-foreground">
+                        Drag & drop your files or browse
                       </p>
                     </div>
                   </div>
@@ -259,14 +237,6 @@ export function AgentPage() {
               transition={{ delay: 0.1, duration: 0.5 }}
             >
               <div className="relative">
-                <motion.div
-                  className="absolute -inset-1 bg-gradient-to-r from-violet-600 via-fuchsia-600 to-pink-600 rounded-2xl opacity-20 blur-xl"
-                  animate={{
-                    rotate: [0, 180, 360],
-                    scale: [1, 1.1, 1],
-                  }}
-                  transition={{ duration: 10, repeat: Infinity, ease: "linear" }}
-                />
                 <Card className="glass-effect border-2 border-violet-500/20 hover:border-violet-500/40 transition-all relative backdrop-blur-xl bg-secondary/30 overflow-hidden">
                   <div className="grid md:grid-cols-3 gap-6 p-8">
                     <div className="md:col-span-1 flex flex-col items-center justify-center border-r border-border/50 pr-6">
@@ -543,52 +513,19 @@ export function AgentPage() {
 
                 {/* Answers */}
                 {answers.map((answer, idx) => (
-                  <Card key={idx} className="p-6 glass-effect border-2 border-primary/20 bg-secondary/30">
-                    <div className="space-y-4">
+                  <Card key={idx} className="p-4 glass-effect border-2 border-primary/20 bg-secondary/30">
+                    <div className="space-y-3">
                       <div>
-                        <div className="text-sm text-muted-foreground mb-2">Question</div>
-                        <div className="text-lg font-semibold">{answer.question}</div>
+                        <div className="text-xs text-muted-foreground mb-1.5">Question</div>
+                        <div className="text-base font-semibold">{answer.question}</div>
                       </div>
                       
                       <div>
-                        <div className="text-sm text-muted-foreground mb-2">Answer</div>
+                        <div className="text-xs text-muted-foreground mb-1.5">Answer</div>
                         <div className="prose prose-invert max-w-none">
-                          <p className="text-foreground leading-relaxed whitespace-pre-wrap">{answer.answer}</p>
+                          <p className="text-sm text-foreground leading-relaxed whitespace-pre-wrap">{renderAnswerText(answer.answer)}</p>
                         </div>
                       </div>
-
-                      {answer.confidence && (
-                        <div className="flex items-center gap-2">
-                          <div className="text-sm text-muted-foreground">Confidence:</div>
-                          <Badge className={`${
-                            answer.confidence === 'high' ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400' :
-                            answer.confidence === 'medium' ? 'bg-yellow-500/10 border-yellow-500/30 text-yellow-400' :
-                            'bg-red-500/10 border-red-500/30 text-red-400'
-                          }`}>
-                            {answer.confidence.toUpperCase()}
-                          </Badge>
-                        </div>
-                      )}
-
-                      {answer.extracted_facts && answer.extracted_facts.length > 0 && (
-                        <div>
-                          <div className="text-sm text-muted-foreground mb-2">Key Facts</div>
-                          <ul className="space-y-2">
-                            {answer.extracted_facts.map((fact, factIdx) => (
-                              <li key={factIdx} className="text-sm flex gap-2">
-                                <span className="text-cyan-400 flex-shrink-0">•</span>
-                                <span className="text-foreground/80">{fact.fact}</span>
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      )}
-
-                      {answer.insufficiency_note && (
-                        <div className="mt-4 p-4 rounded-lg bg-amber-500/10 border border-amber-500/30">
-                          <p className="text-sm text-amber-400">{answer.insufficiency_note}</p>
-                        </div>
-                      )}
                     </div>
                   </Card>
                 ))}
@@ -634,6 +571,115 @@ export function AgentPage() {
                   </div>
                 </div>
               </Card>
+
+              {/* Analysis Details Box */}
+              {answers.length > 0 && answers[0] && (
+                <AnimatePresence>
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: 20 }}
+                    transition={{ delay: 0.3, duration: 0.5 }}
+                  >
+                    <Card className="p-5 glass-effect border-2 border-violet-500/20 hover:border-violet-500/40 transition-all backdrop-blur-xl bg-secondary/30">
+                      <div className="flex items-center gap-3 mb-4">
+                        <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-violet-500/20 to-fuchsia-500/20 flex items-center justify-center border border-violet-500/30">
+                          <Brain className="w-4 h-4 text-violet-400" />
+                        </div>
+                        <h3 className="font-bold text-lg">Analysis</h3>
+                      </div>
+
+                      <div className="space-y-4">
+                        {/* Confidence */}
+                        {answers[0].confidence && (
+                          <div>
+                            <div className="text-xs text-muted-foreground mb-2 font-medium">Confidence Level</div>
+                            <motion.div
+                              whileHover={{ scale: 1.05 }}
+                              transition={{ type: "spring", stiffness: 300 }}
+                            >
+                              <Badge className={`w-full justify-center py-2 text-xs ${
+                                answers[0].confidence === 'high' 
+                                  ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400' 
+                                  : answers[0].confidence === 'medium' 
+                                  ? 'bg-yellow-500/10 border-yellow-500/30 text-yellow-400' 
+                                  : 'bg-red-500/10 border-red-500/30 text-red-400'
+                              }`}>
+                                <CheckCircle className="w-3 h-3 mr-1" />
+                                {answers[0].confidence.toUpperCase()}
+                              </Badge>
+                            </motion.div>
+                          </div>
+                        )}
+
+                        {/* Insufficiency Note */}
+                        {answers[0].insufficiency_note && (
+                          <div>
+                            <div className="text-xs text-muted-foreground mb-2 font-medium">Notice</div>
+                            <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/30">
+                              <div className="flex items-start gap-2">
+                                <AlertCircle className="w-3 h-3 text-amber-400 flex-shrink-0 mt-0.5" />
+                                <p className="text-xs text-amber-400 leading-relaxed">
+                                  {answers[0].insufficiency_note}
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Evidence List */}
+                        {answers[0].evidence_texts && answers[0].evidence_texts.length > 0 && (
+                          <div>
+                            <div className="text-xs text-muted-foreground mb-2 font-medium">
+                              Evidence Sources
+                              <Badge variant="outline" className="ml-2 text-[10px] h-4 px-1.5">
+                                {answers[0].evidence_texts.length}
+                              </Badge>
+                            </div>
+                            <div className="max-h-48 overflow-y-auto custom-scrollbar space-y-2">
+                              {answers[0].evidence_texts.slice(0, 10).map((evidence, idx) => (
+                                <motion.div
+                                  key={idx}
+                                  initial={{ opacity: 0, x: -10 }}
+                                  animate={{ opacity: 1, x: 0 }}
+                                  transition={{ delay: idx * 0.05 }}
+                                  className="p-2.5 rounded-lg bg-background/40 border border-border/30 hover:border-primary/30 transition-all"
+                                >
+                                  <div className="flex items-start gap-2">
+                                    <div className="w-5 h-5 rounded bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center flex-shrink-0">
+                                      <span className="text-[10px] font-bold text-cyan-400">
+                                        {idx + 1}
+                                      </span>
+                                    </div>
+                                    <p className="text-[11px] leading-relaxed text-foreground/70 line-clamp-3">
+                                      {evidence}
+                                    </p>
+                                  </div>
+                                </motion.div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Key Facts Count */}
+                        {answers[0].extracted_facts && answers[0].extracted_facts.length > 0 && (
+                          <div>
+                            <div className="text-xs text-muted-foreground mb-2 font-medium">Extracted Facts</div>
+                            <div className="p-3 rounded-lg bg-violet-500/10 border border-violet-500/30">
+                              <div className="flex items-center justify-between">
+                                <span className="text-xs text-violet-400">Total Facts</span>
+                                <Badge className="bg-violet-500/20 border-violet-500/40 text-violet-300">
+                                  {answers[0].extracted_facts.length}
+                                </Badge>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </Card>
+                  </motion.div>
+                </AnimatePresence>
+              )}
             </div>
           </motion.div>
         </div>

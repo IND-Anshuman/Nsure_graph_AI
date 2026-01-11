@@ -23,7 +23,7 @@ from typing import Dict, List, Tuple
 from dotenv import load_dotenv
 
 # Core modules
-from data_corpus import (
+from graph_maker.data_corpus import (
     KnowledgeGraph,
     build_corpus_from_sources,
     add_document_and_sentence_nodes,
@@ -31,7 +31,7 @@ from data_corpus import (
 )
 
 # NER and entity extraction
-from ner import (
+from graph_maker.ner import (
     extract_semantic_entities_for_doc,
     build_entity_catalog,
     add_entity_nodes,
@@ -40,19 +40,19 @@ from ner import (
 )
 
 # Community detection
-from Community_processing import (
+from graph_maker.Community_processing import (
     compute_multilevel_communities,
     build_and_add_community_nodes,
 )
 
 # Retrieval
-from phase8_retrieval_enhanced import (
+from answer_synthesis.retrieval import (
     build_retrieval_index_enhanced,
     IndexItem,
 )
-from hybrid_search import search_and_expand, RetrievalCandidate
-from llm_rerank import llm_rerank_candidates
-from llm_synthesis import llm_synthesize_answer
+from answer_synthesis.hybrid_search import search_and_expand, RetrievalCandidate
+from answer_synthesis.llm_rerank import llm_rerank_candidates
+from answer_synthesis.llm_synthesis import llm_synthesize_answer
 
 # Setup
 load_dotenv()

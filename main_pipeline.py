@@ -2,22 +2,22 @@
 # -*- coding: utf-8 -*-
 from dotenv import load_dotenv
 from typing import Dict, List
-from data_corpus import KnowledgeGraph, Entity, prune_graph
+from graph_maker.data_corpus import KnowledgeGraph, Entity, prune_graph
 import os
 import argparse
 from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor, as_completed
 # ---- pipeline phases ----
-from data_corpus import (
+from graph_maker.data_corpus import (
     build_corpus_from_sources,
     add_document_and_sentence_nodes,
 )
-from ner import extract_semantic_entities_for_doc
-from ner import build_entity_catalog, add_entity_nodes
-from ner import merge_similar_catalog_entries
-from ner import add_mention_and_cooccurrence_edges
-from ner import add_semantic_relation_edges
-from Community_processing import (
+from graph_maker.ner import extract_semantic_entities_for_doc
+from graph_maker.ner import build_entity_catalog, add_entity_nodes
+from graph_maker.ner import merge_similar_catalog_entries
+from graph_maker.ner import add_mention_and_cooccurrence_edges
+from graph_maker.ner import add_semantic_relation_edges
+from graph_maker.Community_processing import (
     compute_multilevel_communities,
     build_and_add_community_nodes,
     classify_query,
@@ -26,16 +26,16 @@ from Community_processing import (
 )
 
 # ---- new enhanced retrieval modules ----
-from phase8_retrieval_enhanced import build_retrieval_index_enhanced
-from hybrid_search import search_and_expand
-from llm_rerank import llm_rerank_candidates
-from llm_synthesis import llm_synthesize_answer, format_answer_output
+from answer_synthesis.retrieval import build_retrieval_index_enhanced
+from answer_synthesis.hybrid_search import search_and_expand
+from answer_synthesis.llm_rerank import llm_rerank_candidates
+from answer_synthesis.llm_synthesis import llm_synthesize_answer, format_answer_output
 
 # ---- new persistence modules ----
-from graph_save import save_kg_to_graphml
-from graph_save import export_to_neo4j
-from kg_validate import validate_graph
-from relation_schema import load_relation_schema, community_edge_types_from_schema
+from graph_maker.graph_save import save_kg_to_graphml
+from graph_maker.graph_save import export_to_neo4j
+from utils.kg_validate import validate_graph
+from graph_maker.relation_schema import load_relation_schema, community_edge_types_from_schema
 
 load_dotenv()
 
@@ -59,7 +59,7 @@ def run_pipeline(queries: List[str] | None = None, verbose: bool = False):
         # Fallback tiny demo text if no sources given
         if verbose:
             print("[WARN] No sources specified. Using fallback demo corpus.")
-        from data_corpus import _clean_whitespace
+        from graph_maker.data_corpus import _clean_whitespace
 
         corpus: Dict[str, str] = {
             "demo_doc": _clean_whitespace(

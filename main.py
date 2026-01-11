@@ -38,14 +38,14 @@ from flask import Flask, jsonify, request
 from flask_cors import CORS
 from werkzeug.utils import secure_filename
 
-from graph_maker import build_knowledge_graph
-from graph_save import save_kg_to_graphml
-from phase8_retrieval_enhanced import IndexItem, build_retrieval_index_enhanced
-from hybrid_search import search_and_expand
-from llm_rerank import llm_rerank_candidates
-from llm_synthesis import llm_synthesize_answer
-from Community_processing import classify_query, handle_abstention
-from engine import import_graphml_to_kg
+from graph_maker.graph_maker import build_knowledge_graph
+from graph_maker.graph_save import save_kg_to_graphml
+from answer_synthesis.retrieval import IndexItem, build_retrieval_index_enhanced
+from answer_synthesis.hybrid_search import search_and_expand
+from answer_synthesis.llm_rerank import llm_rerank_candidates
+from answer_synthesis.llm_synthesis import llm_synthesize_answer
+from graph_maker.Community_processing import classify_query, handle_abstention
+from answer_synthesis.engine import import_graphml_to_kg
 
 
 load_dotenv()
@@ -475,10 +475,36 @@ def _answer_one(
         )
     t_syn = time.perf_counter()
 
+    # Convert evidence IDs to actual text content
+    used_evidence_ids = result.get("used_evidence", [])
+    evidence_texts = []
+    
+    # Create a lookup dict for index_items (for chunks and other items)
+    index_lookup = {item.id: item.text for item in index_items}
+    
+    for eid in used_evidence_ids:
+        # First try to find in index_items (covers chunks and all indexed content)
+        if eid in index_lookup:
+            evidence_texts.append(index_lookup[eid])
+        else:
+            # Fallback to graph nodes
+            node = graph.nodes.get(eid)
+            if node:
+                # Get the text content from the node properties
+                props = node.properties if hasattr(node, 'properties') else {}
+                text = props.get("text") or props.get("summary") or props.get("name") or node.label or str(eid)
+                evidence_texts.append(text)
+            else:
+                evidence_texts.append(f"[Evidence {eid} not found]")
+    
+    # Add evidence_texts to the result
+    result_with_texts = dict(result)
+    result_with_texts["evidence_texts"] = evidence_texts
+
     return {
         "question": q,
         "query_type": qtype,
-        "result": result,
+        "result": result_with_texts,
         "timing_s": {"retrieval": round(t_retr - t0, 4), "rerank": round(t_rerank - t_retr, 4), "synthesis": round(t_syn - t_rerank, 4), "total": round(t_syn - t0, 4)},
     }
 

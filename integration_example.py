@@ -9,11 +9,11 @@ This module demonstrates:
 4. Synthesizing grounded answers with evidence citation
 """
 from typing import Dict, List
-from data_corpus import KnowledgeGraph
-from phase8_retrieval_enhanced import build_retrieval_index_enhanced
-from hybrid_search import search_and_expand
-from llm_rerank import llm_rerank_candidates
-from llm_synthesis import llm_synthesize_answer, format_answer_output
+from graph_maker.data_corpus import KnowledgeGraph
+from answer_synthesis.retrieval import build_retrieval_index_enhanced
+from answer_synthesis.hybrid_search import search_and_expand
+from answer_synthesis.llm_rerank import llm_rerank_candidates
+from answer_synthesis.llm_synthesis import llm_synthesize_answer, format_answer_output
 
 
 def answer_query_with_hybrid_retrieval(
