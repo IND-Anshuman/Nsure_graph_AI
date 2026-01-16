@@ -1,6 +1,6 @@
 import { useState, useCallback } from "react";
 import { motion } from "framer-motion";
-import { Upload, X, FileText, Image, FileSpreadsheet } from "lucide-react";
+import { Upload, X, FileText, Image, FileSpreadsheet, FileCode } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface UploadedFile {
@@ -69,12 +69,13 @@ export function FileUploadZone({ onFilesUploaded }: FileUploadZoneProps) {
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
       className={cn(
-        "border-2 border-dashed rounded-lg p-12 transition-all cursor-pointer relative overflow-hidden",
+        "border border-dashed rounded-none p-12 transition-all cursor-pointer relative overflow-hidden bg-secondary/40 shadow-inner hover:bg-secondary/60 transition-colors group/upload",
         isDragging
-          ? "border-primary bg-primary/10 scale-[1.02]"
-          : "border-border hover:border-primary/50 hover:bg-primary/5"
+          ? "border-accent bg-accent/10"
+          : "border-white/10"
       )}
     >
+      <div className="paper-overlay opacity-[0.05]" />
       <input
         type="file"
         multiple
@@ -83,39 +84,25 @@ export function FileUploadZone({ onFilesUploaded }: FileUploadZoneProps) {
         id="file-upload"
         accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg,.txt"
       />
-      <label htmlFor="file-upload" className="cursor-pointer">
+      <label htmlFor="file-upload" className="cursor-pointer relative z-10">
         <div className="flex flex-col items-center text-center">
           <motion.div
-            animate={isDragging ? { scale: 1.1, rotate: 5 } : { scale: 1, rotate: 0 }}
+            animate={isDragging ? { y: -5 } : { y: 0 }}
             transition={{ type: "spring", stiffness: 300 }}
           >
-            <Upload className="w-12 h-12 text-primary mb-4" />
+            <Upload className="w-8 h-8 text-accent mb-6 opacity-60 group-hover/upload:opacity-100 transition-opacity" />
           </motion.div>
-          <p className="text-lg font-medium mb-2">
-            Drop files here or click to browse
+          <p className="text-sm font-serif font-bold uppercase tracking-widest text-primary mb-2">
+            Ingest Archive
           </p>
-          <p className="text-sm text-muted-foreground mb-4">
-            Up to 50MB - Async processing for large documents
+          <p className="text-[11px] text-muted-foreground uppercase tracking-widest italic mb-6">
+            Drag & Drop or Click to Research
           </p>
-          <div className="flex gap-2 flex-wrap justify-center">
-            <span className="px-3 py-1 bg-red-500/20 text-red-400 rounded text-xs border border-red-500/30 hover:bg-red-500/30 transition-colors">
-              PDF
-            </span>
-            <span className="px-3 py-1 bg-blue-500/20 text-blue-400 rounded text-xs border border-blue-500/30 hover:bg-blue-500/30 transition-colors">
-              Word
-            </span>
-            <span className="px-3 py-1 bg-green-500/20 text-green-400 rounded text-xs border border-green-500/30 hover:bg-green-500/30 transition-colors">
-              Excel
-            </span>
-            <span className="px-3 py-1 bg-purple-500/20 text-purple-400 rounded text-xs border border-purple-500/30 hover:bg-purple-500/30 transition-colors">
-              PNG
-            </span>
-            <span className="px-3 py-1 bg-orange-500/20 text-orange-400 rounded text-xs border border-orange-500/30 hover:bg-orange-500/30 transition-colors">
-              JPG
-            </span>
-            <span className="px-3 py-1 bg-slate-500/20 text-slate-400 rounded text-xs border border-slate-500/30 hover:bg-slate-500/30 transition-colors">
-              Text
-            </span>
+          <div className="flex gap-4 flex-wrap justify-center opacity-40 grayscale group-hover/upload:grayscale-0 transition-all duration-700">
+            <span className="text-[9px] font-sans font-bold border-b border-accent/40 text-accent">PDF</span>
+            <span className="text-[9px] font-sans font-bold border-b border-accent/40 text-accent">DOCX</span>
+            <span className="text-[9px] font-sans font-bold border-b border-accent/40 text-accent">XLSX</span>
+            <span className="text-[9px] font-sans font-bold border-b border-accent/40 text-accent">TXT</span>
           </div>
         </div>
       </label>
@@ -130,11 +117,11 @@ interface FileListProps {
 
 export function FileList({ files, onRemove }: FileListProps) {
   const getFileIcon = (type: string) => {
-    if (type.includes("pdf")) return <FileText className="w-4 h-4 text-red-400" />;
-    if (type.includes("image")) return <Image className="w-4 h-4 text-purple-400" />;
+    if (type.includes("pdf")) return <FileText className="w-3.5 h-3.5 text-primary/60" />;
+    if (type.includes("image")) return <Image className="w-3.5 h-3.5 text-primary/60" />;
     if (type.includes("spreadsheet") || type.includes("excel"))
-      return <FileSpreadsheet className="w-4 h-4 text-green-400" />;
-    return <FileText className="w-4 h-4 text-blue-400" />;
+      return <FileSpreadsheet className="w-3.5 h-3.5 text-primary/60" />;
+    return <FileCode className="w-3.5 h-3.5 text-primary/60" />;
   };
 
   const formatFileSize = (bytes: number) => {
@@ -145,37 +132,38 @@ export function FileList({ files, onRemove }: FileListProps) {
 
   if (files.length === 0) {
     return (
-      <div className="text-center py-8 text-muted-foreground text-sm">
-        Upload documents to see sources here
+      <div className="text-center py-8 text-[10px] uppercase tracking-widest text-muted-foreground italic font-serif">
+        Repository is currently empty
       </div>
     );
   }
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-3">
       {files.map((file) => (
         <motion.div
           key={file.id}
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, x: -10 }}
-          whileHover={{ scale: 1.02 }}
-          className="flex items-center justify-between p-3 rounded-lg bg-secondary/50 border border-border hover:border-primary/30 transition-all glass-effect"
+          initial={{ opacity: 0, x: -5 }}
+          animate={{ opacity: 1, x: 0 }}
+          exit={{ opacity: 0, x: 5 }}
+          className="flex items-center justify-between p-4 border border-white/5 bg-secondary/40 backdrop-blur-md realistic-shadow group transition-all hover:bg-secondary/60"
         >
-          <div className="flex items-center gap-3 flex-1 min-w-0">
-            {getFileIcon(file.type)}
+          <div className="flex items-center gap-4 flex-1 min-w-0">
+            <div className="w-8 h-8 flex items-center justify-center bg-white/5 border border-white/10">
+              {getFileIcon(file.type)}
+            </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium truncate">{file.name}</p>
-              <p className="text-xs text-muted-foreground">
-                {formatFileSize(file.size)}
+              <p className="text-xs font-serif font-bold text-foreground truncate uppercase tracking-tight">{file.name}</p>
+              <p className="text-[10px] text-muted-foreground uppercase tracking-widest">
+                {formatFileSize(file.size)} &bull; {file.type.split('/')[1] || 'DOC'}
               </p>
             </div>
           </div>
           <button
             onClick={() => onRemove(file.id)}
-            className="p-1 hover:bg-destructive/10 rounded transition-colors group"
+            className="p-2 hover:bg-accent/10 transition-colors group/btn"
           >
-            <X className="w-4 h-4 text-muted-foreground group-hover:text-red-400 transition-colors" />
+            <X className="w-3.5 h-3.5 text-muted-foreground group-hover/btn:text-accent transition-colors" />
           </button>
         </motion.div>
       ))}

@@ -12,6 +12,7 @@ import os
 from graph_maker.data_corpus import KnowledgeGraph
 from answer_synthesis.retrieval import IndexItem
 from graph_maker.embedding_cache import get_embeddings_with_cache, compute_cosine_similarity
+from graph_maker.relation_schema import load_relation_schema, relation_edge_types_for_retrieval
 
 
 @dataclass
@@ -487,10 +488,13 @@ def _get_entity_neighbors(graph: KnowledgeGraph, entity_id: str, hops: int = 1) 
     # Get immediate neighbors.
     # Prefer a single, shared allowlist from relation_schema.json.
     try:
-        from graph_maker.relation_schema import load_relation_schema, relation_edge_types_for_retrieval
-
-        legal_types = set(relation_edge_types_for_retrieval(load_relation_schema()))
-        legal_types.add("PART_OF")
+        schema = load_relation_schema()
+        legal_types = set(relation_edge_types_for_retrieval(schema))
+        # Keep PART_OF and common insurance/legal relations as reliable evidence.
+        legal_types.update({
+            "PART_OF", "MEMBER_OF", "ISSUED_BY", "INSURED_BY", "LIABLE_FOR", 
+            "PROVIDES_FOR", "REQUIRES", "LIMITS", "AMENDS", "SUBJECT_TO"
+        })
     except Exception:
         legal_types = {
             "DEFINES",
@@ -514,9 +518,15 @@ def _get_entity_neighbors(graph: KnowledgeGraph, entity_id: str, hops: int = 1) 
             "PART_OF",
             "OVERRIDES",
             "SAVES_LAWS_FROM_INVALIDATION",
+            "ISSUED_BY",
+            "INSURED_BY",
+            "LIABLE_FOR",
         }
 
+    valid_labels = {"ENTITY", "DOMAIN"}
+
     for edge in graph.edges:
+        # Check if the edge type is a reliable semantic relation or co-occurrence
         if edge.type in {
             "CO_OCCURS_WITH",
             "USED_WITH",
@@ -529,9 +539,9 @@ def _get_entity_neighbors(graph: KnowledgeGraph, entity_id: str, hops: int = 1) 
         } | legal_types:
             target_node = graph.nodes.get(edge.target)
             source_node = graph.nodes.get(edge.source)
-            if edge.source == entity_id and target_node and target_node.label == "ENTITY":
+            if edge.source == entity_id and target_node and target_node.label in valid_labels:
                 neighbors.add(edge.target)
-            elif edge.target == entity_id and source_node and source_node.label == "ENTITY":
+            elif edge.target == entity_id and source_node and source_node.label in valid_labels:
                 neighbors.add(edge.source)
     
     # For 2-hop expansion
@@ -578,6 +588,6 @@ def _get_sentence_entities(graph: KnowledgeGraph, sent_id: str) -> Set[str]:
     for edge in graph.edges:
         if edge.type == "MENTION_IN" and edge.target == sent_id:
             source_node = graph.nodes.get(edge.source)
-            if source_node and source_node.label == "ENTITY":
+            if source_node and source_node.label in {"ENTITY", "DOMAIN"}:
                 entities.add(edge.source)
     return entities

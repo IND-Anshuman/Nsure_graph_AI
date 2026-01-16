@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional, Set
 
 
-DEFAULT_SCHEMA_PATH = "relation_schema.json"
+DEFAULT_SCHEMA_PATH = str(Path(__file__).parent / "relation_schema.json")
 
 
 def load_relation_schema() -> Dict[str, Any]:

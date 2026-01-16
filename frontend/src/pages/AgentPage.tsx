@@ -1,15 +1,16 @@
 import { Link } from "react-router-dom";
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Home, Settings, Network, Send, Sparkles, Cpu, Layers, Brain, CheckCircle, AlertCircle } from "lucide-react";
+import { Home, Settings, Network, Send, AlertCircle, Search, BookOpen, Quote, Layers } from "lucide-react";
+import ReactMarkdown from "react-markdown";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { FileUploadZone, FileList } from "@/components/FileUpload";
-import { FloatingShapes } from "@/components/VibrantEffects";
 import { NsureLogo } from "@/components/NsureLogo";
-import { queryFromFile, type QueryResponse } from "@/lib/api";
+import { cn } from "@/lib/utils";
+import { queryFromFile, queryFromUrl, type QueryResponse } from "@/lib/api";
 
 interface UploadedFile {
   id: string;
@@ -43,15 +44,31 @@ function renderAnswerText(value: unknown): string {
 
 export function AgentPage() {
   const [files, setFiles] = useState<UploadedFile[]>([]);
+  const [url, setUrl] = useState("");
   const [query, setQuery] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [answers, setAnswers] = useState<DisplayAnswer[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [isUrlMode, setIsUrlMode] = useState(false);
   const [queryStats, setQueryStats] = useState<{
     nodes: number;
     edges: number;
     timing: { total: number; graph_build: number; index_build: number; qa_total: number };
   } | null>(null);
+  const [showAdvanced, setShowAdvanced] = useState(false);
+  const [rebuildGraph, setRebuildGraph] = useState(false);
+  const [envOverrides, setEnvOverrides] = useState({
+    KG_DOC_WORKERS: "4",
+    KG_QA_WORKERS: "4",
+    KG_RELATION_WORKERS: "4",
+    KG_COMMUNITY_SUMMARY_WORKERS: "4",
+    KG_RELATION_BATCH_SIZE: "10",
+    KG_TOP_N_SEMANTIC: "40",
+    KG_TOP_K_FINAL: "15",
+    KG_RERANK_TOP_K: "10",
+    GEMINI_MODEL: "gemini-2.0-flash",
+    KG_EXTRACTION_STRATEGY: "oneshot",
+  });
 
   const handleFilesUploaded = (newFiles: UploadedFile[]) => {
     setFiles((prev) => [...prev, ...newFiles]);
@@ -67,8 +84,8 @@ export function AgentPage() {
       return;
     }
 
-    if (files.length === 0) {
-      setError("Please upload at least one document");
+    if (files.length === 0 && (!isUrlMode || !url.trim())) {
+      setError("Please upload at least one document or provide a URL");
       return;
     }
 
@@ -77,34 +94,34 @@ export function AgentPage() {
     setAnswers([]);
 
     try {
-      // Use the first uploaded file (you can modify to handle multiple files)
-      const firstFile = files.find(f => f.file);
-      if (!firstFile?.file) {
-        throw new Error("No valid file found");
+      let response: QueryResponse;
+
+      const apiOptions = {
+        build: { skip_neo4j: true },
+        qa: {
+          top_n_semantic: Number(import.meta.env.VITE_TOP_N_SEMANTIC) || 20,
+          top_k_final: Number(import.meta.env.VITE_TOP_K_FINAL) || 40,
+          rerank_top_k: Number(import.meta.env.VITE_RERANK_TOP_K) || 25,
+        },
+        cache: {
+          enabled: true,
+          rebuild_graph: rebuildGraph,
+          rebuild_index: rebuildGraph,
+        },
+        env_overrides: envOverrides,
+        verbose: true,
+      };
+
+      if (isUrlMode && url.trim()) {
+        response = await queryFromUrl(url.trim(), query, apiOptions);
+      } else {
+        const firstFile = files.find(f => f.file);
+        if (!firstFile?.file) {
+          throw new Error("No valid file found");
+        }
+        response = await queryFromFile(firstFile.file, query, apiOptions);
       }
 
-      const response: QueryResponse = await queryFromFile(
-        firstFile.file,
-        query,
-        {
-          build: {
-            skip_neo4j: true,
-          },
-          qa: {
-            top_n_semantic: Number(import.meta.env.VITE_TOP_N_SEMANTIC) || 20,
-            top_k_final: Number(import.meta.env.VITE_TOP_K_FINAL) || 40,
-            rerank_top_k: Number(import.meta.env.VITE_RERANK_TOP_K) || 25,
-          },
-          cache: {
-            enabled: true,
-            rebuild_graph: false, // Use cached graph if available
-            rebuild_index: false, // Use cached index if available
-          },
-          verbose: true,
-        }
-      );
-
-      // Transform answers to flatten the result structure
       const transformedAnswers = response.answers.map(ans => ({
         question: ans.question,
         answer: ans.result.answer,
@@ -129,561 +146,470 @@ export function AgentPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-[#0f1729] to-[#0a0e1a] relative">
-      <div className="absolute inset-0 animated-grid opacity-20 pointer-events-none" />
-      <FloatingShapes />
-      
-      <motion.div
-        className="absolute top-20 left-10 w-64 h-64 bg-gradient-to-br from-violet-500/10 to-transparent rounded-full blur-3xl"
-        animate={{
-          scale: [1, 1.2, 1],
-          opacity: [0.3, 0.6, 0.3],
-        }}
-        transition={{ duration: 8, repeat: Infinity }}
-      />
-      <motion.div
-        className="absolute bottom-20 right-10 w-96 h-96 bg-gradient-to-br from-cyan-500/10 to-transparent rounded-full blur-3xl"
-        animate={{
-          scale: [1, 1.3, 1],
-          opacity: [0.3, 0.6, 0.3],
-        }}
-        transition={{ duration: 10, repeat: Infinity, delay: 1 }}
-      />
-      
-      <header className="border-b border-border/50 backdrop-blur-sm bg-background/30 sticky top-0 z-50 glass-effect relative">
+    <div className="min-h-screen bg-background text-foreground selection:bg-accent/40 relative">
+      <div className="paper-overlay" />
+      <header className="border-b border-white/5 bg-background/95 backdrop-blur-xl sticky top-0 z-50">
         <div className="container mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <motion.div
-                initial={{ opacity: 0, scale: 0.8 }}
-                animate={{ opacity: 1, scale: 1 }}
-                className="flex items-center gap-3"
-              >
-                <motion.div 
-                  className="w-10 h-10 rounded-lg flex items-center justify-center shadow-lg relative overflow-hidden"
-                  whileHover={{ rotate: 180, scale: 1.1 }}
-                  transition={{ duration: 0.5 }}
-                >
-                  <NsureLogo className="w-full h-full relative z-10" />
-                  <motion.div
-                    className="absolute inset-0"
-                    animate={{
-                      boxShadow: [
-                        "0 0 15px rgba(94, 234, 212, 0.4)",
-                        "0 0 25px rgba(139, 92, 246, 0.4)",
-                        "0 0 15px rgba(94, 234, 212, 0.4)",
-                      ],
-                    }}
-                    transition={{ duration: 2, repeat: Infinity }}
-                  />
-                </motion.div>
-                <span className="text-lg font-bold tracking-tight">Nsure AI</span>
-              </motion.div>
-              <Badge variant="outline" className="text-xs glass-effect">
-                <Cpu className="w-3 h-3 mr-1" />
-                GraphRAG Knowledge System
+            <div className="flex items-center gap-6">
+              <Link to="/" className="flex items-center gap-3 group">
+                <div className="w-8 h-8 flex items-center justify-center icon-glow">
+                  <NsureLogo className="w-full h-full text-primary" />
+                </div>
+                <span className="text-xl font-serif font-bold tracking-tight text-foreground uppercase group-hover:text-accent transition-colors">NSURE AI</span>
+              </Link>
+              <div className="h-4 w-px bg-white/5 mx-2" />
+              <Badge variant="outline" className="rounded-none border-accent/30 bg-accent/5 text-accent font-serif italic py-1 px-3">
+                Research Workbench v1.0.4
               </Badge>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-3">
               <Link to="/">
-                <Button variant="ghost" size="icon" className="hover:text-primary transition-colors">
-                  <Home className="w-4 h-4" />
+                <Button variant="ghost" size="sm" className="gap-2 font-serif uppercase tracking-widest text-[10px] hover:text-accent">
+                  <Home className="w-3.5 h-3.5" />
+                  Terminal
                 </Button>
               </Link>
-              <Button variant="ghost" size="icon" className="hover:text-primary transition-colors">
-                <Settings className="w-4 h-4" />
+              <Button
+                variant="ghost"
+                size="sm"
+                className={cn("gap-2 font-serif uppercase tracking-widest text-[10px] hover:text-accent", showAdvanced && "text-accent bg-accent/10")}
+                onClick={() => setShowAdvanced(!showAdvanced)}
+              >
+                <Settings className="w-3.5 h-3.5" />
+                Advanced
               </Button>
             </div>
           </div>
         </div>
       </header>
 
-      <main className="container mx-auto px-6 py-8 relative">
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-          <div className="lg:col-span-3 space-y-6">
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5 }}
-            >
-              <div className="relative">
-                <Card className="p-4 glass-effect border-2 border-primary/20 hover:border-primary/40 transition-all relative backdrop-blur-xl bg-secondary/30">
-                  <div className="flex items-start gap-2 mb-2">
-                    <motion.div
-                      className="w-6 h-6 rounded-lg bg-gradient-to-br from-cyan-500/20 to-violet-500/20 flex items-center justify-center border border-cyan-500/30"
-                      whileHover={{ rotate: 90, scale: 1.1 }}
-                      transition={{ type: "spring", stiffness: 200 }}
-                    >
-                      <Layers className="w-4 h-4 text-cyan-400" />
-                    </motion.div>
-                    <div className="flex-1">
-                      <h2 className="text-base font-bold mb-0.5 bg-gradient-to-r from-foreground to-foreground/60 bg-clip-text">
-                        Document Upload
-                      </h2>
-                      <p className="text-[11px] text-muted-foreground">
-                        Drag & drop your files or browse
-                      </p>
-                    </div>
-                  </div>
-                  <FileUploadZone onFilesUploaded={handleFilesUploaded} />
-                </Card>
+      <main className="container mx-auto px-6 py-12">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
+          {/* Main Sidebar (Upload & Status) */}
+          <div className="lg:col-span-3 space-y-8">
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 mb-4">
+                <BookOpen className="w-4 h-4 text-accent" />
+                <h2 className="font-serif font-bold uppercase tracking-widest text-xs text-primary">Library & Sources</h2>
               </div>
-            </motion.div>
-
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.1, duration: 0.5 }}
-            >
-              <div className="relative">
-                <Card className="glass-effect border-2 border-violet-500/20 hover:border-violet-500/40 transition-all relative backdrop-blur-xl bg-secondary/30 overflow-hidden">
-                  <div className="grid md:grid-cols-3 gap-6 p-8">
-                    <div className="md:col-span-1 flex flex-col items-center justify-center border-r border-border/50 pr-6">
-                      <motion.div
-                        className="relative mb-4"
-                        animate={{
-                          y: [0, -10, 0],
-                        }}
-                        transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
-                      >
-                        <div className="w-28 h-28 rounded-3xl bg-gradient-to-br from-violet-500/30 via-fuchsia-500/30 to-pink-500/30 flex items-center justify-center border-2 border-violet-500/40 relative">
-                          <motion.div
-                            className="absolute inset-0 rounded-3xl bg-gradient-to-br from-cyan-500/20 to-transparent"
-                            animate={{ opacity: [0.3, 0.7, 0.3] }}
-                            transition={{ duration: 2, repeat: Infinity }}
-                          />
-                          <Brain className="w-14 h-14 text-violet-400 relative z-10" />
-                        </div>
-                        <motion.div
-                          className="absolute -bottom-2 -right-2 w-8 h-8 rounded-full bg-emerald-500/80 border-2 border-background flex items-center justify-center"
-                          animate={{ scale: [1, 1.2, 1] }}
-                          transition={{ duration: 2, repeat: Infinity }}
-                        >
-                          <Sparkles className="w-4 h-4 text-white" />
-                        </motion.div>
-                      </motion.div>
-                      
-                      <h3 className="text-xl font-bold mb-2 text-center">Nsure AI</h3>
-                      <Badge className="glass-effect border border-violet-500/30 bg-violet-500/10">
-                        <Cpu className="w-3 h-3 mr-1" />
-                        GraphRAG
-                      </Badge>
-                    </div>
-
-                    <div className="md:col-span-2 flex flex-col">
-                      <div className="mb-6">
-                        <h4 className="text-3xl font-bold mb-3">
-                          <span className="bg-gradient-to-r from-violet-400 via-fuchsia-400 to-pink-400 bg-clip-text text-transparent">
-                            Ask Anything
-                          </span>
-                        </h4>
-                        <p className="text-sm text-muted-foreground leading-relaxed">
-                          Advanced knowledge extraction using graph-based reasoning. Query complex documents with contextual understanding.
-                        </p>
-                      </div>
-
-                      <div className="flex-1">
-                        <div className="relative">
-                          <Textarea
-                            placeholder="Type your question here..."
-                            value={query}
-                            onChange={(e) => setQuery(e.target.value)}
-                            className="min-h-[160px] text-base bg-background/50 border-2 border-border/50 focus:border-violet-500/50 rounded-xl resize-none transition-all"
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter" && !e.shiftKey) {
-                                e.preventDefault();
-                                handleSubmit();
-                              }
-                            }}
-                          />
-                          <div className="flex items-center justify-between mt-3">
-                            <div className="flex gap-2">
-                              <motion.div
-                                className="px-3 py-1 rounded-full bg-violet-500/10 border border-violet-500/20 text-xs text-violet-400"
-                                whileHover={{ scale: 1.05, borderColor: "rgba(139, 92, 246, 0.4)" }}
-                              >
-                                {query.length} chars
-                              </motion.div>
-                            </div>
-                            <AnimatePresence>
-                              {query.trim() && (
-                                <motion.div
-                                  initial={{ opacity: 0, x: 20 }}
-                                  animate={{ opacity: 1, x: 0 }}
-                                  exit={{ opacity: 0, x: 20 }}
-                                >
-                                  <Button
-                                    onClick={handleSubmit}
-                                    disabled={isSubmitting}
-                                    className="gap-2 bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-500 hover:to-fuchsia-500"
-                                  >
-                                    {isSubmitting ? (
-                                      <motion.div
-                                        animate={{ rotate: 360 }}
-                                        transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-                                      >
-                                        <Cpu className="w-4 h-4" />
-                                      </motion.div>
-                                    ) : (
-                                      <>
-                                        <span>Submit Query</span>
-                                        <Send className="w-4 h-4" />
-                                      </>
-                                    )}
-                                  </Button>
-                                </motion.div>
-                              )}
-                            </AnimatePresence>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </Card>
-              </div>
-            </motion.div>
-
-            {/* Loading State */}
-            {isSubmitting && (
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -20 }}
-              >
-                <Card className="p-8 glass-effect border-2 border-violet-500/30 bg-secondary/30 overflow-hidden relative">
-                  <motion.div
-                    className="absolute inset-0 bg-gradient-to-r from-violet-500/10 via-fuchsia-500/10 to-cyan-500/10"
-                    animate={{
-                      x: ["-100%", "100%"],
-                    }}
-                    transition={{
-                      duration: 2,
-                      repeat: Infinity,
-                      ease: "linear",
-                    }}
-                  />
-                  <div className="relative z-10">
-                    <div className="flex items-center justify-center gap-4 mb-6">
-                      <motion.div
-                        animate={{
-                          rotate: 360,
-                        }}
-                        transition={{
-                          duration: 2,
-                          repeat: Infinity,
-                          ease: "linear",
-                        }}
-                      >
-                        <Network className="w-8 h-8 text-violet-400" />
-                      </motion.div>
-                      <h3 className="text-xl font-bold bg-gradient-to-r from-violet-400 via-fuchsia-400 to-cyan-400 bg-clip-text text-transparent">
-                        Building Knowledge Graph
-                      </h3>
-                    </div>
-                    
-                    <div className="space-y-4">
-                      <div className="flex items-center gap-3">
-                        <motion.div
-                          className="w-2 h-2 rounded-full bg-emerald-500"
-                          animate={{
-                            scale: [1, 1.5, 1],
-                            opacity: [1, 0.5, 1],
-                          }}
-                          transition={{
-                            duration: 1.5,
-                            repeat: Infinity,
-                          }}
-                        />
-                        <span className="text-sm text-muted-foreground">Extracting document content...</span>
-                      </div>
-                      
-                      <div className="flex items-center gap-3">
-                        <motion.div
-                          className="w-2 h-2 rounded-full bg-cyan-500"
-                          animate={{
-                            scale: [1, 1.5, 1],
-                            opacity: [1, 0.5, 1],
-                          }}
-                          transition={{
-                            duration: 1.5,
-                            repeat: Infinity,
-                            delay: 0.3,
-                          }}
-                        />
-                        <span className="text-sm text-muted-foreground">Identifying entities and relationships...</span>
-                      </div>
-                      
-                      <div className="flex items-center gap-3">
-                        <motion.div
-                          className="w-2 h-2 rounded-full bg-violet-500"
-                          animate={{
-                            scale: [1, 1.5, 1],
-                            opacity: [1, 0.5, 1],
-                          }}
-                          transition={{
-                            duration: 1.5,
-                            repeat: Infinity,
-                            delay: 0.6,
-                          }}
-                        />
-                        <span className="text-sm text-muted-foreground">Building semantic index...</span>
-                      </div>
-                      
-                      <div className="flex items-center gap-3">
-                        <motion.div
-                          className="w-2 h-2 rounded-full bg-fuchsia-500"
-                          animate={{
-                            scale: [1, 1.5, 1],
-                            opacity: [1, 0.5, 1],
-                          }}
-                          transition={{
-                            duration: 1.5,
-                            repeat: Infinity,
-                            delay: 0.9,
-                          }}
-                        />
-                        <span className="text-sm text-muted-foreground">Generating intelligent answer...</span>
-                      </div>
-                    </div>
-
-                    <div className="mt-6 p-4 rounded-lg bg-violet-500/10 border border-violet-500/30">
-                      <p className="text-xs text-center text-violet-400">
-                        This may take 30-60 seconds depending on document size
-                      </p>
-                    </div>
-                  </div>
-                </Card>
-              </motion.div>
-            )}
-
-            {/* Error Display */}
-            {error && !isSubmitting && (
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -20 }}
-              >
-                <Card className="p-6 glass-effect border-2 border-red-500/30 bg-red-500/5">
-                  <div className="flex items-start gap-3">
-                    <AlertCircle className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />
-                    <div>
-                      <h3 className="font-semibold text-red-400 mb-1">Error</h3>
-                      <p className="text-sm text-muted-foreground">{error}</p>
-                    </div>
-                  </div>
-                </Card>
-              </motion.div>
-            )}
-
-            {/* Answer Display */}
-            {answers.length > 0 && (
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="space-y-6"
-              >
-                {/* Stats Card */}
-                {queryStats && (
-                  <Card className="p-6 glass-effect border-2 border-emerald-500/20 bg-secondary/30">
-                    <div className="flex items-center gap-2 mb-4">
-                      <CheckCircle className="w-5 h-5 text-emerald-400" />
-                      <h3 className="font-bold text-lg">Query Completed</h3>
-                    </div>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                      <div>
-                        <div className="text-muted-foreground">Nodes</div>
-                        <div className="text-xl font-bold text-emerald-400">{queryStats.nodes}</div>
-                      </div>
-                      <div>
-                        <div className="text-muted-foreground">Edges</div>
-                        <div className="text-xl font-bold text-cyan-400">{queryStats.edges}</div>
-                      </div>
-                      <div>
-                        <div className="text-muted-foreground">Build Time</div>
-                        <div className="text-xl font-bold text-violet-400">{queryStats.timing.graph_build.toFixed(2)}s</div>
-                      </div>
-                      <div>
-                        <div className="text-muted-foreground">Total Time</div>
-                        <div className="text-xl font-bold text-fuchsia-400">{queryStats.timing.total.toFixed(2)}s</div>
-                      </div>
-                    </div>
-                  </Card>
-                )}
-
-                {/* Answers */}
-                {answers.map((answer, idx) => (
-                  <Card key={idx} className="p-4 glass-effect border-2 border-primary/20 bg-secondary/30">
-                    <div className="space-y-3">
-                      <div>
-                        <div className="text-xs text-muted-foreground mb-1.5">Question</div>
-                        <div className="text-base font-semibold">{answer.question}</div>
-                      </div>
-                      
-                      <div>
-                        <div className="text-xs text-muted-foreground mb-1.5">Answer</div>
-                        <div className="prose prose-invert max-w-none">
-                          <p className="text-sm text-foreground leading-relaxed whitespace-pre-wrap">{renderAnswerText(answer.answer)}</p>
-                        </div>
-                      </div>
-                    </div>
-                  </Card>
-                ))}
-              </motion.div>
-            )}
-          </div>
-
-          <motion.div
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.2, duration: 0.5 }}
-            className="lg:col-span-1"
-          >
-            <div className="sticky top-24 space-y-4">
-              <Card className="p-6 glass-effect border-2 border-emerald-500/20 hover:border-emerald-500/40 transition-all backdrop-blur-xl bg-secondary/30">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="font-bold text-lg flex items-center gap-2">
-                    <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-500/20 to-cyan-500/20 flex items-center justify-center border border-emerald-500/30">
-                      <Layers className="w-4 h-4 text-emerald-400" />
-                    </div>
-                    Sources
-                  </h3>
-                  <Badge className="bg-emerald-500/10 border-emerald-500/30 text-emerald-400">
-                    {files.length}
-                  </Badge>
-                </div>
-                <FileList files={files} onRemove={handleRemoveFile} />
-              </Card>
-              
-              <Card className="p-5 glass-effect border border-border/50 backdrop-blur-xl bg-secondary/20">
-                <div className="flex items-center gap-3 mb-3">
-                  <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                  <span className="text-sm font-medium">System Status</span>
-                </div>
-                <div className="space-y-2 text-xs text-muted-foreground">
-                  <div className="flex justify-between">
-                    <span>GraphRAG</span>
-                    <span className="text-emerald-400">Active</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>LLM Model</span>
-                    <span className="text-cyan-400">Online</span>
-                  </div>
-                </div>
-              </Card>
-
-              {/* Analysis Details Box */}
-              {answers.length > 0 && answers[0] && (
-                <AnimatePresence>
-                  <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: 20 }}
-                    transition={{ delay: 0.3, duration: 0.5 }}
+              <Card className="rounded-none border border-white/5 bg-secondary/60 shadow-2xl p-4 backdrop-blur-md relative overflow-hidden group">
+                <div className="absolute top-0 left-0 w-1 h-0 bg-accent group-hover:h-full transition-all duration-500" />
+                <div className="flex gap-2 mb-4">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setIsUrlMode(false)}
+                    className={cn(
+                      "flex-1 rounded-none font-serif uppercase tracking-widest text-[10px]",
+                      !isUrlMode ? "bg-accent/10 text-accent" : "text-muted-foreground"
+                    )}
                   >
-                    <Card className="p-5 glass-effect border-2 border-violet-500/20 hover:border-violet-500/40 transition-all backdrop-blur-xl bg-secondary/30">
-                      <div className="flex items-center gap-3 mb-4">
-                        <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-violet-500/20 to-fuchsia-500/20 flex items-center justify-center border border-violet-500/30">
-                          <Brain className="w-4 h-4 text-violet-400" />
-                        </div>
-                        <h3 className="font-bold text-lg">Analysis</h3>
+                    Upload Docs
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setIsUrlMode(true)}
+                    className={cn(
+                      "flex-1 rounded-none font-serif uppercase tracking-widest text-[10px]",
+                      isUrlMode ? "bg-accent/10 text-accent" : "text-muted-foreground"
+                    )}
+                  >
+                    URL Ingest
+                  </Button>
+                </div>
+
+                {isUrlMode ? (
+                  <div className="space-y-4 py-4">
+                    <input
+                      type="url"
+                      placeholder="https://example.com/policy.pdf"
+                      value={url}
+                      onChange={(e) => setUrl(e.target.value)}
+                      className="w-full bg-background/50 border border-white/10 rounded-none p-3 text-xs font-serif italic focus:border-accent outline-none transition-colors"
+                    />
+                    <p className="text-[9px] text-muted-foreground uppercase tracking-widest italic text-center">
+                      Supports Web Pages & Remote PDFs
+                    </p>
+                  </div>
+                ) : (
+                  <>
+                    <FileUploadZone onFilesUploaded={handleFilesUploaded} />
+                    <div className="mt-4 pt-4 border-t border-white/5">
+                      <FileList files={files} onRemove={handleRemoveFile} />
+                    </div>
+                  </>
+                )}
+              </Card>
+            </div>
+
+            <AnimatePresence>
+              {showAdvanced && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: "auto", opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  className="overflow-hidden"
+                >
+                  <div className="space-y-4 mb-2">
+                    <div className="flex items-center gap-2 mb-4">
+                      <Settings className="w-4 h-4 text-accent" />
+                      <h2 className="font-serif font-bold uppercase tracking-widest text-xs text-primary">Engine Customization</h2>
+                    </div>
+                    <Card className="rounded-none border border-accent/20 bg-secondary/80 p-5 space-y-4 backdrop-blur-md relative overflow-hidden">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-[10px] font-serif uppercase tracking-wider text-muted-foreground">Force Rebuild Graph</span>
+                        <input
+                          type="checkbox"
+                          checked={rebuildGraph}
+                          onChange={(e) => setRebuildGraph(e.target.checked)}
+                          className="w-4 h-4 accent-accent"
+                        />
                       </div>
 
-                      <div className="space-y-4">
-                        {/* Confidence */}
-                        {answers[0].confidence && (
-                          <div>
-                            <div className="text-xs text-muted-foreground mb-2 font-medium">Confidence Level</div>
-                            <motion.div
-                              whileHover={{ scale: 1.05 }}
-                              transition={{ type: "spring", stiffness: 300 }}
-                            >
-                              <Badge className={`w-full justify-center py-2 text-xs ${
-                                answers[0].confidence === 'high' 
-                                  ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400' 
-                                  : answers[0].confidence === 'medium' 
-                                  ? 'bg-yellow-500/10 border-yellow-500/30 text-yellow-400' 
-                                  : 'bg-red-500/10 border-red-500/30 text-red-400'
-                              }`}>
-                                <CheckCircle className="w-3 h-3 mr-1" />
-                                {answers[0].confidence.toUpperCase()}
-                              </Badge>
-                            </motion.div>
-                          </div>
-                        )}
+                      <div className="flex items-center justify-between mb-4">
+                        <div className="flex flex-col">
+                          <span className="text-[10px] font-serif uppercase tracking-wider text-accent font-bold">One-Shot NER Extraction</span>
+                          <span className="text-[8px] uppercase tracking-widest text-muted-foreground italic">Unified Entity/Relation Pass</span>
+                        </div>
+                        <input
+                          type="checkbox"
+                          checked={envOverrides.KG_EXTRACTION_STRATEGY === "oneshot"}
+                          onChange={(e) => setEnvOverrides(prev => ({
+                            ...prev,
+                            KG_EXTRACTION_STRATEGY: e.target.checked ? "oneshot" : "cluster"
+                          }))}
+                          className="w-4 h-4 accent-accent"
+                        />
+                      </div>
 
-                        {/* Insufficiency Note */}
-                        {answers[0].insufficiency_note && (
-                          <div>
-                            <div className="text-xs text-muted-foreground mb-2 font-medium">Notice</div>
-                            <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/30">
-                              <div className="flex items-start gap-2">
-                                <AlertCircle className="w-3 h-3 text-amber-400 flex-shrink-0 mt-0.5" />
-                                <p className="text-xs text-amber-400 leading-relaxed">
-                                  {answers[0].insufficiency_note}
-                                </p>
-                              </div>
-                            </div>
+                      <div className="space-y-3 pt-2 border-t border-white/5">
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-1">
+                            <label className="text-[9px] uppercase tracking-widest text-muted-foreground">Doc Workers</label>
+                            <input
+                              type="number"
+                              value={envOverrides.KG_DOC_WORKERS}
+                              onChange={(e) => setEnvOverrides(prev => ({ ...prev, KG_DOC_WORKERS: e.target.value }))}
+                              className="w-full bg-background/50 border border-white/10 p-2 text-xs font-serif"
+                            />
                           </div>
-                        )}
+                          <div className="space-y-1">
+                            <label className="text-[9px] uppercase tracking-widest text-muted-foreground">QA Workers</label>
+                            <input
+                              type="number"
+                              value={envOverrides.KG_QA_WORKERS}
+                              onChange={(e) => setEnvOverrides(prev => ({ ...prev, KG_QA_WORKERS: e.target.value }))}
+                              className="w-full bg-background/50 border border-white/10 p-2 text-xs font-serif"
+                            />
+                          </div>
+                        </div>
 
-                        {/* Evidence List */}
-                        {answers[0].evidence_texts && answers[0].evidence_texts.length > 0 && (
-                          <div>
-                            <div className="text-xs text-muted-foreground mb-2 font-medium">
-                              Evidence Sources
-                              <Badge variant="outline" className="ml-2 text-[10px] h-4 px-1.5">
-                                {answers[0].evidence_texts.length}
-                              </Badge>
-                            </div>
-                            <div className="max-h-48 overflow-y-auto custom-scrollbar space-y-2">
-                              {answers[0].evidence_texts.slice(0, 10).map((evidence, idx) => (
-                                <motion.div
-                                  key={idx}
-                                  initial={{ opacity: 0, x: -10 }}
-                                  animate={{ opacity: 1, x: 0 }}
-                                  transition={{ delay: idx * 0.05 }}
-                                  className="p-2.5 rounded-lg bg-background/40 border border-border/30 hover:border-primary/30 transition-all"
-                                >
-                                  <div className="flex items-start gap-2">
-                                    <div className="w-5 h-5 rounded bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center flex-shrink-0">
-                                      <span className="text-[10px] font-bold text-cyan-400">
-                                        {idx + 1}
-                                      </span>
-                                    </div>
-                                    <p className="text-[11px] leading-relaxed text-foreground/70 line-clamp-3">
-                                      {evidence}
-                                    </p>
-                                  </div>
-                                </motion.div>
-                              ))}
-                            </div>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className={cn("space-y-1", envOverrides.KG_EXTRACTION_STRATEGY === "oneshot" && "opacity-40 pointer-events-none")}>
+                            <label className="text-[9px] uppercase tracking-widest text-muted-foreground">Rel Workers</label>
+                            <input
+                              type="number"
+                              disabled={envOverrides.KG_EXTRACTION_STRATEGY === "oneshot"}
+                              value={envOverrides.KG_RELATION_WORKERS}
+                              onChange={(e) => setEnvOverrides(prev => ({ ...prev, KG_RELATION_WORKERS: e.target.value }))}
+                              className="w-full bg-background/50 border border-white/10 p-2 text-xs font-serif"
+                            />
                           </div>
-                        )}
+                          <div className={cn("space-y-1", envOverrides.KG_EXTRACTION_STRATEGY === "oneshot" && "opacity-40 pointer-events-none")}>
+                            <label className="text-[9px] uppercase tracking-widest text-muted-foreground">Rel Batch Size</label>
+                            <input
+                              type="number"
+                              disabled={envOverrides.KG_EXTRACTION_STRATEGY === "oneshot"}
+                              value={envOverrides.KG_RELATION_BATCH_SIZE}
+                              onChange={(e) => setEnvOverrides(prev => ({ ...prev, KG_RELATION_BATCH_SIZE: e.target.value }))}
+                              className="w-full bg-background/50 border border-white/10 p-2 text-xs font-serif"
+                            />
+                          </div>
+                        </div>
 
-                        {/* Key Facts Count */}
-                        {answers[0].extracted_facts && answers[0].extracted_facts.length > 0 && (
-                          <div>
-                            <div className="text-xs text-muted-foreground mb-2 font-medium">Extracted Facts</div>
-                            <div className="p-3 rounded-lg bg-violet-500/10 border border-violet-500/30">
-                              <div className="flex items-center justify-between">
-                                <span className="text-xs text-violet-400">Total Facts</span>
-                                <Badge className="bg-violet-500/20 border-violet-500/40 text-violet-300">
-                                  {answers[0].extracted_facts.length}
-                                </Badge>
-                              </div>
-                            </div>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-1">
+                            <label className="text-[9px] uppercase tracking-widest text-muted-foreground">Comm Workers</label>
+                            <input
+                              type="number"
+                              value={envOverrides.KG_COMMUNITY_SUMMARY_WORKERS}
+                              onChange={(e) => setEnvOverrides(prev => ({ ...prev, KG_COMMUNITY_SUMMARY_WORKERS: e.target.value }))}
+                              className="w-full bg-background/50 border border-white/10 p-2 text-xs font-serif"
+                            />
                           </div>
-                        )}
+                          <div className="space-y-1">
+                            <label className="text-[9px] uppercase tracking-widest text-muted-foreground">Model Override</label>
+                            <input
+                              type="text"
+                              value={envOverrides.GEMINI_MODEL}
+                              onChange={(e) => setEnvOverrides(prev => ({ ...prev, GEMINI_MODEL: e.target.value }))}
+                              className="w-full bg-background/50 border border-white/10 p-2 text-xs font-serif"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-3 gap-2">
+                          <div className="space-y-1">
+                            <label className="text-[9px] uppercase tracking-widest text-muted-foreground">Top-N Sem</label>
+                            <input
+                              type="number"
+                              value={envOverrides.KG_TOP_N_SEMANTIC}
+                              onChange={(e) => setEnvOverrides(prev => ({ ...prev, KG_TOP_N_SEMANTIC: e.target.value }))}
+                              className="w-full bg-background/50 border border-white/10 p-2 text-xs font-serif"
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <label className="text-[9px] uppercase tracking-widest text-muted-foreground">Top-K Fin</label>
+                            <input
+                              type="number"
+                              value={envOverrides.KG_TOP_K_FINAL}
+                              onChange={(e) => setEnvOverrides(prev => ({ ...prev, KG_TOP_K_FINAL: e.target.value }))}
+                              className="w-full bg-background/50 border border-white/10 p-2 text-xs font-serif"
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <label className="text-[9px] uppercase tracking-widest text-muted-foreground">Rerank K</label>
+                            <input
+                              type="number"
+                              value={envOverrides.KG_RERANK_TOP_K}
+                              onChange={(e) => setEnvOverrides(prev => ({ ...prev, KG_RERANK_TOP_K: e.target.value }))}
+                              className="w-full bg-background/50 border border-white/10 p-2 text-xs font-serif"
+                            />
+                          </div>
+                        </div>
                       </div>
                     </Card>
-                  </motion.div>
-                </AnimatePresence>
+                  </div>
+                </motion.div>
               )}
-            </div>
-          </motion.div>
+            </AnimatePresence>
+          </div>
+
+          {/* Research Area */}
+          <div className="lg:col-span-6 space-y-8">
+            <Card className="rounded-none border-none bg-transparent overflow-hidden">
+              <div className="mb-6 space-y-2">
+                <h1 className="text-4xl font-serif font-bold text-primary">Intelligence Console</h1>
+                <p className="text-sm text-muted-foreground italic font-serif leading-relaxed">
+                  Query the knowledge graph for synthesized policy intelligence and cross-referenced evidence.
+                </p>
+              </div>
+
+              <div className="relative group">
+                <div className="absolute -inset-0.5 bg-accent/20 opacity-0 group-focus-within:opacity-100 transition-opacity blur-md" />
+                <Textarea
+                  placeholder="Inquire about institutional policy..."
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  className="min-h-[200px] text-lg font-serif italic bg-secondary/40 backdrop-blur-xl border-white/5 rounded-none resize-none focus:ring-0 focus:border-accent p-6 placeholder:text-muted-foreground/20 transition-all shadow-[inset_0_2px_15px_rgba(0,0,0,0.6)]"
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && !e.shiftKey) {
+                      e.preventDefault();
+                      handleSubmit();
+                    }
+                  }}
+                />
+                <div className="absolute bottom-4 right-4 flex items-center gap-4">
+                  <span className="text-[10px] font-serif uppercase tracking-widest text-muted-foreground">
+                    {query.length} Manifestations
+                  </span>
+                  <Button
+                    onClick={handleSubmit}
+                    disabled={isSubmitting || !query.trim()}
+                    className="rounded-none border border-accent/50 bg-accent/10 text-accent hover:bg-accent hover:text-accent-foreground transition-all duration-500 font-serif px-8 uppercase tracking-widest text-[10px] h-10 shadow-[0_0_15px_rgba(212,175,55,0.1)]"
+                  >
+                    {isSubmitting ? "SYNTHESIZING..." : "EXECUTE QUERY"}
+                    {!isSubmitting && <Send className="w-3.5 h-3.5 ml-2" />}
+                  </Button>
+                </div>
+              </div>
+            </Card>
+
+            <AnimatePresence mode="wait">
+              {isSubmitting && (
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  className="space-y-6 pt-12"
+                >
+                  <div className="flex flex-col items-center text-center space-y-6">
+                    <motion.div
+                      animate={{ rotate: 360 }}
+                      transition={{ duration: 4, repeat: Infinity, ease: "linear" }}
+                      className="w-12 h-12 border-2 border-accent border-t-transparent rounded-full"
+                    />
+                    <div className="space-y-2">
+                      <h3 className="text-sm font-serif font-bold uppercase tracking-[0.2em] text-accent italic">Traversing knowledge structure</h3>
+                      <p className="text-[11px] text-muted-foreground uppercase tracking-widest animate-pulse">Consulting high-fidelity knowledge graph...</p>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+
+              {error && !isSubmitting && (
+                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+                  <Card className="rounded-none border-2 border-destructive/20 bg-destructive/5 p-6">
+                    <div className="flex gap-3">
+                      <AlertCircle className="w-5 h-5 text-destructive flex-shrink-0" />
+                      <div>
+                        <h4 className="font-serif font-bold text-destructive uppercase tracking-widest text-xs mb-1">Operational Error</h4>
+                        <p className="text-sm text-muted-foreground">{error}</p>
+                      </div>
+                    </div>
+                  </Card>
+                </motion.div>
+              )}
+
+              {answers.length > 0 && !isSubmitting && (
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="space-y-12 pb-12"
+                >
+                  {answers.map((answer, idx) => (
+                    <div key={idx} className="space-y-8">
+                      <div className="space-y-4">
+                        <div className="flex items-center gap-3">
+                          <Search className="w-4 h-4 text-accent" />
+                          <h3 className="font-serif font-bold uppercase tracking-widest text-xs text-primary">Synthesized Intelligence</h3>
+                        </div>
+                        <div className="prose prose-invert max-w-none text-primary font-sans leading-relaxed selection:bg-accent/30">
+                          <ReactMarkdown
+                            components={{
+                              h1: ({ node, ...props }) => <h1 className="text-sky-400 font-sans font-bold mb-4 mt-6 text-3xl" {...props} />,
+                              h2: ({ node, ...props }) => <h2 className="text-emerald-400 font-sans font-bold mb-3 mt-5 text-2xl" {...props} />,
+                              h3: ({ node, ...props }) => <h3 className="text-amber-400 font-sans font-bold mb-2 mt-4 text-xl" {...props} />,
+                              h4: ({ node, ...props }) => <h4 className="text-rose-400 font-sans font-bold mb-2 mt-3 text-lg" {...props} />,
+                              h5: ({ node, ...props }) => <h5 className="text-indigo-400 font-sans font-bold mb-1 mt-2 text-base" {...props} />,
+                              h6: ({ node, ...props }) => <h6 className="text-cyan-400 font-sans font-bold mb-1 mt-2 text-sm" {...props} />,
+                            }}
+                          >
+                            {renderAnswerText(answer.answer)}
+                          </ReactMarkdown>
+                        </div>
+                      </div>
+
+                      {answer.extracted_facts && answer.extracted_facts.length > 0 && (
+                        <div className="space-y-4">
+                          <div className="flex items-center gap-3">
+                            <Layers className="w-4 h-4 text-accent" />
+                            <h3 className="font-serif font-bold uppercase tracking-widest text-xs text-primary">Structural Evidence</h3>
+                          </div>
+                          <div className="grid grid-cols-1 gap-4">
+                            {answer.extracted_facts.map((fact, fIdx) => (
+                              <Card key={fIdx} className="rounded-none border border-white/5 bg-secondary/40 p-6 relative overflow-hidden group hover:bg-secondary/60 transition-all">
+                                <div className="absolute top-0 left-0 w-1 h-full bg-accent/30 group-hover:bg-accent group-hover:icon-glow transition-all duration-500" />
+                                <div className="flex items-start gap-4">
+                                  <Quote className="w-4 h-4 text-accent/40 mt-1" />
+                                  <p className="text-sm text-muted-foreground font-sans leading-relaxed">
+                                    {fact.fact}
+                                  </p>
+                                </div>
+                              </Card>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+
+          {/* Investigation Panel (Right Sidebar) */}
+          <div className="lg:col-span-3 space-y-8">
+            {answers.length > 0 && !isSubmitting ? (
+              <motion.div
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                className="space-y-8"
+              >
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2 mb-4">
+                    <ShieldCheck className="w-4 h-4 text-accent" />
+                    <h2 className="font-serif font-bold uppercase tracking-widest text-xs text-primary">Integrity Metrics</h2>
+                  </div>
+                  <Card className="rounded-none border border-blue-900/20 bg-secondary/60 p-6 space-y-6 backdrop-blur-xl shadow-2xl">
+                    <div>
+                      <span className="text-[10px] font-serif uppercase tracking-wider text-muted-foreground mb-3 block">Confidence Manifestation</span>
+                      <div className={`text-center py-4 border font-serif italic text-lg ${answers[0].confidence === 'high'
+                        ? 'border-emerald-500/30 bg-emerald-500/5 text-emerald-400'
+                        : answers[0].confidence === 'medium'
+                          ? 'border-accent/30 bg-accent/5 text-accent'
+                          : 'border-red-500/30 bg-red-500/5 text-red-400'
+                        }`}>
+                        {answers[0].confidence?.toUpperCase() || 'UNVERIFIED'}
+                      </div>
+                    </div>
+
+                    {queryStats && (
+                      <div className="space-y-3 border-t border-blue-900/20 pt-6">
+                        <div className="flex justify-between items-end">
+                          <span className="text-[10px] font-serif uppercase text-muted-foreground">Synthesis Time</span>
+                          <span className="text-sm font-serif font-bold italic text-primary">{queryStats.timing.total.toFixed(2)}s</span>
+                        </div>
+                        <div className="flex justify-between items-end">
+                          <span className="text-[10px] font-serif uppercase text-muted-foreground">Graph Depth</span>
+                          <span className="text-sm font-serif font-bold italic text-primary">L-24</span>
+                        </div>
+                      </div>
+                    )}
+                  </Card>
+                </div>
+
+                {answers[0].evidence_texts && answers[0].evidence_texts.length > 0 && (
+                  <div className="space-y-4 text-left">
+                    <div className="flex items-center gap-2 mb-4">
+                      <QUOTE className="w-4 h-4 text-accent" />
+                      <h2 className="font-serif font-bold uppercase tracking-widest text-xs text-primary">Contextual Proofs</h2>
+                    </div>
+                    <div className="max-h-[500px] overflow-y-auto custom-scrollbar space-y-4 pr-2">
+                      {answers[0].evidence_texts.slice(0, 12).map((text, idx) => (
+                        <div key={idx} className="p-4 bg-secondary/40 border-b border-blue-900/20 hover:bg-secondary/60 transition-all relative group">
+                          <span className="absolute -left-2 top-4 w-5 h-5 bg-accent text-background text-[8px] flex items-center justify-center font-bold font-serif opacity-0 group-hover:opacity-100 transition-opacity">
+                            {idx + 1}
+                          </span>
+                          <p className="text-[11px] leading-relaxed text-muted-foreground font-sans">
+                            "{text}"
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </motion.div>
+            ) : (
+              <div className="flex flex-col items-center justify-center h-[400px] text-center space-y-4 border border-dashed border-border p-8 grayscale opacity-50">
+                <Network className="w-8 h-8 text-muted-foreground" />
+                <p className="text-[10px] font-serif uppercase tracking-widest text-muted-foreground">Waiting for query initiation</p>
+              </div>
+            )}
+          </div>
         </div>
       </main>
+
+      <footer className="container mx-auto px-6 py-12 border-t border-blue-900/20 mt-24">
+        <div className="flex flex-col items-center gap-4">
+          <NsureLogo className="w-6 h-6 text-accent/20" />
+          <p className="text-[10px] text-muted-foreground uppercase tracking-[0.3em] font-serif italic text-center">
+            Institutional Graph Intelligence Platform &bull; Nsure AI &bull; Est. 2026
+          </p>
+        </div>
+      </footer>
     </div>
   );
 }
+
+// Helper icons not imported
+const ShieldCheck = (props: any) => (
+  <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-shield-check"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z" /><path d="m9 12 2 2 4-4" /></svg>
+);
+
+const QUOTE = (props: any) => (
+  <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-quote"><path d="M3 21c3 0 7-1 7-8V5c0-1.25-.756-2.017-2-2H4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2 1 0 1 0 1 1v1c0 2.5 1 4.5 3 6" /><path d="M15 21c3 0 7-1 7-8V5c0-1.25-.757-2.017-2-2h-4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2h.75c0 2.25.25 4-2.75 6" /></svg>
+);

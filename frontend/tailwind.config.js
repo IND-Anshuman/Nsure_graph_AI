@@ -8,32 +8,39 @@ export default {
   theme: {
     extend: {
       colors: {
-        border: "hsl(217 19% 27%)",
-        input: "hsl(217 19% 27%)",
-        ring: "hsl(171 75% 55%)",
-        background: "hsl(222 47% 11%)",
-        foreground: "hsl(210 40% 98%)",
+        border: "hsl(222 47% 12%)",
+        input: "hsl(222 47% 12%)",
+        ring: "hsl(28 35% 55%)",
+        background: "hsl(225 30% 3%)",
+        foreground: "hsl(215 25% 90%)",
         primary: {
-          DEFAULT: "hsl(171 75% 55%)",
-          foreground: "hsl(222 47% 11%)",
+          DEFAULT: "hsl(215 25% 90%)",
+          foreground: "hsl(225 30% 3%)",
         },
         secondary: {
-          DEFAULT: "hsl(217 32% 17%)",
-          foreground: "hsl(210 40% 98%)",
+          DEFAULT: "hsl(225 30% 7%)",
+          foreground: "hsl(215 25% 85%)",
         },
         accent: {
-          DEFAULT: "hsl(171 75% 55%)",
-          foreground: "hsl(222 47% 11%)",
+          DEFAULT: "hsl(35 60% 55%)",
+          foreground: "hsl(225 30% 3%)",
         },
         muted: {
-          DEFAULT: "hsl(217 32% 17%)",
-          foreground: "hsl(215 20% 65%)",
+          DEFAULT: "hsl(225 20% 8%)",
+          foreground: "hsl(215 15% 65%)",
         },
+        ivory: "#f8f9fa",
+        charcoal: "#010204",
+        gold: "#d4af37",
+      },
+      fontFamily: {
+        serif: ["EB Garamond", "serif"],
+        sans: ["Inter", "sans-serif"],
       },
       borderRadius: {
-        lg: "0.75rem",
-        md: "0.5rem",
-        sm: "0.25rem",
+        lg: "0.5rem",
+        md: "0.25rem",
+        sm: "0.125rem",
       },
       keyframes: {
         "float": {

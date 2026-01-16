@@ -27,9 +27,16 @@ from typing import Any, Dict, List, Optional, Tuple
 
 import hashlib
 import json
+import logging
 import os
 import shutil
 import time
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='[%(levelname)s] %(message)s'
+)
 from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
@@ -48,6 +55,9 @@ from graph_maker.Community_processing import classify_query, handle_abstention
 from answer_synthesis.engine import import_graphml_to_kg
 
 
+from contextlib import contextmanager
+import os
+
 load_dotenv()
 
 app = Flask(__name__)
@@ -61,6 +71,30 @@ CORS(app, resources={
         "allow_headers": ["Content-Type"],
     }
 })
+
+@contextmanager
+def ScopedEnv(overrides: Dict[str, str]):
+    """Temporarily override os.environ for the duration of the context."""
+    if not overrides:
+        yield
+        return
+    
+    # Store original values
+    original = {k: os.environ.get(k) for k in overrides}
+    
+    try:
+        # Apply overrides
+        for k, v in overrides.items():
+            os.environ[k] = str(v)
+        yield
+    finally:
+        # Restore originals
+        for k, v in original.items():
+            if v is None:
+                if k in os.environ:
+                    del os.environ[k]
+            else:
+                os.environ[k] = v
 
 
 _API_CACHE_DIR = Path(os.getenv("KG_API_CACHE_DIR", "outputs/api_cache"))
@@ -124,12 +158,14 @@ def _community_boost_for_query(query: str) -> float:
 def _save_uploaded_pdf(upload_dir: Path) -> str:
     f = request.files.get("pdf")
     if f is None:
-        raise ValueError("Missing multipart field 'pdf'")
+        raise ValueError("Missing multipart field 'pdf' (or the file you uploaded was not correctly sent)")
+    
     filename = secure_filename(f.filename or "document.pdf")
-    if not filename.lower().endswith(".pdf"):
-        # We keep this strict for safety: your corpus loader supports other types,
-        # but the API contract here is "pdf".
-        raise ValueError("Uploaded file must be a .pdf")
+    ext = os.path.splitext(filename)[1].lower()
+    allowed_exts = {".pdf", ".docx", ".doc", ".txt", ".md", ".xls", ".xlsx", ".csv"}
+    
+    if ext not in allowed_exts:
+        raise ValueError(f"Uploaded file type '{ext}' is not supported. Allowed types: {', '.join(allowed_exts)}")
 
     upload_dir.mkdir(parents=True, exist_ok=True)
     out_path = upload_dir / f"{_now_ms()}_{filename}"
@@ -542,29 +578,31 @@ def build() -> Any:
         options = _read_json_field(payload.get("options"), default={})
 
     verbose = bool(options.get("verbose", False))
+    env_overrides = options.get("env_overrides", {})
 
-    build_opts = options.get("build", {}) if isinstance(options.get("build"), dict) else {}
-    cache = _resolve_cache_options(options)
-    graph, graph_key, cached_graphml_path = _get_or_build_graph(
-        source=source,
-        verbose=verbose,
-        build_opts=build_opts,
-        cache=cache,
-    )
+    with ScopedEnv(env_overrides):
+        build_opts = options.get("build", {}) if isinstance(options.get("build"), dict) else {}
+        cache = _resolve_cache_options(options)
+        graph, graph_key, cached_graphml_path = _get_or_build_graph(
+            source=source,
+            verbose=verbose,
+            build_opts=build_opts,
+            cache=cache,
+        )
 
-    t_graph = time.perf_counter()
+        t_graph = time.perf_counter()
 
-    out_opts = options.get("output", {}) if isinstance(options.get("output"), dict) else {}
-    out_dir = Path(str(out_opts.get("output_dir") or os.getenv("KG_API_GRAPHS_DIR", "outputs/api_graphs")))
-    graphml_name = out_opts.get("graphml_name")
-    graphml_path = _safe_graphml_output_path(output_dir=out_dir, requested_name=str(graphml_name) if graphml_name else None)
+        out_opts = options.get("output", {}) if isinstance(options.get("output"), dict) else {}
+        out_dir = Path(str(out_opts.get("output_dir") or os.getenv("KG_API_GRAPHS_DIR", "outputs/api_graphs")))
+        graphml_name = out_opts.get("graphml_name")
+        graphml_path = _safe_graphml_output_path(output_dir=out_dir, requested_name=str(graphml_name) if graphml_name else None)
 
-    # If user requested a specific output file, write/copy it there.
-    if os.path.abspath(cached_graphml_path) != os.path.abspath(graphml_path):
-        out_dir = Path(os.path.dirname(graphml_path))
-        out_dir.mkdir(parents=True, exist_ok=True)
-        shutil.copyfile(cached_graphml_path, graphml_path)
-    t_done = time.perf_counter()
+        # If user requested a specific output file, write/copy it there.
+        if os.path.abspath(cached_graphml_path) != os.path.abspath(graphml_path):
+            out_dir = Path(os.path.dirname(graphml_path))
+            out_dir.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(cached_graphml_path, graphml_path)
+        t_done = time.perf_counter()
 
     return jsonify(
         {
@@ -597,93 +635,95 @@ def query() -> Any:
         return jsonify({"error": "No questions provided"}), 400
 
     verbose = bool(options.get("verbose", False))
+    env_overrides = options.get("env_overrides", {})
 
-    cache = _resolve_cache_options(options)
+    with ScopedEnv(env_overrides):
+        cache = _resolve_cache_options(options)
 
-    # Build graph
-    build_opts = options.get("build", {}) if isinstance(options.get("build"), dict) else {}
-    graph, graph_key, graphml_path = _get_or_build_graph(
-        source=source,
-        verbose=verbose,
-        build_opts=build_opts,
-        cache=cache,
-    )
+        # Build graph
+        build_opts = options.get("build", {}) if isinstance(options.get("build"), dict) else {}
+        graph, graph_key, graphml_path = _get_or_build_graph(
+            source=source,
+            verbose=verbose,
+            build_opts=build_opts,
+            cache=cache,
+        )
 
-    t_graph = time.perf_counter()
+        t_graph = time.perf_counter()
 
-    # Build index
-    index_opts = options.get("index", {}) if isinstance(options.get("index"), dict) else {}
-    index_items, embeddings, index_key = _get_or_build_index(
-        graph=graph,
-        graph_key=graph_key,
-        verbose=verbose,
-        index_opts=index_opts,
-        cache=cache,
-    )
+        # Build index
+        index_opts = options.get("index", {}) if isinstance(options.get("index"), dict) else {}
+        index_items, embeddings, index_key = _get_or_build_index(
+            graph=graph,
+            graph_key=graph_key,
+            verbose=verbose,
+            index_opts=index_opts,
+            cache=cache,
+        )
 
-    if not index_items:
-        return jsonify({"error": "No index items were built (graph may be empty)."}), 500
+        if not index_items:
+            return jsonify({"error": "No index items were built (graph may be empty)."}), 500
 
-    t_index = time.perf_counter()
+        t_index = time.perf_counter()
 
-    # Retrieval/rerank/synthesis knobs
-    qa_opts = options.get("qa", {}) if isinstance(options.get("qa"), dict) else {}
-    top_n_semantic = int(qa_opts.get("top_n_semantic", 20) or 20)
-    top_k_final = int(qa_opts.get("top_k_final", 40) or 40)
-    rerank_top_k = int(qa_opts.get("rerank_top_k", 12) or 12)
+        # Retrieval/rerank/synthesis knobs
+        qa_opts = options.get("qa", {}) if isinstance(options.get("qa"), dict) else {}
+        top_n_semantic = int(qa_opts.get("top_n_semantic", 20) or 20)
+        top_k_final = int(qa_opts.get("top_k_final", 40) or 40)
+        rerank_top_k = int(qa_opts.get("rerank_top_k", 12) or 12)
 
-    clean_questions = [str(q).strip() for q in questions if str(q).strip()]
+        clean_questions = [str(q).strip() for q in questions if str(q).strip()]
 
-    # Parallelize per-question work to reduce wall-clock time.
-    # Keep concurrency modest to avoid LLM rate limits.
-    env_workers = os.getenv("KG_QA_MAX_WORKERS") or os.getenv("KG_QA_WORKERS") or "2"
-    requested_workers = _safe_int(qa_opts.get("max_workers") or qa_opts.get("workers"), int(env_workers or 2))
-    max_workers = max(1, min(len(clean_questions), requested_workers))
+        # Parallelize per-question work to reduce wall-clock time.
+        # Keep concurrency modest to avoid LLM rate limits.
+        env_workers = os.getenv("KG_QA_MAX_WORKERS") or os.getenv("KG_QA_WORKERS") or "2"
+        requested_workers = _safe_int(qa_opts.get("max_workers") or qa_opts.get("workers"), int(env_workers or 2))
+        max_workers = max(1, min(len(clean_questions), requested_workers))
 
-    answers: List[Dict[str, Any]] = []
-    if max_workers <= 1 or len(clean_questions) <= 1:
-        for q in clean_questions:
-            answers.append(
-                _answer_one(
-                    q=q,
-                    graph=graph,
-                    index_items=index_items,
-                    embeddings=embeddings,
-                    verbose=verbose,
-                    qa_opts=qa_opts,
-                    top_n_semantic=top_n_semantic,
-                    top_k_final=top_k_final,
-                    rerank_top_k=rerank_top_k,
+        answers: List[Dict[str, Any]] = []
+        if max_workers <= 1 or len(clean_questions) <= 1:
+            for q in clean_questions:
+                answers.append(
+                    _answer_one(
+                        q=q,
+                        graph=graph,
+                        index_items=index_items,
+                        embeddings=embeddings,
+                        verbose=verbose,
+                        qa_opts=qa_opts,
+                        top_n_semantic=top_n_semantic,
+                        top_k_final=top_k_final,
+                        rerank_top_k=rerank_top_k,
+                    )
                 )
-            )
-    else:
-        futures = {}
-        with ThreadPoolExecutor(max_workers=max_workers) as ex:
-            for i, q in enumerate(clean_questions):
-                fut = ex.submit(
-                    _answer_one,
-                    q=q,
-                    graph=graph,
-                    index_items=index_items,
-                    embeddings=embeddings,
-                    verbose=verbose,
-                    qa_opts=qa_opts,
-                    top_n_semantic=top_n_semantic,
-                    top_k_final=top_k_final,
-                    rerank_top_k=rerank_top_k,
-                )
-                futures[fut] = i
-            results: List[Tuple[int, Dict[str, Any]]] = []
-            for fut in as_completed(futures):
-                idx = futures[fut]
-                try:
-                    results.append((idx, fut.result()))
-                except Exception as e:
-                    results.append((idx, {"question": clean_questions[idx], "error": str(e)}))
-            results.sort(key=lambda x: x[0])
-            answers = [r for _, r in results]
+        else:
+            futures = {}
+            with ThreadPoolExecutor(max_workers=max_workers) as ex:
+                for i, q in enumerate(clean_questions):
+                    fut = ex.submit(
+                        _answer_one,
+                        q=q,
+                        graph=graph,
+                        index_items=index_items,
+                        embeddings=embeddings,
+                        verbose=verbose,
+                        qa_opts=qa_opts,
+                        top_n_semantic=top_n_semantic,
+                        top_k_final=top_k_final,
+                        rerank_top_k=rerank_top_k,
+                    )
+                    futures[fut] = i
+                results: List[Tuple[int, Dict[str, Any]]] = []
+                for fut in as_completed(futures):
+                    idx = futures[fut]
+                    try:
+                        results.append((idx, fut.result()))
+                    except Exception as e:
+                        results.append((idx, {"question": clean_questions[idx], "error": str(e)}))
+                results.sort(key=lambda x: x[0])
+                answers = [r for _, r in results]
 
-    t_done = time.perf_counter()
+        t_done = time.perf_counter()
 
     return jsonify(
         {

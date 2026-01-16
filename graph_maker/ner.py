@@ -24,6 +24,7 @@ from itertools import combinations
 import hashlib
 import math
 import time
+import difflib
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import threading
 from bisect import bisect_right
@@ -35,7 +36,6 @@ load_dotenv()
 
 _RELATION_SCHEMA_CACHE: Dict[str, Any] | None = None
 _RELATION_SCHEMA_LOCK = threading.Lock()
-_RELATION_PROPOSAL_WRITE_LOCK = threading.Lock()
 
 
 # Small, fast embedding model
@@ -43,6 +43,7 @@ _EMB_MODEL: SentenceTransformer | None = None
 _EMB_CACHE = DiskJSONCache("cache_embeddings.json")
 _CLUSTER_LABEL_CACHE = DiskJSONCache("cache_cluster_labels.json")
 _ENTITIES_CACHE = DiskJSONCache("cache_entities.json")
+_ONESHOT_RELATION_CACHE = DiskJSONCache("cache_oneshot_relations.json")
 
 
 def get_emb_model() -> SentenceTransformer:
@@ -168,13 +169,72 @@ def _parse_json_safely(raw: str, default):
 
         for cand in candidates:
             try:
+                # Try simple parse
                 return json.loads(cand)
             except Exception:
-                continue
+                # Try repair if it looks like a truncated object/list
+                try:
+                    repaired = _robust_json_repair(cand)
+                    return json.loads(repaired)
+                except Exception:
+                    continue
     except Exception:
         pass
 
     return default
+
+
+def _robust_json_repair(s: str) -> str:
+    """Attempts to fix truncated JSON by closing open braces/brackets/quotes.
+    
+    Extremely simple heuristic for truncated LLM responses.
+    """
+    s = s.strip()
+    if not s:
+        return s
+    
+    # If it ends with a comma, strip it
+    if s.endswith(","):
+        s = s[:-1].strip()
+        
+    # Stack-based closure
+    stack = []
+    in_string = False
+    escaped = False
+    
+    for char in s:
+        if escaped:
+            escaped = False
+            continue
+        if char == "\\":
+            escaped = True
+            continue
+        if char == '"':
+            in_string = not in_string
+            continue
+            
+        if not in_string:
+            if char in "{[":
+                stack.append(char)
+            elif char in "}]":
+                if stack:
+                    top = stack[-1]
+                    if (char == "}" and top == "{") or (char == "]" and top == "["):
+                        stack.pop()
+                        
+    # Close open string
+    if in_string:
+        s += '"'
+        
+    # Close stack in reverse
+    while stack:
+        top = stack.pop()
+        if top == "{":
+            s += "}"
+        elif top == "[":
+            s += "]"
+            
+    return s
 
 
 
@@ -795,26 +855,29 @@ def extract_candidate_phrases(text: str) -> List[str]:
 
 
 CLUSTER_LABEL_PROMPT = """
-You are helping build a knowledge graph for technical text.
+You are an expert Ontologist building a high-fidelity knowledge graph for LEGAL and INSURANCE domains.
 
-You will receive a cluster of surface forms (strings) that likely refer to related concepts or entities.
+You will receive a cluster of surface forms (strings) that refer to the same concept.
 
 Task:
-- Decide if this cluster corresponds to a meaningful entity/concept.
-- If yes, output:
-  - "is_entity": true
-  - "label": semantic type (e.g., PERSON, PROJECT, FRAMEWORK, MODEL, VECTOR_DB,
-    CONFERENCE, ORG, LIBRARY, DATASET, TASK, METRIC, etc.)
-  - "canonical": a normalized identifier (snake_case or lowercase words)
-  - "description": 1–3 sentences summarizing the concept.
-- If not an entity, set "is_entity": false and leave other fields empty or null.
+1. Determine if this cluster represents a meaningful Entity or Domain Concept.
+2. If YES:
+   - "is_entity": true
+   - "label": A precise semantic type. For insurance, use types like:
+     POLICY_TYPE, COVERAGE, EXCLUSION, CLAIM_PROCEDURE, REGULATORY_BODY, 
+     LEGAL_ACT, FINANCIAL_INSTRUMENT, ORGANIZATION, PERSON, LOCATION,
+     PROVISION, PENALTY, LIMITATION, etc.
+   - "canonical": The most standard, formal name for this concept (Title Case).
+   - "description": A high-quality, 2-3 sentence summary. Include WHAT it is and its significance in the document's context.
+3. If NO (junk/parsing artifact):
+   - "is_entity": false
 
-Return ONLY a single JSON object like:
+Return ONLY a single JSON object:
 {
   "is_entity": true,
-  "label": "FRAMEWORK",
-  "canonical": "autographrag",
-  "description": "..."
+  "label": "COVERAGE",
+  "canonical": "Third Party Liability",
+  "description": "Coverage provided to the insured against legal liability for death, bodily injury to third parties or damage to third party property caused by the motor vehicle."
 }
 """
 
@@ -839,7 +902,7 @@ def label_cluster_with_llm(cluster_items: List[str]) -> Dict:
     raw = ""
     for attempt in range(2):
         try:
-            raw = genai_generate_text("gemini-2.0-flash", prompt, temperature=0.1)
+            raw = genai_generate_text(None, prompt, temperature=0.1, purpose="ENTITY")
             if raw:
                 break
         except Exception as exc:  # pragma: no cover - network / API issues
@@ -1108,6 +1171,10 @@ def extract_semantic_entities_for_doc(doc_id: str, text: str) -> List[Entity]:
     # IMPORTANT: bump the version whenever canonicalization / span logic changes,
     # otherwise stale cached entities can collapse legal provisions (e.g., all
     # articles under canonical "article").
+    strategy = (os.getenv("KG_EXTRACTION_STRATEGY", "cluster") or "cluster").strip().lower()
+    if strategy == "oneshot":
+        return extract_oneshot_kg_from_doc(doc_id, text)
+
     canon_mode = (os.getenv("KG_ENTITY_CANONICAL_MODE", "cluster") or "cluster").strip().lower()
     # Cache key includes canonicalization mode so switching modes takes effect immediately.
     ent_cache_key = DiskJSONCache.hash_key("entities_v6", doc_id, canon_mode, _text_digest(text))
@@ -1145,7 +1212,8 @@ def extract_semantic_entities_for_doc(doc_id: str, text: str) -> List[Entity]:
             doc_word_set = None
 
     candidates = extract_candidate_phrases(text)
-    clusters = cluster_candidates(candidates, n_clusters=6)
+    # Increase cluster count for better granularity (richer nodes)
+    clusters = cluster_candidates(candidates, n_clusters=int(os.getenv("KG_ENTITY_CLUSTERS", "12") or 12))
     acronym_map = _find_acronym_pairs(text)
 
     all_entities: List[Entity] = list(seeded_entities)
@@ -1164,7 +1232,8 @@ def extract_semantic_entities_for_doc(doc_id: str, text: str) -> List[Entity]:
         return True
 
     disable_llm = os.getenv("KG_DISABLE_LLM_ENTITY_LABELING", "0") == "1"
-    max_llm_clusters = int(os.getenv("KG_MAX_LLM_ENTITY_CLUSTERS", "30"))
+    # Increase LLM budget for richer entity metadata
+    max_llm_clusters = int(os.getenv("KG_MAX_LLM_ENTITY_CLUSTERS", "60") or 60)
     # Prefer labeling larger clusters first (more value per LLM call)
     cluster_items_ranked = sorted(clusters.values(), key=lambda it: len(it), reverse=True)
     llm_allowed_signatures = set(
@@ -1755,21 +1824,25 @@ def add_mention_and_cooccurrence_edges(
 
 
 REL_EXTRACT_SYSTEM_PROMPT = """
-You are an expert in LEGAL and FINANCE relation extraction for building a knowledge graph.
+You are an expert in LEGAL and FINANCE relation extraction for building a high-fidelity knowledge graph.
+
+Goal:
+Identify ALL semantic relationships between the provided entities in the given text.
 
 You will receive:
-- A sentence (or short context window).
-- A list of entities in that text, with their canonical names and types.
+- A text context (one or more sentences).
+- A list of entities found in that text, with their canonical names and types.
 
 Task:
 - Extract relations as (head, relation, tail) grounded in the text.
-- Prefer legal/constitutional relations when applicable, such as:
+- Be thorough: Capture both explicit statements and clear logical implications.
+- For insurance/legal documents, prioritize relations like:
     DEFINES, PROVIDES_FOR, EMPOWERS, REQUIRES, PROHIBITS, LIMITS,
     AMENDS, SUBJECT_TO, NOTWITHSTANDING, EXCEPTS, APPLIES_TO,
     BALANCES_WITH, CONSIDERS_VIEWS_OF, PROCEDURE_FOR, INTERPRETS,
     OVERRIDES, SAVES_LAWS_FROM_INVALIDATION,
     REQUIRES_RECOMMENDATION_FROM, REQUIRES_CONSULTATION_WITH.
-- Also use globally common finance/corporate/regulatory relations when clearly supported, such as:
+- For finance/regulatory context, use:
     OWNS, OWNED_BY, SUBSIDIARY_OF, PARENT_OF,
     ACQUIRED, ACQUIRED_BY, MERGED_WITH,
     INVESTS_IN, FUNDED_BY,
@@ -1778,19 +1851,75 @@ Task:
     SECURED_BY, COLLATERAL_FOR,
     RATED_BY, REGULATED_BY, COMPLIES_WITH,
     LISTED_ON, TRADED_ON, HAS_EXPOSURE_TO.
-- If none apply, you may use RELATED_TO ONLY when clearly supported.
+- Use RELATED_TO as a safe fallback for any meaningful connection that doesn't fit a specific type.
 
 Rules:
 - "head" and "tail" MUST be canonical names exactly from the provided list.
-- relation label must be UPPERCASE_WITH_UNDERSCORES.
-- Output only relations supported by the wording in the text.
-- Include a confidence score 0..1.
+- Relation labels MUST be UPPERCASE_WITH_UNDERSCORES.
+- Do NOT hallucinate entities not in the list.
+- Include a confidence score 0..1 based on the strength of textual evidence.
 
 Return ONLY a JSON list:
 [
-    {"head": "article 3", "relation": "EMPOWERS", "tail": "parliament", "confidence": 0.78},
+    {"head": "The Insurer", "relation": "INDEMNIFIES", "tail": "Hospitalization Costs", "confidence": 0.95},
     ...
 ]
+"""
+
+ONESHOT_ENTITY_PROMPT = """
+You are an expert Ontologist specializing in LEGAL, INSURANCE, and FINANCE domains.
+
+Task:
+Perform a deep, exhaustive extraction of all ENTITIES and CONCEPTS from the provided document.
+Your goal is HIGH RECALL. Do not summarize; capture the granular structure of all provisions, definitions, and obligations.
+
+Identify:
+1. ENTITIES/CONCEPTS:
+   - Canonical name: Formal standard name (e.g., "The Insurer", "Section 149(2)").
+   - Label: Precise type (POLICY_TYPE, COVERAGE, EXCLUSION, CLAIM_PROCEDURE, REGULATORY_BODY, LEGAL_ACT, PROVISION, CONDITION, etc.).
+   - Description: 2-3 sentences explaining the concept's exact meaning and role in this document.
+   - Mention: The exact phrase/word used in the text to refer to this entity.
+
+DENSITY: For a full document, aim for at least 40-70 unique entities.
+
+Return ONLY a JSON object:
+{
+  "entities": [
+    {"canonical": "Third Party Liability", "label": "COVERAGE", "description": "...", "mention": "third-party liability"},
+    ...
+  ]
+}
+"""
+
+ONESHOT_RELATION_PROMPT = """
+You are an expert Ontologist specializing in LEGAL, INSURANCE, and FINANCE domains.
+
+Task:
+Perform a deep, exhaustive extraction of all RELATIONSHIPS from the provided document.
+Your goal is HIGH RECALL. Capture the granular relational structure.
+
+You will be provided with a list of known ENTITIES in this document. Use these names as your Head/Tail values whenever possible to ensure consistency.
+
+Identify:
+1. RELATIONSHIPS:
+   - Head/Tail: Canonical names (prefer the provided entity list).
+   - Relation: UPPERCASE_WITH_UNDERSCORES.
+   - Confidence: 0..1.
+   - Evidence Snippet: Exact text phrase supporting the connection.
+
+Priority Relation Types:
+- LEGAL/INSURANCE: DEFINES, PROVIDES_FOR, EMPOWERS, REQUIRES, PROHIBITS, LIMITS, AMENDS, SUBJECT_TO, NOTWITHSTANDING, EXCEPTS, APPLIES_TO, BALANCES_WITH, CONSIDERS_VIEWS_OF, PROCEDURE_FOR, INTERPRETS, OVERRIDES.
+- FINANCE/CORPORATE: OWNS, OWNED_BY, SUBSIDIARY_OF, INVESTS_IN, FUNDED_BY, ISSUES, ISSUED_BY, GUARANTEED_BY, INSURED_BY, REGULATED_BY, COMPLIES_WITH.
+
+DENSITY: For a full document, aim for at least 40-100 high-quality relationships.
+
+Return ONLY a JSON object:
+{
+  "relations": [
+    {"head": "The Insurer", "relation": "INDEMNIFIES", "tail": "Third Party Liability", "confidence": 0.95, "evidence_snippet": "..."},
+    ...
+  ]
+}
 """
 
 
@@ -1843,34 +1972,6 @@ def _schema_allowed_types(schema: Dict[str, Any]) -> Set[str]:
     return {str(x).strip().upper() for x in allowed if str(x).strip()}
 
 
-def _log_relation_type_proposal(
-    *,
-    schema: Dict[str, Any],
-    raw_relation: str,
-    normalized_relation: str,
-    head: str,
-    tail: str,
-    sentence_id: str | None,
-    confidence: float | None,
-) -> None:
-    """Append a JSONL record for unknown/unapproved relation labels."""
-
-    path = str(schema.get("proposal_path") or "edge_type_proposals.jsonl")
-    rec = {
-        "raw_relation": raw_relation,
-        "normalized_relation": normalized_relation,
-        "head": head,
-        "tail": tail,
-        "sentence_id": sentence_id,
-        "confidence": confidence,
-    }
-    try:
-        with _RELATION_PROPOSAL_WRITE_LOCK:
-            with open(path, "a", encoding="utf-8") as f:
-                f.write(json.dumps(rec, ensure_ascii=False) + "\n")
-    except Exception:
-        # Proposals are best-effort; never fail extraction.
-        return
 
 
 def _rule_based_constitution_relations(sentence_text: str, ent_list: List[Tuple[Entity, str]]) -> List[Dict[str, Any]]:
@@ -2108,6 +2209,167 @@ def _normalize_relation_label(label: str, schema: Dict[str, Any]) -> Optional[st
     return s
 
 
+def extract_oneshot_kg_from_doc(doc_id: str, text: str) -> List[Entity]:
+    """Extract entities and relations in one shot for a document."""
+    digest = _text_digest(text)
+    cache_key = DiskJSONCache.hash_key("oneshot_v1", doc_id, digest)
+    cached = _ONESHOT_RELATION_CACHE.get(cache_key)
+    
+    if cached and isinstance(cached, dict):
+        entities_data = cached.get("entities", [])
+        # CRITICAL: Always ensure 'latest' mapping exists even on cache hit for Phase 5 retrieval
+        doc_latest_key = DiskJSONCache.hash_key("oneshot_doc_latest", doc_id)
+        _ONESHOT_RELATION_CACHE.set(doc_latest_key, cached)
+    else:
+        # 1. Gliding Window Logic
+        window_size = int(os.getenv("KG_ONESHOT_WINDOW_SIZE", "8000"))
+        overlap = int(os.getenv("KG_ONESHOT_WINDOW_OVERLAP", "2000"))
+        
+        windows = []
+        if len(text) <= window_size:
+            windows.append(text)
+        else:
+            step = window_size - overlap
+            for i in range(0, len(text), step):
+                chunk = text[i:i + window_size]
+                if len(chunk) < 500 and windows: # Skip tiny trailing chunks if possible
+                    continue
+                windows.append(chunk)
+                if i + window_size >= len(text):
+                    break
+        
+        global_entities = []
+        global_relations = []
+        seen_entity_canons = {} # canonical -> full object
+        seen_relation_keys = set() # (head, rel, tail)
+        
+        logging.warning(f"One-shot Gliding Window starting for {doc_id} with {len(windows)} windows (Size: {window_size}, Overlap: {overlap})")
+        
+        for idx, window_text in enumerate(windows):
+            logging.warning(f"  -> Processing Window {idx+1}/{len(windows)} ({len(window_text)} chars)...")
+            
+            # Stage 1: Entities for this window
+            prompt_ent = f"{ONESHOT_ENTITY_PROMPT}\n\nDOCUMENT TEXT (WINDOW {idx+1}):\n{window_text}"
+            try:
+                raw_ent = genai_generate_text(None, prompt_ent, temperature=0.1, purpose="ENTITY")
+                data_ent = _parse_json_safely(raw_ent, default={"entities": []})
+                win_entities = data_ent if isinstance(data_ent, list) else data_ent.get("entities", [])
+            except Exception as e:
+                logging.error(f"One-shot Window {idx+1} Stage 1 failed: {e}")
+                win_entities = []
+            
+            # Stage 2: Relations for this window
+            ent_names_str = ", ".join([str(e.get("canonical", "")) for e in win_entities])
+            prompt_rel = f"{ONESHOT_RELATION_PROMPT}\n\nKNOWN ENTITIES:\n{ent_names_str}\n\nDOCUMENT TEXT (WINDOW {idx+1}):\n{window_text}"
+            try:
+                raw_rel = genai_generate_text(None, prompt_rel, temperature=0.1, purpose="RELATION")
+                data_rel = _parse_json_safely(raw_rel, default={"relations": []})
+                win_relations = data_rel if isinstance(data_rel, list) else data_rel.get("relations", [])
+            except Exception as e:
+                logging.error(f"One-shot Window {idx+1} Stage 2 failed: {e}")
+                win_relations = []
+                
+            # Merge logic for this window
+            for ent in win_entities:
+                canon = str(ent.get("canonical", "")).strip()
+                if not canon: continue
+                if canon not in seen_entity_canons:
+                    seen_entity_canons[canon] = ent
+                    global_entities.append(ent)
+                else:
+                    # Enrich existing entity if description is longer
+                    existing = seen_entity_canons[canon]
+                    if len(str(ent.get("description", ""))) > len(str(existing.get("description", ""))):
+                        existing["description"] = ent["description"]
+            
+            for rel in win_relations:
+                head = str(rel.get("head", "")).strip()
+                tail = str(rel.get("tail", "")).strip()
+                label = str(rel.get("relation", "")).strip()
+                if not head or not tail or not label: continue
+                
+                rel_key = (head, label, tail)
+                if rel_key not in seen_relation_keys:
+                    global_relations.append(rel)
+                    seen_relation_keys.add(rel_key)
+
+        # 2. Self-Healing: Aggregate synthesized entities if Stage 1 missed them
+        seen_canons = set(seen_entity_canons.keys())
+        for r in global_relations:
+            for side in ["head", "tail"]:
+                name = r.get(side)
+                if name and name not in seen_canons:
+                    global_entities.append({
+                        "canonical": name,
+                        "label": "CONCEPT",
+                        "description": "Synthesized from gliding window relationship discovery.",
+                        "mention": name
+                    })
+                    seen_canons.add(name)
+
+        entities_data = global_entities
+        relations_data = global_relations
+
+        cached = {
+            "entities": entities_data,
+            "relations": relations_data,
+            "digest": digest,
+            "window_count": len(windows)
+        }
+        # Store results
+        v2_cache_key = DiskJSONCache.hash_key("oneshot_v2", doc_id, digest)
+        _ONESHOT_RELATION_CACHE.set(v2_cache_key, cached)
+        doc_latest_key = DiskJSONCache.hash_key("oneshot_doc_latest", doc_id)
+        _ONESHOT_RELATION_CACHE.set(doc_latest_key, cached)
+
+        msg = f"One-shot Gliding Window finished. Total: {len(entities_data)} entities, {len(relations_data)} relations across {len(windows)} windows."
+        logging.warning(msg)
+
+    # Process entities and find spans
+    all_entities: List[Entity] = []
+    # Build a simple token set for fast pre-filtering
+    doc_word_set = set(re.findall(r"[a-z0-9]+", (text or "").lower()))
+    
+    max_mentions_per_surface = int(os.getenv("KG_MAX_MENTIONS_PER_SURFACE", "8"))
+    
+    for ent in entities_data:
+        canon = ent.get("canonical")
+        mention = ent.get("mention")
+        label = ent.get("label", "ENTITY")
+        desc = ent.get("description")
+        if not canon and not mention:
+            continue
+            
+        # Try both mention (if provided) and canonical for span finding.
+        # Use fallback to canon if mention is missing or not found.
+        spans = []
+        if mention:
+            spans = find_spans(text, mention, max_spans=max_mentions_per_surface, word_set=doc_word_set)
+        
+        if not spans and canon:
+            spans = find_spans(text, canon, max_spans=max_mentions_per_surface, word_set=doc_word_set)
+            
+        if not spans:
+            logging.debug(f"One-shot: Could not find span for '{canon}' (mention: '{mention}')")
+            continue
+            
+        for start, end in spans:
+            all_entities.append(Entity(
+                text=text[start:end],
+                label=label,
+                start=start,
+                end=end,
+                source="oneshot",
+                canonical=canon,
+                description=desc,
+                context=text[max(0, start-80):min(len(text), end+80)],
+                doc_id=doc_id
+            ))
+            
+    logging.info(f"One-shot successfully mapped {len(all_entities)} entity instances to text for {doc_id}")
+    return all_entities
+
+
 def _dedupe_entities_for_llm(ent_list: List[Tuple[Entity, str]]) -> List[Dict[str, str]]:
     """Unique entities by canonical string for LLM payload."""
     seen: Set[str] = set()
@@ -2125,24 +2387,32 @@ def _dedupe_entities_for_llm(ent_list: List[Tuple[Entity, str]]) -> List[Dict[st
     return out
 
 
-def extract_relations_for_sentence(
-    sentence: SentenceInfo,
-    entities_in_sentence: List[Tuple[Entity, str]]  # (entity, ent_node_id)
+def extract_relations_for_context(
+    text: str,
+    entities: List[Tuple[Entity, str]],  # (entity, ent_node_id)
+    context_id: str = "batch"
 ) -> List[Dict]:
+    """Extract semantic relations from a block of text using the LLM.
+    
+    Supports batching multiple sentences to reduce API call count and improve context.
+    """
     # Allow disabling LLM relation extraction entirely (keeps rule-based relations).
     if (os.getenv("KG_DISABLE_LLM_RELATIONS", "0") or "0").strip() == "1":
         return []
 
+    if not text or not text.strip():
+        return []
+
     schema = _load_relation_schema()
     allowed_types = _schema_allowed_types(schema)
-    ent_payload = _dedupe_entities_for_llm(entities_in_sentence)
+    ent_payload = _dedupe_entities_for_llm(entities)
     if len(ent_payload) < 2:
         return []
 
     allowed_canons = {_normalize_surface(e["canonical"]) for e in ent_payload if e.get("canonical")}
 
     user_payload = {
-        "sentence": sentence.text,
+        "context": text,
         "entities": ent_payload,
         "allowed_relation_label_format": "UPPERCASE_WITH_UNDERSCORES",
         "min_confidence": float(schema.get("min_confidence", 0.35)),
@@ -2151,15 +2421,15 @@ def extract_relations_for_sentence(
     prompt = f"{REL_EXTRACT_SYSTEM_PROMPT}\n\nInput:\n{json.dumps(user_payload, ensure_ascii=False)}"
 
     try:
-        raw = genai_generate_text("gemini-2.0-flash", prompt, temperature=0.1)
+        raw = genai_generate_text(None, prompt, temperature=0.1, purpose="RELATION")
     except Exception as exc:
-        logging.warning("extract_relations_for_sentence: LLM call failed: %s", exc)
+        logging.warning("extract_relations_for_context: LLM call failed: %s", exc)
         raw = ""
 
     data = _parse_json_safely(raw, default=[])
     if not isinstance(data, list):
         return []
-    # Optionally filter to ensure expected keys
+    
     cleaned: List[Dict] = []
     for item in data:
         if not isinstance(item, dict):
@@ -2174,29 +2444,11 @@ def extract_relations_for_sentence(
         if not head or not tail or head == tail or rel is None:
             continue
 
-        # If an allowlist is configured, force everything into it.
-        # Unknown relations are logged and collapsed to RELATED_TO (keeps graph stable).
         if allowed_types and rel not in allowed_types:
-            conf_for_log = None
-            try:
-                conf_for_log = float(item.get("confidence")) if item.get("confidence") is not None else None
-            except Exception:
-                conf_for_log = None
-
-            _log_relation_type_proposal(
-                schema=schema,
-                raw_relation=raw_rel,
-                normalized_relation=rel,
-                head=head,
-                tail=tail,
-                sentence_id=getattr(sentence, "sent_id", None),
-                confidence=conf_for_log,
-            )
             rel = "RELATED_TO"
             if allowed_types and rel not in allowed_types:
                 continue
 
-        # Enforce head/tail are from provided entity list (prevents hallucinated nodes).
         if head not in allowed_canons or tail not in allowed_canons:
             continue
 
@@ -2221,6 +2473,10 @@ def add_semantic_relation_edges(
     all_entities_per_doc: Dict[str, List[Entity]],
     sent_index: Dict[str, SentenceInfo],
 ):
+    strategy = (os.getenv("KG_EXTRACTION_STRATEGY", "cluster") or "cluster").strip().lower()
+    if strategy == "oneshot":
+        return _add_semantic_relation_edges_oneshot(graph, sent_index)
+
     # Build per-sentence entity lists from existing MENTION_IN edges (Phase 4), which is
     # far faster than scanning all sentences for every extracted entity.
     ent_node_to_min_entity: Dict[str, Entity] = {}
@@ -2287,21 +2543,10 @@ def add_semantic_relation_edges(
                 pass
         return context_text
 
-    def _extract_for_sentence(sid: str, ent_list: List[Tuple[Entity, str]]) -> List[KGEdge]:
+    def _extract_rules_only(sid: str, ent_list: List[Tuple[Entity, str]]) -> List[KGEdge]:
         if len(ent_list) < 2:
             return []
-        sentence = sent_index[sid]
         context_text = _context_text_for_sid(sid)
-
-        # Use context text but keep evidence as current sid
-        rel_sentence = SentenceInfo(
-            sent_id=sentence.sent_id,
-            doc_id=sentence.doc_id,
-            text=context_text,
-            start_char=sentence.start_char,
-            end_char=sentence.end_char,
-        )
-
         edges_out: List[KGEdge] = []
 
         # 1) Deterministic constitutional relations
@@ -2310,104 +2555,309 @@ def add_semantic_relation_edges(
         except Exception:
             rule_rels = []
         for rr in rule_rels:
-            head_node_id = _canonical_to_node_id(rr.get("head", ""))
-            tail_node_id = _canonical_to_node_id(rr.get("tail", ""))
-            rel_type = str(rr.get("relation") or "").strip().upper()
-            confidence = float(rr.get("confidence", 0.8) or 0.8)
-            if not head_node_id or not tail_node_id or not rel_type:
-                continue
-            if head_node_id not in graph.nodes or tail_node_id not in graph.nodes:
-                continue
-            edges_out.append(
-                KGEdge(
-                    id=_edge_id_for(head_node_id, rel_type, tail_node_id, sid),
-                    source=head_node_id,
-                    target=tail_node_id,
-                    type=rel_type,
-                    properties={"sentence_id": sid, "confidence": confidence, "source": "rule"},
-                )
-            )
+            head_id = _canonical_to_node_id(rr.get("head", ""))
+            tail_id = _canonical_to_node_id(rr.get("tail", ""))
+            rtype = str(rr.get("relation") or "").strip().upper()
+            if head_id in graph.nodes and tail_id in graph.nodes and rtype:
+                edges_out.append(KGEdge(
+                    id=_edge_id_for(head_id, rtype, tail_id, sid),
+                    source=head_id, target=tail_id, type=rtype,
+                    properties={"sentence_id": sid, "confidence": float(rr.get("confidence", 0.8)), "source": "rule"}
+                ))
 
-        # 1b) Deterministic finance/legal mechanics (override/recovery/subject-to)
+        # 1b) Deterministic finance/legal mechanics
         try:
             mech_rels = _rule_based_finance_legal_relations(context_text, ent_list)
         except Exception:
             mech_rels = []
         for rr in mech_rels:
-            head_node_id = _canonical_to_node_id(rr.get("head", ""))
-            tail_node_id = _canonical_to_node_id(rr.get("tail", ""))
-            rel_type = str(rr.get("relation") or "").strip().upper()
-            confidence = float(rr.get("confidence", 0.78) or 0.78)
-            if not head_node_id or not tail_node_id or not rel_type:
-                continue
-            if head_node_id not in graph.nodes or tail_node_id not in graph.nodes:
-                continue
-            edges_out.append(
-                KGEdge(
-                    id=_edge_id_for(head_node_id, rel_type, tail_node_id, sid),
-                    source=head_node_id,
-                    target=tail_node_id,
-                    type=rel_type,
-                    properties={"sentence_id": sid, "confidence": confidence, "source": "rule"},
-                )
-            )
-
-        # 2) LLM relations (optional; guarded inside extract_relations_for_sentence)
-        rels = extract_relations_for_sentence(rel_sentence, ent_list)
-        for rel in rels:
-            head_canon = rel["head"]
-            tail_canon = rel["tail"]
-            rel_type = rel["relation"]
-            confidence = float(rel.get("confidence", 0.6))
-            head_node_id = _canonical_to_node_id(head_canon)
-            tail_node_id = _canonical_to_node_id(tail_canon)
-            if head_node_id not in graph.nodes or tail_node_id not in graph.nodes:
-                continue
-            edges_out.append(
-                KGEdge(
-                    id=_edge_id_for(head_node_id, rel_type, tail_node_id, sid),
-                    source=head_node_id,
-                    target=tail_node_id,
-                    type=rel_type,
-                    properties={"sentence_id": sid, "confidence": confidence, "source": "llm"},
-                )
-            )
-
+            head_id = _canonical_to_node_id(rr.get("head", ""))
+            tail_id = _canonical_to_node_id(rr.get("tail", ""))
+            rtype = str(rr.get("relation") or "").strip().upper()
+            if head_id in graph.nodes and tail_id in graph.nodes and rtype:
+                edges_out.append(KGEdge(
+                    id=_edge_id_for(head_id, rtype, tail_id, sid),
+                    source=head_id, target=tail_id, type=rtype,
+                    properties={"sentence_id": sid, "confidence": float(rr.get("confidence", 0.78)), "source": "rule"}
+                ))
         return edges_out
 
-    # Parallel extraction, sequential add-to-graph for thread safety.
+    def _extract_llm_for_batch(batch_items: List[Tuple[str, List[Tuple[Entity, str]]]]) -> List[KGEdge]:
+        if not batch_items:
+            return []
+        
+        # Combine text and unique entities
+        texts = []
+        batch_entities: List[Tuple[Entity, str]] = []
+        seen_entity_ids = set()
+        for sid, elist in batch_items:
+            texts.append(sent_index[sid].text)
+            for e, nid in elist:
+                if nid not in seen_entity_ids:
+                    batch_entities.append((e, nid))
+                    seen_entity_ids.add(nid)
+        
+        full_text = " ".join(texts)
+        primary_sid = batch_items[0][0]
+        
+        rels = extract_relations_for_context(full_text, batch_entities, context_id=primary_sid)
+        
+        edges_out = []
+        for r in rels:
+            head_id = _canonical_to_node_id(r["head"])
+            tail_id = _canonical_to_node_id(r["tail"])
+            if head_id in graph.nodes and tail_id in graph.nodes:
+                edges_out.append(KGEdge(
+                    id=_edge_id_for(head_id, r["relation"], tail_id, primary_sid),
+                    source=head_id, target=tail_id, type=r["relation"],
+                    properties={"sentence_id": primary_sid, "confidence": r["confidence"], "source": "llm"}
+                ))
+        return edges_out
+
+    # Parallel extraction
     created_edges: List[KGEdge] = []
     seen_rel_edges: Set[Tuple[str, str, str, str]] = set()
-    items = list(entities_per_sentence.items())
+    
+    # Sort items by SID to maintain document order for batching
+    items = sorted(entities_per_sentence.items(), key=lambda x: x[0])
 
-    # Cap work for very large documents to keep runtime bounded.
-    # This is particularly important because LLM relation extraction is O(#sentences-with-mentions).
-    max_rel_sentences = int(os.getenv("KG_RELATION_MAX_SENTENCES", "0") or 0)
-    if max_rel_sentences > 0 and len(items) > max_rel_sentences:
-        # Prefer richer sentences (more entities mentioned) since they yield more relations.
-        items.sort(key=lambda kv: len(kv[1] or []), reverse=True)
-        items = items[:max_rel_sentences]
-
-    if rel_workers <= 1 or len(items) <= 50:
-        for sid, ent_list in items:
-            for edge in _extract_for_sentence(sid, ent_list):
-                key = (edge.source, edge.type, edge.target, str((edge.properties or {}).get("sentence_id") or ""))
-                if key in seen_rel_edges:
-                    continue
+    # 1. Rule-based extraction (sequential, very fast)
+    for sid, ent_list in items:
+        for edge in _extract_rules_only(sid, ent_list):
+            key = (edge.source, edge.type, edge.target, str(edge.properties.get("sentence_id")))
+            if key not in seen_rel_edges:
                 seen_rel_edges.add(key)
                 graph.add_edge(edge)
                 created_edges.append(edge)
-    else:
-        with ThreadPoolExecutor(max_workers=rel_workers) as ex:
-            futs = {ex.submit(_extract_for_sentence, sid, ent_list): sid for sid, ent_list in items}
-            for fut in as_completed(futs):
-                edges = fut.result() or []
-                for edge in edges:
-                    key = (edge.source, edge.type, edge.target, str((edge.properties or {}).get("sentence_id") or ""))
-                    if key in seen_rel_edges:
-                        continue
+
+    # 2. LLM-based extraction (batched & parallel)
+    # Refined Optimization: Batch sentences first, then only skip batches with < 2 unique entities total.
+    # This preserves cross-sentence relationships while still being much faster than processing every sentence.
+    llm_batch_size = int(os.getenv("KG_RELATION_BATCH_SIZE", "10") or 10)
+    
+    batches = []
+    current_batch = []
+    current_batch_entities = set()
+    
+    for sid, elist in items:
+        current_batch.append((sid, elist))
+        for _, eid in elist:
+            current_batch_entities.add(eid)
+            
+        if len(current_batch) >= llm_batch_size:
+            if len(current_batch_entities) >= 2:
+                batches.append(current_batch)
+            current_batch = []
+            current_batch_entities = set()
+            
+    if current_batch and len(current_batch_entities) >= 2:
+        batches.append(current_batch)
+
+    if verbose:
+        total_skipped_batches = (len(items) // llm_batch_size + 1) - len(batches)
+        print(f"[Phase 5] Quality Optimization: Grouped {len(items)} sentences into {len(batches)} multi-entity batches.")
+        if total_skipped_batches > 0:
+            print(f"[Phase 5] Quality Optimization: Skipped {total_skipped_batches} empty/low-signal batches.")
+
+    def _worker_with_stagger(batch, index):
+        if index > 0:
+            time.sleep(random.uniform(0.1, 0.8) * min(index, 3))
+        return _extract_llm_for_batch(batch)
+
+    if rel_workers <= 1:
+        for batch in batches:
+            for edge in _extract_llm_for_batch(batch):
+                key = (edge.source, edge.type, edge.target, str(edge.properties.get("sentence_id")))
+                if key not in seen_rel_edges:
                     seen_rel_edges.add(key)
                     graph.add_edge(edge)
                     created_edges.append(edge)
+    else:
+        with ThreadPoolExecutor(max_workers=rel_workers) as ex:
+            futs = {ex.submit(_worker_with_stagger, b, i): b for i, b in enumerate(batches)}
+            for fut in as_completed(futs):
+                edges = fut.result() or []
+                for edge in edges:
+                    key = (edge.source, edge.type, edge.target, str(edge.properties.get("sentence_id")))
+                    if key not in seen_rel_edges:
+                        seen_rel_edges.add(key)
+                        graph.add_edge(edge)
+                        created_edges.append(edge)
 
+    return created_edges
+
+
+def _add_semantic_relation_edges_oneshot(graph: KnowledgeGraph, sent_index: Dict[str, SentenceInfo]) -> List[KGEdge]:
+    """Helper to load pre-extracted relations from oneshot cache and add to graph."""
+    created_edges: List[KGEdge] = []
+    seen_rel_edges: Set[Tuple[str, str, str, str]] = set()
+    
+    # 1. Load entities and their aliases for better ID lookup (resilience to catalog merging)
+    canon_to_id: Dict[str, str] = {}
+    for nid, node in graph.nodes.items():
+        if node.label in {"ENTITY", "DOMAIN", "ARTICLE", "PROVISION"}:
+            props = node.properties or {}
+            # Index canonical
+            canon = props.get("canonical")
+            if canon:
+                canon_to_id[_normalize_surface(str(canon))] = nid
+            # Index aliases (crucial for hits after catalog merges)
+            aliases = props.get("aliases", [])
+            if isinstance(aliases, (list, set, tuple)):
+                for al in aliases:
+                    canon_to_id[_normalize_surface(str(al))] = nid
+    
+    print(f"DEBUG: Relationship lookup table built with {len(canon_to_id)} surface-to-ID entries.")
+
+    # 2. Iterate docs to find oneshot data
+    doc_ids = set()
+    for sid in sent_index:
+        parts = sid.split(":")
+        if len(parts) >= 2:
+            doc_ids.add(parts[1])
+            
+    print(f"DEBUG: Scanned sentence index, doc_ids found: {doc_ids}")
+
+    schema = _load_relation_schema()
+    total_new_edges = 0
+    
+    for doc_id in doc_ids:
+        # We need to find the digest for this doc_id to hit the cache
+        # This is slightly tricky since we don't have the full text here easily.
+        # But we can find all sentences for this doc and reconstruct or just hope 
+        # that Phase 2 already populated the cache.
+        # Alternatively, we could have extract_oneshot_kg_from_doc save a mapping 
+        # of doc_id -> digest.
+        
+        # Heuristic: try to find the cache entry by doc_id alone if DiskJSONCache supports it
+        # or use a doc_id specific cache.
+        
+        # Since DiskJSONCache is a simple mapping, let's use a secondary cache for doc_id -> latest_data
+        cache_key = DiskJSONCache.hash_key("oneshot_doc_latest", doc_id)
+        data = _ONESHOT_RELATION_CACHE.get(cache_key)
+        
+        if not data or not isinstance(data, dict):
+            logging.warning(f"  -> No One-Shot data found in cache for {doc_id} in Phase 5.")
+            print(f"DEBUG: No One-Shot data found for {doc_id} (used cache_key: {cache_key})")
+            continue
+            
+        relations = data.get("relations", [])
+        logging.info(f"  -> Found {len(relations)} raw relations in One-Shot cache for {doc_id}")
+        print(f"DEBUG: {doc_id} - Found {len(relations)} raw relations in cache.")
+        
+        mapped_count = 0
+        skipped_missing_node = 0
+        skipped_bad_label = 0
+        
+        for rel_item in relations:
+            head_raw = str(rel_item.get("head", ""))
+            tail_raw = str(rel_item.get("tail", ""))
+            
+            head_norm = _normalize_surface(head_raw)
+            tail_norm = _normalize_surface(tail_raw)
+            rel_label = _normalize_relation_label(str(rel_item.get("relation", "")), schema)
+            conf = rel_item.get("confidence", 0.6)
+            evidence = rel_item.get("evidence_snippet", "")
+            
+            src_id = canon_to_id.get(head_norm)
+            tgt_id = canon_to_id.get(tail_norm)
+            
+            # 2.5 Fuzzy Fallback Lookup
+            lookup_keys = list(canon_to_id.keys())
+            if not src_id and head_norm:
+                matches = difflib.get_close_matches(head_norm, lookup_keys, n=1, cutoff=0.92)
+                if matches:
+                    src_id = canon_to_id[matches[0]]
+                    
+            if not tgt_id and tail_norm:
+                matches = difflib.get_close_matches(tail_norm, lookup_keys, n=1, cutoff=0.92)
+                if matches:
+                    tgt_id = canon_to_id[matches[0]]
+
+            # 3. Dynamic Synthesis: If head/tail still missing, create a virtual entity node
+            if not src_id and head_raw:
+                src_id = _canonical_to_node_id(head_raw)
+                if src_id not in graph.nodes:
+                    graph.add_node(KGNode(
+                        id=src_id, label="ENTITY",
+                        properties={
+                            "canonical": head_raw, 
+                            "type": "CONCEPT", 
+                            "source": "oneshot_synthesis",
+                            "confidence": "medium",
+                            "description": f"Synthesized from a discovery relation in {doc_id}."
+                        }
+                    ))
+                    # Register in lookup table too
+                    canon_to_id[head_norm] = src_id
+                    
+            if not tgt_id and tail_raw:
+                tgt_id = _canonical_to_node_id(tail_raw)
+                if tgt_id not in graph.nodes:
+                    graph.add_node(KGNode(
+                        id=tgt_id, label="ENTITY",
+                        properties={
+                            "canonical": tail_raw, 
+                            "type": "CONCEPT", 
+                            "source": "oneshot_synthesis",
+                            "confidence": "medium",
+                            "description": f"Synthesized from a discovery relation in {doc_id}."
+                        }
+                    ))
+                    # Register in lookup table too
+                    canon_to_id[tail_norm] = tgt_id
+
+            if not src_id or not tgt_id:
+                skipped_missing_node += 1
+                continue
+            if not rel_label:
+                skipped_bad_label += 1
+                continue
+                
+            # Find best sentence_id for evidence
+            best_sid = None
+            if evidence:
+                # Search evidence in sent_index
+                ev_norm = evidence.lower()
+                for sid, sinfo in sent_index.items():
+                    if doc_id in sid and ev_norm in sinfo.text.lower():
+                        best_sid = sid
+                        break
+            
+            if not best_sid:
+                # Fallback to any sentence from this doc
+                for sid in sent_index:
+                    if doc_id in sid:
+                        best_sid = sid
+                        break
+                        
+            if not best_sid:
+                continue
+                
+            edge_id = f"e:rel:{hashlib.sha256(f'{src_id}||{rel_label}||{tgt_id}||{best_sid}'.encode('utf-8')).hexdigest()[:16]}"
+            key = (src_id, rel_label, tgt_id, best_sid)
+            if key not in seen_rel_edges:
+                seen_rel_edges.add(key)
+                edge = KGEdge(
+                    id=edge_id,
+                    source=src_id,
+                    target=tgt_id,
+                    type=rel_label,
+                    properties={
+                        "confidence": conf,
+                        "sentence_id": best_sid,
+                        "evidence": evidence,
+                        "source": "oneshot"
+                    }
+                )
+                graph.add_edge(edge)
+                created_edges.append(edge)
+                mapped_count += 1
+                total_new_edges += 1
+                
+        status_msg = f"  -> {doc_id}: Mapped {mapped_count} rels. (Skipped: {skipped_missing_node} untracked nodes, {skipped_bad_label} bad labels)"
+        logging.info(status_msg)
+        print(f"DEBUG: {status_msg}")
+                
+    print(f"DEBUG: _add_semantic_relation_edges_oneshot finished. Added {total_new_edges} edges.")
     return created_edges

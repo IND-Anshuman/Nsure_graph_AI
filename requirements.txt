@@ -26,8 +26,6 @@ requests
 neo4j
 
 # Web framework (optional)
-fastapi
-uvicorn
 flask
 flask-cors
 

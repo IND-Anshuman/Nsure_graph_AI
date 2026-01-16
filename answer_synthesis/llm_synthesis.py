@@ -341,7 +341,7 @@ def _call_llm_with_fallback(prompt: str,
 
     if os.getenv("GOOGLE_API_KEY"):
         try:
-            text = genai_generate_text(prefer_model, prompt, temperature=temperature)
+            text = genai_generate_text(prefer_model, prompt, temperature=temperature, purpose="QA")
             return (text or "").strip(), "google", prefer_model
         except Exception as e:
             last_error = e

@@ -16,6 +16,7 @@ import re
 import numpy as np
 from graph_maker.data_corpus import KnowledgeGraph, KGNode
 from graph_maker.embedding_cache import get_embeddings_with_cache
+from graph_maker.relation_schema import load_relation_schema, relation_edge_types_for_retrieval
 
 
 @dataclass
@@ -77,7 +78,7 @@ def build_retrieval_index_enhanced(
         if item.item_type == "ENTITY":
             return 6
         if item.item_type == "RELATION":
-            return 12
+            return 8
         if item.item_type == "COMMUNITY_MICRO":
             return max(20, min_text_chars)
         return min_text_chars
@@ -185,50 +186,35 @@ def build_retrieval_index_enhanced(
 
     # 2b) Index typed relation edges as text facts (structured evidence)
     relation_count = 0
-    try:
-        from graph_maker.relation_schema import load_relation_schema, relation_edge_types_for_retrieval
-
-        legal_like = set(relation_edge_types_for_retrieval(load_relation_schema()))
-        # Keep PART_OF as relation evidence when present in the KG.
-        legal_like.add("PART_OF")
-    except Exception:
-        legal_like = {
-            "DEFINES",
-            "PROVIDES_FOR",
-            "EMPOWERS",
-            "REQUIRES",
-            "REQUIRES_RECOMMENDATION_FROM",
-            "REQUIRES_CONSULTATION_WITH",
-            "PROHIBITS",
-            "LIMITS",
-            "AMENDS",
-            "SUBJECT_TO",
-            "NOTWITHSTANDING",
-            "EXCEPTS",
-            "APPLIES_TO",
-            "BALANCES_WITH",
-            "CONSIDERS_VIEWS_OF",
-            "PROCEDURE_FOR",
-            "INTERPRETS",
-            "RELATED_TO",
-            "OVERRIDES",
-            "SAVES_LAWS_FROM_INVALIDATION",
-            "PART_OF",
-        }
+    NON_INDEXABLE_RELATIONS = {
+        "HAS_SENTENCE", "MENTION_IN", "CO_OCCURS_WITH", 
+        "COMMUNITY_CONTAINS", "MEMBER_OF", "HAS_CHUNK", "SOURCE_OF"
+    }
 
     for edge in graph.edges:
-        if edge.type not in legal_like:
+        if edge.type in NON_INDEXABLE_RELATIONS:
             continue
+            
         src = graph.nodes.get(edge.source)
         tgt = graph.nodes.get(edge.target)
         if not src or not tgt:
             continue
-        if src.label != "ENTITY" or tgt.label != "ENTITY":
+            
+        # Allow ENTITY or DOMAIN nodes as endpoints for semantic relations.
+        valid_labels = {"ENTITY", "DOMAIN"}
+        if src.label not in valid_labels or tgt.label not in valid_labels:
             continue
+            
         sc = str(src.properties.get("canonical") or edge.source)
         tc = str(tgt.properties.get("canonical") or edge.target)
         sent_id = (edge.properties or {}).get("sentence_id")
+        evidence = (edge.properties or {}).get("evidence_snippet", "")
+        
+        # Fact text: "Source relation Target. Evidence: ..."
         rel_text = f"{sc} {edge.type} {tc}."
+        if evidence:
+            rel_text += f" Evidence: {evidence}"
+            
         _maybe_add(IndexItem(
             id=f"rel:{edge.id}",
             text=rel_text,
@@ -240,8 +226,7 @@ def build_retrieval_index_enhanced(
                 "source_canonical": sc,
                 "target_canonical": tc,
                 "sentence_id": sent_id,
-                "confidence": (edge.properties or {}).get("confidence"),
-            },
+            }
         ))
         relation_count += 1
 

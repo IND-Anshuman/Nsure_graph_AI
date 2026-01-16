@@ -518,15 +518,24 @@ def compute_multilevel_communities(graph: KnowledgeGraph,
 # Community nodes creation & linking into KG
 # -------------------------
 _SUMMARY_PROMPT = """
+You are an expert at synthesizing Insurance and Legal information into a coherent knowledge graph hierarchy.
+
 You will receive:
-1) A list of entities (canonical, type, descriptions)
-2) A small set of evidence sentences (sentence_id, text)
+1) A list of entities (canonical, type, descriptions) that belong to a "community" (a thematic cluster).
+2) A set of evidence sentences citing these entities.
+
+Task:
+Synthesize this information into a high-quality summary that explains the core theme of this community.
 
 Return strictly JSON with:
 {
-    "title": "3-6 word title",
-    "micro_summary": "<=60 tokens, noun-phrase start, no filler",
-    "extractive_bullets": ["3-5 short fact sentences"],
+    "title": "A descriptive 3-7 word title reflecting the core legal/financial theme",
+    "micro_summary": "A 1-2 sentence overview (max 70 tokens) that defines this community's purpose.",
+    "extractive_bullets": [
+        "4-6 detailed fact sentences that synthesize the relationship between members.",
+        "Ensure bullets explain how entities like 'Policy' and 'Coverage' interact.",
+        "Include domain-specific details from the evidence."
+    ],
     "citations": {
         "micro_summary": ["sent:..."],
         "bullets": [["sent:..."], ["sent:..."]]
@@ -534,10 +543,9 @@ Return strictly JSON with:
 }
 
 Rules:
-- Be concise and factual; no meta-commentary.
-- Ground claims in the evidence sentences; every bullet should cite at least one sentence_id.
-- If evidence is insufficient, keep bullets generic and cite what you have.
-- Do not repeat the title text inside the bullets.
+- Be formal, factual, and informative.
+- Ground ALL claims in the provided evidence.
+- Ensure the summary highlights the connection between different entities, especially DOMAIN and ENTITY nodes.
 """
 
 def _summarize_community_with_llm(
@@ -568,7 +576,7 @@ def _summarize_community_with_llm(
 
     payload = {"entities": entity_infos, "evidence_sentences": (evidence_sentences or [])}
     prompt = _SUMMARY_PROMPT.strip() + "\n\nInput:\n" + json.dumps(payload, ensure_ascii=False)
-    raw = (genai_generate_text(model_name, prompt, temperature=temperature) or "").strip()
+    raw = (genai_generate_text(model_name, prompt, temperature=temperature, purpose="ENTITY") or "").strip()
 
     if not raw:
         if _COMM_SUMMARY_CACHE is not None:
@@ -1041,7 +1049,7 @@ def multi_hop_traversal(
     Returns a list of unique paths (each path is a list of node ids).
     """
     if allowed_labels is None:
-        allowed_labels = {"ENTITY", "COMMUNITY"}
+        allowed_labels = {"ENTITY", "COMMUNITY", "DOMAIN"}
 
     from collections import deque
 
