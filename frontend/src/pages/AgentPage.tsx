@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Home, Settings, Network, Send, AlertCircle, Search, BookOpen, Quote, Layers } from "lucide-react";
+import { Home, Settings, Network, Send, AlertCircle, Search, BookOpen, Quote, Layers, Cpu } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -63,9 +63,9 @@ export function AgentPage() {
     KG_RELATION_WORKERS: "4",
     KG_COMMUNITY_SUMMARY_WORKERS: "4",
     KG_RELATION_BATCH_SIZE: "10",
-    KG_TOP_N_SEMANTIC: "40",
-    KG_TOP_K_FINAL: "15",
-    KG_RERANK_TOP_K: "10",
+    KG_TOP_N_SEMANTIC: "60",
+    KG_TOP_K_FINAL: "60",
+    KG_RERANK_TOP_K: "25",
     GEMINI_MODEL: "gemini-2.0-flash",
     KG_EXTRACTION_STRATEGY: "oneshot",
   });
@@ -99,9 +99,9 @@ export function AgentPage() {
       const apiOptions = {
         build: { skip_neo4j: true },
         qa: {
-          top_n_semantic: Number(import.meta.env.VITE_TOP_N_SEMANTIC) || 20,
-          top_k_final: Number(import.meta.env.VITE_TOP_K_FINAL) || 40,
-          rerank_top_k: Number(import.meta.env.VITE_RERANK_TOP_K) || 25,
+          top_n_semantic: Number(envOverrides.KG_TOP_N_SEMANTIC) || Number(import.meta.env.VITE_TOP_N_SEMANTIC) || 60,
+          top_k_final: Number(envOverrides.KG_TOP_K_FINAL) || Number(import.meta.env.VITE_TOP_K_FINAL) || 60,
+          rerank_top_k: Number(envOverrides.KG_RERANK_TOP_K) || Number(import.meta.env.VITE_RERANK_TOP_K) || 30,
         },
         cache: {
           enabled: true,
@@ -253,132 +253,215 @@ export function AgentPage() {
                   exit={{ height: 0, opacity: 0 }}
                   className="overflow-hidden"
                 >
-                  <div className="space-y-4 mb-2">
+                  <div className="space-y-6 mb-2">
                     <div className="flex items-center gap-2 mb-4">
                       <Settings className="w-4 h-4 text-accent" />
                       <h2 className="font-serif font-bold uppercase tracking-widest text-xs text-primary">Engine Customization</h2>
                     </div>
-                    <Card className="rounded-none border border-accent/20 bg-secondary/80 p-5 space-y-4 backdrop-blur-md relative overflow-hidden">
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-[10px] font-serif uppercase tracking-wider text-muted-foreground">Force Rebuild Graph</span>
-                        <input
-                          type="checkbox"
-                          checked={rebuildGraph}
-                          onChange={(e) => setRebuildGraph(e.target.checked)}
-                          className="w-4 h-4 accent-accent"
-                        />
-                      </div>
 
-                      <div className="flex items-center justify-between mb-4">
-                        <div className="flex flex-col">
-                          <span className="text-[10px] font-serif uppercase tracking-wider text-accent font-bold">One-Shot NER Extraction</span>
-                          <span className="text-[8px] uppercase tracking-widest text-muted-foreground italic">Unified Entity/Relation Pass</span>
+                    <Card className="rounded-none border border-accent/20 bg-secondary/80 p-6 space-y-6 backdrop-blur-md relative overflow-hidden">
+                      {/* Build Settings Section */}
+                      <div className="space-y-4">
+                        <div className="flex items-center gap-2 border-b border-white/5 pb-2">
+                          <Layers className="w-3.5 h-3.5 text-accent/60" />
+                          <span className="text-[10px] font-serif uppercase tracking-widest text-accent font-bold">Build & Extraction</span>
                         </div>
-                        <input
-                          type="checkbox"
-                          checked={envOverrides.KG_EXTRACTION_STRATEGY === "oneshot"}
-                          onChange={(e) => setEnvOverrides(prev => ({
-                            ...prev,
-                            KG_EXTRACTION_STRATEGY: e.target.checked ? "oneshot" : "cluster"
-                          }))}
-                          className="w-4 h-4 accent-accent"
-                        />
+
+                        <div className="flex items-center justify-between group/toggle">
+                          <div className="flex flex-col gap-1">
+                            <span className="text-[10px] font-serif uppercase tracking-wider text-primary">Force Rebuild Graph</span>
+                            <span className="text-[8px] text-muted-foreground uppercase tracking-widest leading-tight max-w-[180px]">
+                              Discards cached knowledge and reconstructs from scratch.
+                            </span>
+                          </div>
+                          <input
+                            type="checkbox"
+                            checked={rebuildGraph}
+                            onChange={(e) => setRebuildGraph(e.target.checked)}
+                            className="w-4 h-4 accent-accent cursor-pointer"
+                          />
+                        </div>
+
+                        <div className="flex items-center justify-between group/toggle">
+                          <div className="flex flex-col gap-1">
+                            <span className="text-[10px] font-serif uppercase tracking-wider text-primary">One-Shot NER Extraction</span>
+                            <span className="text-[8px] text-muted-foreground uppercase tracking-widest leading-tight max-w-[180px]">
+                              Unified pass for entities and relations. Faster but may be less granular.
+                            </span>
+                          </div>
+                          <input
+                            type="checkbox"
+                            checked={envOverrides.KG_EXTRACTION_STRATEGY === "oneshot"}
+                            onChange={(e) => setEnvOverrides(prev => ({
+                              ...prev,
+                              KG_EXTRACTION_STRATEGY: e.target.checked ? "oneshot" : "cluster"
+                            }))}
+                            className="w-4 h-4 accent-accent cursor-pointer"
+                          />
+                        </div>
                       </div>
 
-                      <div className="space-y-3 pt-2 border-t border-white/5">
+                      {/* Worker Settings Section */}
+                      <div className="space-y-4 pt-2">
+                        <div className="flex items-center gap-2 border-b border-white/5 pb-2">
+                          <Cpu className="w-3.5 h-3.5 text-accent/60" />
+                          <span className="text-[10px] font-serif uppercase tracking-widest text-accent font-bold">Parallel Processing</span>
+                        </div>
+
                         <div className="grid grid-cols-2 gap-4">
-                          <div className="space-y-1">
-                            <label className="text-[9px] uppercase tracking-widest text-muted-foreground">Doc Workers</label>
+                          <div className="space-y-2">
+                            <label className="text-[9px] uppercase tracking-widest text-muted-foreground flex flex-col gap-1">
+                              Doc Workers
+                              <span className="text-[7px] normal-case text-muted-foreground/60 italic">Parallel doc ingestion (1-16)</span>
+                            </label>
                             <input
                               type="number"
+                              min="1"
+                              max="16"
                               value={envOverrides.KG_DOC_WORKERS}
                               onChange={(e) => setEnvOverrides(prev => ({ ...prev, KG_DOC_WORKERS: e.target.value }))}
-                              className="w-full bg-background/50 border border-white/10 p-2 text-xs font-serif"
+                              className="w-full bg-background/50 border border-white/10 p-2 text-xs font-serif focus:border-accent/50 transition-colors"
                             />
                           </div>
-                          <div className="space-y-1">
-                            <label className="text-[9px] uppercase tracking-widest text-muted-foreground">QA Workers</label>
+                          <div className="space-y-2">
+                            <label className="text-[9px] uppercase tracking-widest text-muted-foreground flex flex-col gap-1">
+                              QA Workers
+                              <span className="text-[7px] normal-case text-muted-foreground/60 italic">Parallel query handling (1-16)</span>
+                            </label>
                             <input
                               type="number"
+                              min="1"
+                              max="16"
                               value={envOverrides.KG_QA_WORKERS}
                               onChange={(e) => setEnvOverrides(prev => ({ ...prev, KG_QA_WORKERS: e.target.value }))}
-                              className="w-full bg-background/50 border border-white/10 p-2 text-xs font-serif"
+                              className="w-full bg-background/50 border border-white/10 p-2 text-xs font-serif focus:border-accent/50 transition-colors"
                             />
                           </div>
                         </div>
 
                         <div className="grid grid-cols-2 gap-4">
-                          <div className={cn("space-y-1", envOverrides.KG_EXTRACTION_STRATEGY === "oneshot" && "opacity-40 pointer-events-none")}>
-                            <label className="text-[9px] uppercase tracking-widest text-muted-foreground">Rel Workers</label>
+                          <div className={cn("space-y-2", envOverrides.KG_EXTRACTION_STRATEGY === "oneshot" && "opacity-40 pointer-events-none")}>
+                            <label className="text-[9px] uppercase tracking-widest text-muted-foreground flex flex-col gap-1">
+                              Rel Workers
+                              <span className="text-[7px] normal-case text-muted-foreground/60 italic">Relation identification (1-16)</span>
+                            </label>
                             <input
                               type="number"
+                              min="1"
+                              max="16"
                               disabled={envOverrides.KG_EXTRACTION_STRATEGY === "oneshot"}
                               value={envOverrides.KG_RELATION_WORKERS}
                               onChange={(e) => setEnvOverrides(prev => ({ ...prev, KG_RELATION_WORKERS: e.target.value }))}
-                              className="w-full bg-background/50 border border-white/10 p-2 text-xs font-serif"
+                              className="w-full bg-background/50 border border-white/10 p-2 text-xs font-serif focus:border-accent/50 transition-colors"
                             />
                           </div>
-                          <div className={cn("space-y-1", envOverrides.KG_EXTRACTION_STRATEGY === "oneshot" && "opacity-40 pointer-events-none")}>
-                            <label className="text-[9px] uppercase tracking-widest text-muted-foreground">Rel Batch Size</label>
+                          <div className={cn("space-y-2", envOverrides.KG_EXTRACTION_STRATEGY === "oneshot" && "opacity-40 pointer-events-none")}>
+                            <label className="text-[9px] uppercase tracking-widest text-muted-foreground flex flex-col gap-1">
+                              Rel Batch Size
+                              <span className="text-[7px] normal-case text-muted-foreground/60 italic">Items per API call (1-100)</span>
+                            </label>
                             <input
                               type="number"
+                              min="1"
+                              max="100"
                               disabled={envOverrides.KG_EXTRACTION_STRATEGY === "oneshot"}
                               value={envOverrides.KG_RELATION_BATCH_SIZE}
                               onChange={(e) => setEnvOverrides(prev => ({ ...prev, KG_RELATION_BATCH_SIZE: e.target.value }))}
-                              className="w-full bg-background/50 border border-white/10 p-2 text-xs font-serif"
+                              className="w-full bg-background/50 border border-white/10 p-2 text-xs font-serif focus:border-accent/50 transition-colors"
                             />
                           </div>
                         </div>
 
                         <div className="grid grid-cols-2 gap-4">
-                          <div className="space-y-1">
-                            <label className="text-[9px] uppercase tracking-widest text-muted-foreground">Comm Workers</label>
+                          <div className="space-y-2">
+                            <label className="text-[9px] uppercase tracking-widest text-muted-foreground flex flex-col gap-1">
+                              Comm Workers
+                              <span className="text-[7px] normal-case text-muted-foreground/60 italic">Community summarization (1-16)</span>
+                            </label>
                             <input
                               type="number"
+                              min="1"
+                              max="16"
                               value={envOverrides.KG_COMMUNITY_SUMMARY_WORKERS}
                               onChange={(e) => setEnvOverrides(prev => ({ ...prev, KG_COMMUNITY_SUMMARY_WORKERS: e.target.value }))}
-                              className="w-full bg-background/50 border border-white/10 p-2 text-xs font-serif"
-                            />
-                          </div>
-                          <div className="space-y-1">
-                            <label className="text-[9px] uppercase tracking-widest text-muted-foreground">Model Override</label>
-                            <input
-                              type="text"
-                              value={envOverrides.GEMINI_MODEL}
-                              onChange={(e) => setEnvOverrides(prev => ({ ...prev, GEMINI_MODEL: e.target.value }))}
-                              className="w-full bg-background/50 border border-white/10 p-2 text-xs font-serif"
+                              className="w-full bg-background/50 border border-white/10 p-2 text-xs font-serif focus:border-accent/50 transition-colors"
                             />
                           </div>
                         </div>
+                      </div>
+
+                      {/* Retrieval Settings Section */}
+                      <div className="space-y-4 pt-2">
+                        <div className="flex items-center gap-2 border-b border-white/5 pb-2">
+                          <Search className="w-3.5 h-3.5 text-accent/60" />
+                          <span className="text-[10px] font-serif uppercase tracking-widest text-accent font-bold">Retrieval & Reranking</span>
+                        </div>
 
                         <div className="grid grid-cols-3 gap-2">
-                          <div className="space-y-1">
-                            <label className="text-[9px] uppercase tracking-widest text-muted-foreground">Top-N Sem</label>
+                          <div className="space-y-2">
+                            <label className="text-[9px] uppercase tracking-widest text-muted-foreground flex flex-col gap-1">
+                              Top-N Sem
+                              <span className="text-[7px] normal-case text-muted-foreground/60 italic">Initial pool (10-200)</span>
+                            </label>
                             <input
                               type="number"
+                              min="10"
+                              max="200"
                               value={envOverrides.KG_TOP_N_SEMANTIC}
                               onChange={(e) => setEnvOverrides(prev => ({ ...prev, KG_TOP_N_SEMANTIC: e.target.value }))}
-                              className="w-full bg-background/50 border border-white/10 p-2 text-xs font-serif"
+                              className="w-full bg-background/50 border border-white/10 p-2 text-xs font-serif focus:border-accent/50 transition-colors"
                             />
                           </div>
-                          <div className="space-y-1">
-                            <label className="text-[9px] uppercase tracking-widest text-muted-foreground">Top-K Fin</label>
+                          <div className="space-y-2">
+                            <label className="text-[9px] uppercase tracking-widest text-muted-foreground flex flex-col gap-1">
+                              Top-K Fin
+                              <span className="text-[7px] normal-case text-muted-foreground/60 italic">Final context (5-100)</span>
+                            </label>
                             <input
                               type="number"
+                              min="5"
+                              max="100"
                               value={envOverrides.KG_TOP_K_FINAL}
                               onChange={(e) => setEnvOverrides(prev => ({ ...prev, KG_TOP_K_FINAL: e.target.value }))}
-                              className="w-full bg-background/50 border border-white/10 p-2 text-xs font-serif"
+                              className="w-full bg-background/50 border border-white/10 p-2 text-xs font-serif focus:border-accent/50 transition-colors"
                             />
                           </div>
-                          <div className="space-y-1">
-                            <label className="text-[9px] uppercase tracking-widest text-muted-foreground">Rerank K</label>
+                          <div className="space-y-2">
+                            <label className="text-[9px] uppercase tracking-widest text-muted-foreground flex flex-col gap-1">
+                              Rerank K
+                              <span className="text-[7px] normal-case text-muted-foreground/60 italic">Precision pool (5-50)</span>
+                            </label>
                             <input
                               type="number"
+                              min="5"
+                              max="50"
                               value={envOverrides.KG_RERANK_TOP_K}
                               onChange={(e) => setEnvOverrides(prev => ({ ...prev, KG_RERANK_TOP_K: e.target.value }))}
-                              className="w-full bg-background/50 border border-white/10 p-2 text-xs font-serif"
+                              className="w-full bg-background/50 border border-white/10 p-2 text-xs font-serif focus:border-accent/50 transition-colors"
                             />
                           </div>
+                        </div>
+                      </div>
+
+                      {/* Model Settings Section */}
+                      <div className="space-y-4 pt-2">
+                        <div className="flex items-center gap-2 border-b border-white/5 pb-2">
+                          <Network className="w-3.5 h-3.5 text-accent/60" />
+                          <span className="text-[10px] font-serif uppercase tracking-widest text-accent font-bold">Intelligence Model</span>
+                        </div>
+
+                        <div className="space-y-2">
+                          <label className="text-[9px] uppercase tracking-widest text-muted-foreground flex flex-col gap-1">
+                            Gemini Model Version
+                            <span className="text-[7px] normal-case text-muted-foreground/60 italic">Specify model used for extraction & synthesis</span>
+                          </label>
+                          <input
+                            type="text"
+                            value={envOverrides.GEMINI_MODEL}
+                            onChange={(e) => setEnvOverrides(prev => ({ ...prev, GEMINI_MODEL: e.target.value }))}
+                            className="w-full bg-background/50 border border-white/10 p-3 text-xs font-serif focus:border-accent/50 transition-colors"
+                            placeholder="e.gemini-2.0-flash"
+                          />
                         </div>
                       </div>
                     </Card>
@@ -477,15 +560,20 @@ export function AgentPage() {
                           <Search className="w-4 h-4 text-accent" />
                           <h3 className="font-serif font-bold uppercase tracking-widest text-xs text-primary">Synthesized Intelligence</h3>
                         </div>
-                        <div className="prose prose-invert max-w-none text-primary font-sans leading-relaxed selection:bg-accent/30">
+                        <div className="prose-custom max-w-none text-primary/90 font-sans leading-relaxed selection:bg-accent/30">
                           <ReactMarkdown
                             components={{
-                              h1: ({ node, ...props }) => <h1 className="text-sky-400 font-sans font-bold mb-4 mt-6 text-3xl" {...props} />,
-                              h2: ({ node, ...props }) => <h2 className="text-emerald-400 font-sans font-bold mb-3 mt-5 text-2xl" {...props} />,
-                              h3: ({ node, ...props }) => <h3 className="text-amber-400 font-sans font-bold mb-2 mt-4 text-xl" {...props} />,
-                              h4: ({ node, ...props }) => <h4 className="text-rose-400 font-sans font-bold mb-2 mt-3 text-lg" {...props} />,
-                              h5: ({ node, ...props }) => <h5 className="text-indigo-400 font-sans font-bold mb-1 mt-2 text-base" {...props} />,
-                              h6: ({ node, ...props }) => <h6 className="text-cyan-400 font-sans font-bold mb-1 mt-2 text-sm" {...props} />,
+                              h1: ({ node, ...props }) => <h1 className="text-accent font-serif font-bold mb-6 mt-8 text-4xl border-b border-accent/20 pb-2" {...props} />,
+                              h2: ({ node, ...props }) => <h2 className="text-sky-400 font-serif font-bold mb-4 mt-6 text-3xl" {...props} />,
+                              h3: ({ node, ...props }) => <h3 className="text-emerald-400 font-serif font-bold mb-3 mt-5 text-2xl" {...props} />,
+                              h4: ({ node, ...props }) => <h4 className="text-amber-400 font-serif font-bold mb-2 mt-4 text-xl" {...props} />,
+                              h5: ({ node, ...props }) => <h5 className="text-rose-400 font-serif font-bold mb-2 mt-3 text-lg" {...props} />,
+                              h6: ({ node, ...props }) => <h6 className="text-indigo-400 font-serif font-bold mb-1 mt-2 text-base" {...props} />,
+                              strong: ({ node, ...props }) => <strong className="text-accent font-bold" {...props} />,
+                              p: ({ node, ...props }) => <p className="mb-4 text-primary/80" {...props} />,
+                              ul: ({ node, ...props }) => <ul className="list-disc list-outside ml-6 mb-6 space-y-2 text-primary/80" {...props} />,
+                              ol: ({ node, ...props }) => <ol className="list-decimal list-outside ml-6 mb-6 space-y-2 text-primary/80" {...props} />,
+                              li: ({ node, ...props }) => <li className="pl-2" {...props} />,
                             }}
                           >
                             {renderAnswerText(answer.answer)}

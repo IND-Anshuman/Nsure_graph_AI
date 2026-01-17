@@ -53,11 +53,13 @@ class RateLimiter:
                 sleep_time = 60.1 - (now - self.request_times[0])
                 if sleep_time > 0:
                     # Add jitter to prevent multiple workers from bursting at the start of a window
-                    jitter = random.uniform(0.1, 1.5)
-                    time.sleep(min(sleep_time + jitter, 2.0))
+                    # Increased jitter for better distribution
+                    jitter = random.uniform(0.5, 3.5)
+                    time.sleep(min(sleep_time + jitter, 5.0))
 
-    def trigger_cooldown(self, duration: float = 40.0):
+    def trigger_cooldown(self, duration: float = 75.0):
         with self.lock:
+            # Increased default cooldown to give the API provider more time to reset quotas
             self.cooldown_until = time.time() + duration
 
 

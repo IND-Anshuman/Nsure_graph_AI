@@ -44,6 +44,7 @@ _EMB_CACHE = DiskJSONCache("cache_embeddings.json")
 _CLUSTER_LABEL_CACHE = DiskJSONCache("cache_cluster_labels.json")
 _ENTITIES_CACHE = DiskJSONCache("cache_entities.json")
 _ONESHOT_RELATION_CACHE = DiskJSONCache("cache_oneshot_relations.json")
+_SEMANTIC_REL_CACHE = DiskJSONCache("cache_semantic_relations.json")
 
 
 def get_emb_model() -> SentenceTransformer:
@@ -1866,57 +1867,36 @@ Return ONLY a JSON list:
 ]
 """
 
-ONESHOT_ENTITY_PROMPT = """
+ONESHOT_KG_PROMPT = """
 You are an expert Ontologist specializing in LEGAL, INSURANCE, and FINANCE domains.
 
 Task:
-Perform a deep, exhaustive extraction of all ENTITIES and CONCEPTS from the provided document.
-Your goal is HIGH RECALL. Do not summarize; capture the granular structure of all provisions, definitions, and obligations.
+Perform a deep, exhaustive extraction of all ENTITIES, CONCEPTS, and RELATIONSHIPS from the provided document chunk.
+Your goal is HIGH RECALL. Document the granular structural relationship of all provisions, definitions, and obligations.
 
-Identify:
 1. ENTITIES/CONCEPTS:
    - Canonical name: Formal standard name (e.g., "The Insurer", "Section 149(2)").
    - Label: Precise type (POLICY_TYPE, COVERAGE, EXCLUSION, CLAIM_PROCEDURE, REGULATORY_BODY, LEGAL_ACT, PROVISION, CONDITION, etc.).
-   - Description: 2-3 sentences explaining the concept's exact meaning and role in this document.
-   - Mention: The exact phrase/word used in the text to refer to this entity.
+   - Description: 2-3 sentences explaining the concept's exact meaning.
+   - Mention: The exact phrase/word used in the text.
 
-DENSITY: For a full document, aim for at least 40-70 unique entities.
-
-Return ONLY a JSON object:
-{
-  "entities": [
-    {"canonical": "Third Party Liability", "label": "COVERAGE", "description": "...", "mention": "third-party liability"},
-    ...
-  ]
-}
-"""
-
-ONESHOT_RELATION_PROMPT = """
-You are an expert Ontologist specializing in LEGAL, INSURANCE, and FINANCE domains.
-
-Task:
-Perform a deep, exhaustive extraction of all RELATIONSHIPS from the provided document.
-Your goal is HIGH RECALL. Capture the granular relational structure.
-
-You will be provided with a list of known ENTITIES in this document. Use these names as your Head/Tail values whenever possible to ensure consistency.
-
-Identify:
-1. RELATIONSHIPS:
-   - Head/Tail: Canonical names (prefer the provided entity list).
+2. RELATIONSHIPS:
+   - Head/Tail: Canonical names of entities extracted above.
    - Relation: UPPERCASE_WITH_UNDERSCORES.
    - Confidence: 0..1.
    - Evidence Snippet: Exact text phrase supporting the connection.
 
 Priority Relation Types:
-- LEGAL/INSURANCE: DEFINES, PROVIDES_FOR, EMPOWERS, REQUIRES, PROHIBITS, LIMITS, AMENDS, SUBJECT_TO, NOTWITHSTANDING, EXCEPTS, APPLIES_TO, BALANCES_WITH, CONSIDERS_VIEWS_OF, PROCEDURE_FOR, INTERPRETS, OVERRIDES.
-- FINANCE/CORPORATE: OWNS, OWNED_BY, SUBSIDIARY_OF, INVESTS_IN, FUNDED_BY, ISSUES, ISSUED_BY, GUARANTEED_BY, INSURED_BY, REGULATED_BY, COMPLIES_WITH.
-
-DENSITY: For a full document, aim for at least 40-100 high-quality relationships.
+- DEFINES, PROVIDES_FOR, EMPOWERS, REQUIRES, PROHIBITS, LIMITS, AMENDS, SUBJECT_TO, NOTWITHSTANDING, EXCEPTS, APPLIES_TO, BALANCES_WITH, CONSIDERS_VIEWS_OF, PROCEDURE_FOR, INTERPRETS, OVERRIDES, OWNS, ISSUES, GUARANTEED_BY, REGULATED_BY, COMPLIES_WITH.
 
 Return ONLY a JSON object:
 {
+  "entities": [
+    {"canonical": "...", "label": "...", "description": "...", "mention": "..."},
+    ...
+  ],
   "relations": [
-    {"head": "The Insurer", "relation": "INDEMNIFIES", "tail": "Third Party Liability", "confidence": 0.95, "evidence_snippet": "..."},
+    {"head": "...", "relation": "...", "tail": "...", "confidence": 0.95, "evidence_snippet": "..."},
     ...
   ]
 }
@@ -2245,67 +2225,86 @@ def extract_oneshot_kg_from_doc(doc_id: str, text: str) -> List[Entity]:
         
         logging.warning(f"One-shot Gliding Window starting for {doc_id} with {len(windows)} windows (Size: {window_size}, Overlap: {overlap})")
         
-        for idx, window_text in enumerate(windows):
-            logging.warning(f"  -> Processing Window {idx+1}/{len(windows)} ({len(window_text)} chars)...")
-            
-            # Stage 1: Entities for this window
-            prompt_ent = f"{ONESHOT_ENTITY_PROMPT}\n\nDOCUMENT TEXT (WINDOW {idx+1}):\n{window_text}"
+        def _process_window(idx, window_text):
+            prompt = f"{ONESHOT_KG_PROMPT}\n\nDOCUMENT TEXT (WINDOW {idx+1}):\n{window_text}"
             try:
-                raw_ent = genai_generate_text(None, prompt_ent, temperature=0.1, purpose="ENTITY")
-                data_ent = _parse_json_safely(raw_ent, default={"entities": []})
-                win_entities = data_ent if isinstance(data_ent, list) else data_ent.get("entities", [])
+                raw = genai_generate_text(None, prompt, temperature=0.1, purpose="RELATION")
+                data = _parse_json_safely(raw, default={"entities": [], "relations": []})
+                win_entities = data.get("entities", [])
+                win_relations = data.get("relations", [])
             except Exception as e:
-                logging.error(f"One-shot Window {idx+1} Stage 1 failed: {e}")
+                logging.error(f"One-shot Window {idx+1} KG Extraction failed: {e}")
                 win_entities = []
-            
-            # Stage 2: Relations for this window
-            ent_names_str = ", ".join([str(e.get("canonical", "")) for e in win_entities])
-            prompt_rel = f"{ONESHOT_RELATION_PROMPT}\n\nKNOWN ENTITIES:\n{ent_names_str}\n\nDOCUMENT TEXT (WINDOW {idx+1}):\n{window_text}"
-            try:
-                raw_rel = genai_generate_text(None, prompt_rel, temperature=0.1, purpose="RELATION")
-                data_rel = _parse_json_safely(raw_rel, default={"relations": []})
-                win_relations = data_rel if isinstance(data_rel, list) else data_rel.get("relations", [])
-            except Exception as e:
-                logging.error(f"One-shot Window {idx+1} Stage 2 failed: {e}")
                 win_relations = []
-                
-            # Merge logic for this window
-            for ent in win_entities:
-                canon = str(ent.get("canonical", "")).strip()
-                if not canon: continue
-                if canon not in seen_entity_canons:
-                    seen_entity_canons[canon] = ent
-                    global_entities.append(ent)
-                else:
-                    # Enrich existing entity if description is longer
-                    existing = seen_entity_canons[canon]
-                    if len(str(ent.get("description", ""))) > len(str(existing.get("description", ""))):
-                        existing["description"] = ent["description"]
             
-            for rel in win_relations:
-                head = str(rel.get("head", "")).strip()
-                tail = str(rel.get("tail", "")).strip()
-                label = str(rel.get("relation", "")).strip()
-                if not head or not tail or not label: continue
-                
-                rel_key = (head, label, tail)
-                if rel_key not in seen_relation_keys:
-                    global_relations.append(rel)
-                    seen_relation_keys.add(rel_key)
+            return win_entities, win_relations
 
-        # 2. Self-Healing: Aggregate synthesized entities if Stage 1 missed them
-        seen_canons = set(seen_entity_canons.keys())
-        for r in global_relations:
-            for side in ["head", "tail"]:
-                name = r.get(side)
-                if name and name not in seen_canons:
-                    global_entities.append({
-                        "canonical": name,
-                        "label": "CONCEPT",
-                        "description": "Synthesized from gliding window relationship discovery.",
-                        "mention": name
-                    })
-                    seen_canons.add(name)
+        logging.warning(f"One-shot Gliding Window starting for {doc_id} with {len(windows)} windows (Size: {window_size}, Overlap: {overlap})")
+        
+        window_workers = int(os.getenv("KG_ONESHOT_WINDOW_WORKERS", "0") or 0)
+        if window_workers <= 0:
+            # Lowered from 10 to 4 to better respect free-tier RPM limits
+            window_workers = min(4, (os.cpu_count() or 2))
+
+        if len(windows) <= 1 or window_workers <= 1:
+            for idx, window_text in enumerate(windows):
+                logging.warning(f"  -> Processing Window {idx+1}/{len(windows)} ({len(window_text)} chars)...")
+                win_entities, win_relations = _process_window(idx, window_text)
+                
+                # Merge logic
+                for ent in win_entities:
+                    canon = str(ent.get("canonical", "")).strip()
+                    if not canon: continue
+                    if canon not in seen_entity_canons:
+                        seen_entity_canons[canon] = ent
+                        global_entities.append(ent)
+                    else:
+                        existing = seen_entity_canons[canon]
+                        if len(str(ent.get("description", ""))) > len(str(existing.get("description", ""))):
+                            existing["description"] = ent["description"]
+                
+                for rel in win_relations:
+                    head = str(rel.get("head", "")).strip()
+                    tail = str(rel.get("tail", "")).strip()
+                    label = str(rel.get("relation", "")).strip()
+                    if not head or not tail or not label: continue
+                    
+                    rel_key = (head, label, tail)
+                    if rel_key not in seen_relation_keys:
+                        global_relations.append(rel)
+                        seen_relation_keys.add(rel_key)
+        else:
+            logging.warning(f"  -> Processing {len(windows)} windows in parallel (workers={window_workers})...")
+            with ThreadPoolExecutor(max_workers=window_workers) as ex:
+                futs = {ex.submit(_process_window, i, t): i for i, t in enumerate(windows)}
+                for fut in as_completed(futs):
+                    idx = futs[fut]
+                    win_entities, win_relations = fut.result()
+                    
+                    # Merge logic (needs lock or single-threaded post-process, but here we process as-completed)
+                    # Note: seen_entity_canons and lists are being modified; for safety in as_completed loop
+                    # we should be careful, but since it's a single consumer thread here it's fine.
+                    for ent in win_entities:
+                        canon = str(ent.get("canonical", "")).strip()
+                        if not canon: continue
+                        if canon not in seen_entity_canons:
+                            seen_entity_canons[canon] = ent
+                            global_entities.append(ent)
+                        else:
+                            existing = seen_entity_canons[canon]
+                            if len(str(ent.get("description", ""))) > len(str(existing.get("description", ""))):
+                                existing["description"] = ent["description"]
+                    
+                    for rel in win_relations:
+                        head = str(rel.get("head", "")).strip()
+                        tail = str(rel.get("tail", "")).strip()
+                        label = str(rel.get("relation", "")).strip()
+                        if not head or not tail or not label: continue
+                        
+                        rel_key = (head, label, tail)
+                        if rel_key not in seen_relation_keys:
+                            global_relations.append(rel)
+                            seen_relation_keys.add(rel_key)
 
         entities_data = global_entities
         relations_data = global_relations
@@ -2420,6 +2419,13 @@ def extract_relations_for_context(
 
     prompt = f"{REL_EXTRACT_SYSTEM_PROMPT}\n\nInput:\n{json.dumps(user_payload, ensure_ascii=False)}"
 
+    # Cache hit check
+    cache_key = DiskJSONCache.hash_key("rel_v1", _text_digest(text), _text_digest(json.dumps(ent_payload)))
+    if _SEMANTIC_REL_CACHE is not None:
+        cached = _SEMANTIC_REL_CACHE.get(cache_key)
+        if cached is not None:
+            return cached
+
     try:
         raw = genai_generate_text(None, prompt, temperature=0.1, purpose="RELATION")
     except Exception as exc:
@@ -2466,6 +2472,10 @@ def extract_relations_for_context(
             "tail": tail,
             "confidence": conf_f,
         })
+    
+    if _SEMANTIC_REL_CACHE is not None:
+        _SEMANTIC_REL_CACHE.set(cache_key, cleaned)
+
     return cleaned
 
 def add_semantic_relation_edges(

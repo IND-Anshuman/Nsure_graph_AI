@@ -49,77 +49,67 @@ SYNTHESIS_PROMPT = """
 You are an expert analyst synthesizing comprehensive, well-structured answers from provided evidence.
 Your goal: provide a thorough, direct, and actionable answer that is grounded in evidence and formatted appropriately for the query type.
 
-Evidence item fields: id, type ("SENTENCE", "ENTITY_CONTEXT", "ENTITY", "COMMUNITY", etc.), text, metadata.
+HIERARCHY OF EVIDENCE (CRITICAL):
+- The evidence provided is strictly RANKED by relevance to the query.
+- Items at the beginning of the list are your PRIMARY sources. Lead with them.
+- Items further down the list provide secondary technical details, specific conditions, or exclusions. Use them to add depth and nuance to your answer.
+- Treat this as an optimized, prioritized set of building blocks for your reasoning.
 
 CRITICAL RULES:
-1) Ground EVERY claim strictly in the provided evidence. Zero external knowledge.
-2) BE CONFIDENT AND DIRECT. State facts clearly without hedging or uncertainty unless evidence is truly ambiguous.
-   - Don't use phrases like "it appears that", "it seems", "might be", "possibly" unless truly uncertain
-   - Start with the answer, then provide supporting details
-   - Be assertive: "X is Y" not "X appears to be Y"
-3) ADAPT FORMAT TO QUERY TYPE:
+1) GROUND EVERY CLAIM strictly in the provided evidence. Zero external knowledge.
+2) **BOTTOM LINE UP FRONT (BLUF)**: Start your response with a fixed, specific, and direct answer to the user's question. 
+   - The VERY FIRST SENTENCE must contain the core conclusion (e.g., "Yes, the policy covers X," "No, Y is excluded under Section 4," or a 1-sentence definition).
+   - Do not lead with "Based on the evidence provided" or "According to the protocol." Get straight to the point.
+   - Be confident and assertive. Use "X is Y" rather than "X appears to be Y."
+3) ADAPT FORMAT TO QUERY TYPE (Always following the BLUF rule):
    
    **Definitional queries** ("What is X?", "Define Y"):
-   - Start with a clear, concise definition (1-2 sentences)
-   - Follow with key characteristics in bullet points
-   - Include relevant examples if available
+   - **Sentence 1**: A clear, specific 1-sentence definition.
+   - **Followed by**: Key characteristics, scope, or technical parameters in bullet points.
    
    **How-to/Process queries** ("How does X work?", "How to Y"):
-   - Use numbered steps or clear bullet points
-   - Each step should be actionable and specific
-   - Include conditions or requirements where relevant
+   - **Sentence 1**: A summary of the core mechanism or requirement.
+   - **Followed by**: Numbered steps or clear workflow bullet points.
    
    **Comparison queries** ("Compare X and Y", "Difference between"):
-   - Use structured comparison format
-   - Bullet points highlighting key differences/similarities
-   - Include a summary statement
+   - **Sentence 1**: A summary statement highlighting the most significant difference or similarity.
+   - **Followed by**: Structured bullet points showing detailed contrasts.
    
    **List/Enumeration queries** ("What are the types of X?", "List all Y"):
-   - Use clear bullet points or numbered lists
-   - Each item should be concise and informative
-   - Group related items if applicable
+   - **Sentence 1**: A summary statement identifying the category and total count/scope.
+   - **Followed by**: Clear bullet points or numbered lists.
    
    **Explanation queries** ("Why does X?", "Explain Y"):
-   - Start with direct answer to WHY
-   - Use bullet points for multiple reasons/factors
-   - Provide specific examples
+   - **Sentence 1**: Direct 1-sentence answer to the "WHY."
+   - **Followed by**: Bullet points for detailed factors, reasons, or mechanisms.
    
    **Relationship queries** ("How does X relate to Y?"):
-   - State the relationship type upfront
-   - Use bullet points to explain:
-     • Direct connections
-     • Mechanisms of interaction
-     • Conditions or constraints
-     • Practical implications
+   - **Sentence 1**: State the primary relationship type upfront (e.g., "X is a subset of Y," "X regulates Y").
+   - **Followed by**: Bullet points detailing mechanisms and constraints.
    
-   **Example-based queries** ("Give example of X"):
-   - Provide concrete examples first
-   - Use bullet format for multiple examples
-   - Include context for each example
-   
+    **Scenario/Situational queries** ("What if X?", "In case of Y"):
+    - **Sentence 1**: A direct assessment: "Based on the evidence, this would be **[PAYABLE/EXCLUDED/SUBJECT TO CONDITIONS]**." 
+    - **Followed by**: Bullet points listing ALL applicable conditions, exclusions, or limits.
+    - Support reasoning by quoting or paraphrasing specific policy provisions.
+    
    **General/Open queries**:
-   - Use mixed format: opening statement + structured bullets
-   - Organize information logically
-   - Use subheadings or categories if needed
+   - **Sentence 1**: A summary conclusion.
+   - **Followed by**: Organized bullets with relevant subheadings.
 
 4) DO NOT include evidence IDs like [id1, id2] in the answer text. Write naturally without citations.
    Instead, track which evidence you use internally and list the IDs in the "used_evidence" field.
 
 5) STRUCTURE AND CLARITY:
-   - Lead with the most important information
-   - Use bullet points (•) or numbered lists (1., 2., 3.) liberally
-   - Keep individual bullets concise but complete
-   - Use bold concepts sparingly for emphasis (e.g., **Key Point:** description)
-   - Break complex information into digestible chunks
-   - Add line breaks between sections for readability
+   - Lead with the most important information (BLUF).
+   - Use bullet points (•) or numbered lists (1., 2., 3.) liberally.
+   - Keep individual bullets concise but complete.
+   - Use bold concepts sparingly for emphasis (e.g., **Key Point:** description).
+   - Break complex information into digestible chunks.
 
 6) CONTENT QUALITY:
-   - Provide context and background where relevant
-   - Explain WHY things work the way they do
-   - Include specific details, numbers, dates from evidence
-   - Use concrete examples from evidence to illustrate points
-   - Connect related concepts and show relationships
-   - For legal/technical content: cite specific provisions, scope, interactions, and implications
+   - **BE HYPER-SPECIFIC**: If a policy says "15 days", do not say "a few weeks". If it says "Section 4.2", mention it.
+   - Use concrete details, numbers, dates from evidence.
+   - Connect related concepts and show relationships.
 
 7) Prefer sentence and entity-context evidence for concrete details; use community/chunk summaries for broader context.
 
@@ -127,7 +117,7 @@ CRITICAL RULES:
 
 Output JSON Format:
 {
-    "answer": "Format this based on query type:\n\n**For definitions:** Start with clear definition, then bullet key points.\n\n**For processes:** Use numbered steps (1., 2., 3.) or clear workflow.\n\n**For lists:** Use bullet points (•) for each item.\n\n**For explanations:** Lead with direct answer, then use bullets for supporting points.\n\n**For comparisons:** Use structured bullets showing contrasts.\n\n**General:** Opening statement + organized bullets with relevant subheadings.\n\nBe confident, direct, and well-organized. No hedging unless truly uncertain.",
+    "answer": "Format this based on query type while ALWAYS following the BLUF (Bottom Line Up Front) rule. Lead with the core answer, then provide the structured detail below.",
     "used_evidence": ["id1", "id2", "id3", ...],
     "extracted_facts": [
         {"fact": "Specific factual statement from evidence", "evidence_ids": ["id1", "id2"]},
@@ -280,6 +270,36 @@ def _coerce_answer_to_string(answer: Any) -> str:
         return body if body else json.dumps(answer, ensure_ascii=False)
 
     return str(answer)
+
+
+def _extract_json_text(raw: str) -> str:
+    """Robustly extract JSON object or list from LLM response text."""
+    raw = (raw or "").strip()
+
+    # Handle fenced blocks by finding the content inside the first block if present
+    # but brace-finding below is generally more robust for mixed content.
+    
+    # Try OBJECT extraction
+    start_obj = raw.find("{")
+    end_obj = raw.rfind("}")
+    
+    # Try LIST extraction (fallback)
+    start_list = raw.find("[")
+    end_list = raw.rfind("]")
+    
+    # Prioritize the one that starts earlier and encompasses more, 
+    # but usually models return either an object or prose containing an object.
+    
+    if start_obj != -1 and end_obj != -1 and end_obj > start_obj:
+        # If list starts even earlier, check if it's a list of objects
+        if start_list != -1 and start_list < start_obj and end_list > end_obj:
+            return raw[start_list : end_list + 1].strip()
+        return raw[start_obj : end_obj + 1].strip()
+    
+    if start_list != -1 and end_list != -1 and end_list > start_list:
+        return raw[start_list : end_list + 1].strip()
+
+    return ""
 
 
 def _sanitize_evidence_text(text: str) -> str:
@@ -631,12 +651,13 @@ def llm_synthesize_answer(
     query: str,
     evidence_candidates: List[RetrievalCandidate],
     graph: Optional[KnowledgeGraph] = None,
+    query_type: Optional[str] = None,
     model_name: str = "gemini-2.0-flash",
     fallback_openai_model: str = "gpt-4o-mini",
     temperature: float = 0.2,
     evidence_only: bool = False,
-    max_evidence_only: int = 20,  # increased from 8 to capture more nuanced relationships
-    max_evidence_chars: int = 1200,  # increased from 650 for richer legal context
+    max_evidence_only: int = 25,
+    max_evidence_chars: int = 4000, 
     keep_metadata_keys: Optional[List[str]] = None,
     use_cache: bool = True,
     verbose: bool = False
@@ -690,10 +711,10 @@ def llm_synthesize_answer(
     if structural_result is not None:
         return structural_result
 
-    # Reorder evidence to put sentence-level items first so the
-    # model sees the most concrete, grounded evidence up front.
-    if evidence_candidates:
-        evidence_candidates = _sort_evidence_by_type_and_score(evidence_candidates)
+    # Respect the order provided (assumed to be ranked by relevance).
+    # Heuristic sorting by type often buries the most relevant evidence found by the reranker.
+    # if evidence_candidates:
+    #     evidence_candidates = _sort_evidence_by_type_and_score(evidence_candidates)
 
     summary_mode = _is_summary_query(query)
 
@@ -772,11 +793,16 @@ def llm_synthesize_answer(
     # Build prompt
     user_content = {
         "question": query,
+        "query_type_detected": query_type,
         "task": "summarize_document" if summary_mode else "answer_question",
         "evidence": evidence_items,
     }
 
     active_prompt = SUMMARY_PROMPT if summary_mode else SYNTHESIS_PROMPT
+    if not summary_mode and query_type:
+        active_prompt += f"\n\nDETECTED QUERY TYPE: {query_type.upper()}"
+        active_prompt += "\nIMPORTANT: Prioritize the formatting and style rules for this specific query type as defined in the instructions above."
+    
     prompt = f"{active_prompt}\n\nInput:\n{json.dumps(user_content, ensure_ascii=False)}"
     
     if verbose:
@@ -795,16 +821,20 @@ def llm_synthesize_answer(
         if not raw or not raw.strip():
             raise ValueError("LLM returned empty response")
         
-        # Strip markdown fences if present
-        if raw.startswith("```"):
-            raw = raw.strip("`").strip()
-            if raw.lower().startswith("json"):
-                raw = raw[4:].strip()
+        # Robustly extract JSON
+        cleaned_raw = _extract_json_text(raw)
         
-        if not raw or not raw.strip():
+        if not cleaned_raw:
+            if verbose:
+                print(f"[Synthesis] CRITICAL: No JSON object found in raw response. Raw preview: {raw[:200]}...")
             raise ValueError("No JSON content found in LLM response after cleaning")
             
-        result = json.loads(raw)
+        try:
+            result = json.loads(cleaned_raw)
+        except json.JSONDecodeError as jde:
+            if verbose:
+                print(f"[Synthesis] JSON decode error: {jde}. Raw content starts with: {cleaned_raw[:200]}")
+            raise
         
         # Validate and extract fields
         answer = _coerce_answer_to_string(result.get("answer", "Unable to generate answer"))

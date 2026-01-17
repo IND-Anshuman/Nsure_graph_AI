@@ -44,7 +44,7 @@ def search_and_expand(
     include_community_expansion: bool = True,
     min_hybrid_score: float = 0.15,
     dedup_overlap_threshold: float = 0.9,
-    semantic_dedup_threshold: float = 0.88,
+    semantic_dedup_threshold: float = 0.92,
     community_boost: float = 0.15,
     verbose: bool = False
 ) -> List[RetrievalCandidate]:

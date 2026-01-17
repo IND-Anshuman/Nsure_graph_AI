@@ -46,24 +46,27 @@ Evidence item fields:
 
 Instructions:
 - Read the question and evidence list.
-- Select and order only the evidence that is clearly useful to answer the question.
-- Strongly prefer items whose type is "SENTENCE" or "ENTITY_CONTEXT".
-- Use "COMMUNITY" or "CHUNK" items only when they add essential context not already present in sentence-level evidence.
-- When two items express similar content, keep the more specific / shorter sentence-level one.
-- If an item is redundant or off-topic, exclude it.
-- Keep the list concise (no more than the requested top_k).
+- Select and order evidence that is useful to answer the question, including supporting rules and definitions.
+- Prioritize items whose type is "SENTENCE" or "ENTITY_CONTEXT".
+- Use "COMMUNITY" or "CHUNK" items for broad thematic context.
+- When two items express similar content, keep the more specific / technical one.
+- If an item is totally irrelevant, exclude it.
+- **VOLUME**: Aim to provide a robust set of 15-20+ items if relevance is moderate to high, to ensure synthesis has sufficient building blocks.
 
 Scoring rubric (highest first):
 - relevance to question
+- value as a supporting rule/condition
 - degree of direct factual overlap with the query intent
-- specificity and concreteness
-- novelty (penalize near-duplicates)
+- specificity and technical detail
+- novelty (penalize 100% duplicates, but keep variations)
 
 Output JSON only (no prose):
 {
     "ranked_evidence_ids": ["id1", "id2", ...],
     "rationale": "1-2 sentences on why the top items were chosen"
 }
+
+CRITICAL: For scenario or conditional questions, RETAIN evidence that establishes a rule, limit, or condition (e.g., 'Exclusion 4b says...', 'Section 2.1 requires...') even if the evidence does not explicitly mention the scenario's specific actors or details. These are the building blocks for reasoning.
 """
 
 
@@ -173,6 +176,7 @@ def _call_llm_with_fallback(prompt: str,
 def llm_rerank_candidates(
     query: str,
     candidates: List[RetrievalCandidate],
+    query_type: Optional[str] = None,
     top_k: int = 12,
     rerank_mode: str = "llm",
     model_name: str = "gemini-2.0-flash",
@@ -312,14 +316,19 @@ def llm_rerank_candidates(
     # Build prompt
     user_content = {
         "question": query,
+        "query_type": query_type,
         "evidence_items": evidence_items,
         "top_k": top_k
     }
     
-    prompt = f"{RERANK_PROMPT}\n\nInput:\n{json.dumps(user_content, ensure_ascii=False)}"
+    current_prompt = RERANK_PROMPT
+    if query_type == "scenario":
+        current_prompt += "\nSPECIAL INSTRUCTION FOR SCENARIO: The user is asking about a hypothetical or specific scenario. Select evidence that provides rules, limits, definitions, or conditions that can be used to REASON about this scenario, even if the evidence doesn't explicitly mention the scenario itself."
+
+    prompt = f"{current_prompt}\n\nInput:\n{json.dumps(user_content, ensure_ascii=False)}"
     
     if verbose:
-        print(f"[Rerank] Calling LLM to rerank {len(candidates)} candidates...")
+        print(f"[Rerank] Calling LLM to rerank {len(candidates)} candidates (Type: {query_type})...")
     
     try:
         raw, provider_used, model_used = _call_llm_with_fallback(
@@ -347,22 +356,16 @@ def llm_rerank_candidates(
         seen = set()
         ranked_ids = [rid for rid in ranked_ids if isinstance(rid, str) and not (rid in seen or seen.add(rid))]
 
-        # If model returns too few ids, fill deterministically from hybrid order
-        if len(ranked_ids) < top_k:
-            filler = [c.id for c in _hybrid_rank(candidates) if c.id not in set(ranked_ids)]
-            ranked_ids.extend(filler[: max(0, top_k - len(ranked_ids))])
-
         # Limit to top_k
         ranked_ids = ranked_ids[:top_k]
 
-        # Fallback if model returned nothing
+        # Case: Model returned nothing because no evidence is relevant. 
+        # We respect this and don't fill back with hybrid order junk.
         if not ranked_ids:
-            fallback_ids = [c.id for c in _hybrid_rank(candidates)[:top_k]]
             if verbose:
-                print("[Rerank] No ranked ids returned by LLM; falling back to hybrid order")
-            ranked_ids = fallback_ids
-            rationale = rationale or "Fallback to hybrid scores due to empty rerank result"
-
+                print("[Rerank] No relevant evidence selected by LLM.")
+            rationale = rationale or "No relevant evidence found for this query."
+        
         # Cache result
         cache_result = {
             "ranked_evidence_ids": ranked_ids,

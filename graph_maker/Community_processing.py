@@ -1105,21 +1105,51 @@ def multi_hop_traversal(
 def classify_query(query: str) -> str:
     """
     Lightweight rule-based query classifier.
-    Returns one of: definition, overview, comparison, howwhy, missing
+    Returns one of: definition, process, comparison, list, explanation, relationship, example, overview, missing
     """
-    q = (query or "").lower()
-    if q.strip().startswith("what is") or q.strip().startswith("define") or q.strip().startswith("who is"):
+    q = (query or "").lower().strip()
+    
+    # 1. Definitional
+    if q.startswith("what is") or q.startswith("define") or q.startswith("who is") or q.startswith("meaning of"):
         return "definition"
-    if any(tok in q for tok in ["overview", "major", "main", "summary", "applications"]):
-        return "overview"
-    if " vs " in q or " compare" in q or "comparison" in q:
+        
+    # 2. Process / How-to
+    if q.startswith("how do") or q.startswith("how to") or q.startswith("process of") or q.startswith("steps"):
+        return "process"
+        
+    # 3. Comparison
+    if " vs " in q or " versus " in q or "compare" in q or "difference between" in q:
         return "comparison"
-    if any(tok in q for tok in ["why", "how", "impact", "cause", "explain"]):
-        return "howwhy"
+        
+    # 4. List / Enumeration
+    if q.startswith("list") or q.startswith("enumerate") or "what are the types" in q or "what are the kinds" in q:
+        return "list"
+        
+    # 5. Explanation / Why
+    if q.startswith("why") or "explain why" in q or "reason for" in q:
+        return "explanation"
+        
+    # 6. Relationship
+    if "relate to" in q or "connection between" in q or "relationship" in q:
+        return "relationship"
+        
+    # 7. Example-based
+    if "example of" in q or "give an example" in q or "instances of" in q:
+        return "example"
+        
+    # 8. Scenario / Situational
+    if any(tok in q for tok in ["what if", "suppose", "assume", "scenario", "case of", "in the event"]):
+        return "scenario"
+        
+    # 9. Missing / Failure signals
     if any(tok in q for tok in ["missing", "lack", "absent", "no evidence", "not found"]):
         return "missing"
-    # default
-    return "overview"
+
+    # Default: Overview / General
+    if any(tok in q for tok in ["overview", "major", "main", "summary", "applications"]):
+        return "overview"
+        
+    return "general"
 
 
 def handle_abstention(graph: KnowledgeGraph, query: str):

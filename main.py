@@ -425,6 +425,60 @@ def _safe_float(x: Any, default: float) -> float:
         return default
 
 
+def _sanitize_env_overrides(overrides: Dict[str, Any]) -> Dict[str, str]:
+    """Strictly bound environment overrides to prevent resource exploitation."""
+    if not overrides or not isinstance(overrides, dict):
+        return {}
+    
+    sanitized: Dict[str, str] = {}
+    
+    # Worker limits (1-16)
+    worker_keys = [
+        "KG_DOC_WORKERS", "KG_QA_WORKERS", "KG_RELATION_WORKERS", 
+        "KG_COMMUNITY_SUMMARY_WORKERS", "KG_QA_MAX_WORKERS"
+    ]
+    for k in worker_keys:
+        if k in overrides:
+            val = _safe_int(overrides[k], 4)
+            sanitized[k] = str(max(1, min(16, val)))
+            
+    # Batch size (1-100)
+    if "KG_RELATION_BATCH_SIZE" in overrides:
+        val = _safe_int(overrides["KG_RELATION_BATCH_SIZE"], 10)
+        sanitized["KG_RELATION_BATCH_SIZE"] = str(max(1, min(100, val)))
+        
+    # Retrieval parameters
+    if "KG_TOP_N_SEMANTIC" in overrides:
+        val = _safe_int(overrides["KG_TOP_N_SEMANTIC"], 40)
+        sanitized["KG_TOP_N_SEMANTIC"] = str(max(1, min(500, val)))
+        
+    if "KG_TOP_K_FINAL" in overrides:
+        val = _safe_int(overrides["KG_TOP_K_FINAL"], 15)
+        sanitized["KG_TOP_K_FINAL"] = str(max(1, min(200, val)))
+        
+    if "KG_RERANK_TOP_K" in overrides:
+        val = _safe_int(overrides["KG_RERANK_TOP_K"], 10)
+        sanitized["KG_RERANK_TOP_K"] = str(max(1, min(100, val)))
+
+    if "KG_MAX_EVIDENCE_CHARS" in overrides:
+        val = _safe_int(overrides["KG_MAX_EVIDENCE_CHARS"], 1200)
+        sanitized["KG_MAX_EVIDENCE_CHARS"] = str(max(100, min(5000, val)))
+        
+    # Strategy
+    if "KG_EXTRACTION_STRATEGY" in overrides:
+        val = str(overrides["KG_EXTRACTION_STRATEGY"]).lower()
+        sanitized["KG_EXTRACTION_STRATEGY"] = "oneshot" if val == "oneshot" else "cluster"
+        
+    # Model (allow-list or basic validation)
+    if "GEMINI_MODEL" in overrides:
+        model = str(overrides["GEMINI_MODEL"]).strip()
+        # Basic check to ensure it looks like a model name
+        if model and len(model) < 64 and all(c.isalnum() or c in "-._" for c in model):
+            sanitized["GEMINI_MODEL"] = model
+
+    return sanitized
+
+
 def _answer_one(
     *,
     q: str,
@@ -462,6 +516,7 @@ def _answer_one(
         rr = llm_rerank_candidates(
             query=q,
             candidates=candidates,
+            query_type=qtype,
             top_k=rerank_top_k,
             rerank_mode=str(qa_opts.get("rerank_mode", "llm") or "llm"),
             model_name=str(qa_opts.get("rerank_model", "gemini-2.0-flash") or "gemini-2.0-flash"),
@@ -493,6 +548,7 @@ def _answer_one(
             query=q,
             evidence_candidates=ranked,
             graph=graph,
+            query_type=qtype,
             model_name=str(qa_opts.get("synthesis_model", "gemini-2.0-flash") or "gemini-2.0-flash"),
             fallback_openai_model=str(qa_opts.get("synthesis_fallback_openai_model", "gpt-4o-mini") or "gpt-4o-mini"),
             temperature=_safe_float(qa_opts.get("synthesis_temperature"), 0.2),
@@ -578,7 +634,7 @@ def build() -> Any:
         options = _read_json_field(payload.get("options"), default={})
 
     verbose = bool(options.get("verbose", False))
-    env_overrides = options.get("env_overrides", {})
+    env_overrides = _sanitize_env_overrides(options.get("env_overrides", {}))
 
     with ScopedEnv(env_overrides):
         build_opts = options.get("build", {}) if isinstance(options.get("build"), dict) else {}
@@ -635,7 +691,7 @@ def query() -> Any:
         return jsonify({"error": "No questions provided"}), 400
 
     verbose = bool(options.get("verbose", False))
-    env_overrides = options.get("env_overrides", {})
+    env_overrides = _sanitize_env_overrides(options.get("env_overrides", {}))
 
     with ScopedEnv(env_overrides):
         cache = _resolve_cache_options(options)
