@@ -1,0 +1,23 @@
+services:
+  - type: web
+    name: nsure-ai
+    env: python
+    buildCommand: |
+      # Build Frontend
+      cd frontend && npm install && npm run build && cd ..
+      # Install Backend Dependencies
+      pip install -r requirements.txt
+      # Download SpaCy Model
+      python -m spacy download en_core_web_sm
+    startCommand: gunicorn main:app
+    envVars:
+      - key: GOOGLE_API_KEY
+        sync: false
+      - key: KG_EMBEDDING_MODEL
+        value: sentence-transformers/all-MiniLM-L6-v2
+      - key: KG_EMBEDDING_DIM
+        value: "384"
+      - key: KG_ONESHOT_WINDOW_SIZE
+        value: "16000"
+      - key: FLASK_ENV
+        value: production

@@ -32,3 +32,4 @@ flask-cors
 # Additional utilities
 numpy
 tqdm
+gunicorn

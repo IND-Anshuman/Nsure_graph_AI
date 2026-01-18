@@ -63,17 +63,22 @@ load_dotenv()
 # Suppress noisy Google GenAI SDK logs (e.g., "afc is enabled")
 logging.getLogger("google.genai").setLevel(logging.WARNING)
 
-app = Flask(__name__)
+app = Flask(__name__, static_folder='frontend/dist', static_url_path='/')
 app.url_map.strict_slashes = False
 
-# Enable CORS for frontend communication
-CORS(app, resources={
-    r"/*": {
-        "origins": ["http://localhost:3000", "http://localhost:5173"],
-        "methods": ["GET", "POST", "OPTIONS"],
-        "allow_headers": ["Content-Type"],
-    }
-})
+# Enable CORS for frontend communication during development
+CORS(app)
+
+@app.route('/', defaults={'path': ''})
+@app.route('/<path:path>')
+def serve(path):
+    if path != "" and os.path.exists(os.path.join(app.static_folder, path)):
+        return app.send_static_file(path)
+    else:
+        index_path = os.path.join(app.static_folder, 'index.html')
+        if os.path.exists(index_path):
+            return app.send_static_file('index.html')
+        return "Nsure AI API is active. (Connect high-fidelity frontend build to see UI)", 200
 
 @contextmanager
 def ScopedEnv(overrides: Dict[str, str]):
@@ -940,8 +945,10 @@ def query_graphml() -> Any:
 
 
 if __name__ == "__main__":
-    # Flask dev server (use a proper WSGI server in production).
-    host = os.getenv("KG_API_HOST", "127.0.0.1")
-    port = int(os.getenv("KG_API_PORT", "5000") or 5000)
-    debug = (os.getenv("KG_API_DEBUG", "0") or "0").strip() == "1"
+    # Render and other cloud platforms provide a PORT environment variable
+    port = int(os.environ.get("PORT", os.environ.get("KG_API_PORT", "5000")))
+    host = os.environ.get("KG_API_HOST", "0.0.0.0")
+    debug = os.environ.get("KG_API_DEBUG", "0") == "1"
+    
+    # In production, use 'gunicorn main:app' instead of this block
     app.run(host=host, port=port, debug=debug)
