@@ -60,6 +60,9 @@ import os
 
 load_dotenv()
 
+# Suppress noisy Google GenAI SDK logs (e.g., "afc is enabled")
+logging.getLogger("google.genai").setLevel(logging.WARNING)
+
 app = Flask(__name__)
 app.url_map.strict_slashes = False
 
@@ -475,6 +478,30 @@ def _sanitize_env_overrides(overrides: Dict[str, Any]) -> Dict[str, str]:
         # Basic check to ensure it looks like a model name
         if model and len(model) < 64 and all(c.isalnum() or c in "-._" for c in model):
             sanitized["GEMINI_MODEL"] = model
+
+    # Embedding Settings
+    if "KG_EMBEDDING_MODEL" in overrides:
+        val = str(overrides["KG_EMBEDDING_MODEL"]).strip()
+        # Allow popular sentence-transformer models
+        if "mini" in val.lower() or "mpnet" in val.lower() or "bert" in val.lower():
+            sanitized["KG_EMBEDDING_MODEL"] = val
+            
+    if "KG_EMBEDDING_DIM" in overrides:
+        val = _safe_int(overrides["KG_EMBEDDING_DIM"], 384)
+        sanitized["KG_EMBEDDING_DIM"] = str(max(128, min(4096, val)))
+
+    if "KG_EMBEDDING_BATCH_SIZE" in overrides:
+        val = _safe_int(overrides["KG_EMBEDDING_BATCH_SIZE"], 64)
+        sanitized["KG_EMBEDDING_BATCH_SIZE"] = str(max(1, min(512, val)))
+
+    # Extraction Window Sizes
+    if "KG_ONESHOT_WINDOW_SIZE" in overrides:
+        val = _safe_int(overrides["KG_ONESHOT_WINDOW_SIZE"], 8000)
+        sanitized["KG_ONESHOT_WINDOW_SIZE"] = str(max(1000, min(100000, val)))
+    
+    if "KG_ONESHOT_WINDOW_OVERLAP" in overrides:
+        val = _safe_int(overrides["KG_ONESHOT_WINDOW_OVERLAP"], 2000)
+        sanitized["KG_ONESHOT_WINDOW_OVERLAP"] = str(max(0, min(50000, val)))
 
     return sanitized
 

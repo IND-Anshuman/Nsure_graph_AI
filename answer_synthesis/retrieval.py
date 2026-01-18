@@ -13,6 +13,7 @@ from __future__ import annotations
 from typing import List, Dict, Tuple, Any
 from dataclasses import dataclass
 import re
+import time
 import numpy as np
 from graph_maker.data_corpus import KnowledgeGraph, KGNode
 from graph_maker.embedding_cache import get_embeddings_with_cache
@@ -434,12 +435,14 @@ def build_retrieval_index_enhanced(
     
     # 5) Compute embeddings for all items
     if verbose:
+        t_start = time.perf_counter()
         print(f"[Index] Computing embeddings for {len(index_items)} items...")
     
     texts = [item.text for item in index_items]
     embeddings = get_embeddings_with_cache(texts)
     
     if verbose:
-        print(f"[Index] Index built with {len(index_items)} items, embedding shape: {embeddings.shape}")
+        t_end = time.perf_counter()
+        print(f"[Index] Index built with {len(index_items)} items, embedding shape: {embeddings.shape} (Time: {t_end - t_start:.2f}s)")
     
     return index_items, embeddings

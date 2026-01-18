@@ -1,102 +1,135 @@
-# Nsure AI: The Architecture of Knowledge
+# 🌌 Nsure AI: The Architecture of Infinite Intelligence
 
-Nsure AI is a prestigious, high-fidelity **GraphRAG (Graph-based Retrieval-Augmented Generation)** environment designed for deep document understanding and authoritative policy intelligence. It transcends traditional RAG by combining the semantic power of vector search with the structural precision of a Knowledge Graph.
+> **Standard RAG is a flashlight. Nsure GraphRAG is a lighthouse.**
 
-![Nsure AI Pipeline](https://img.shields.io/badge/Architecture-GraphRAG-gold?style=for-the-badge)
-![Tech Stack](https://img.shields.io/badge/Stack-Python_%7C_React_%7C_Gemini-blue?style=for-the-badge)
+Nsure AI is a prestigious, high-fidelity **GraphRAG (Graph-based Retrieval-Augmented Generation)** ecosystem. It doesn't just "search" your documents; it **understands** the complex web of relationships, provisions, and dependencies within them. 
 
----
-
-## 🏛 Core Philosophy
-Traditional AI often hallucinates because it lacks structural "contextual grounding." Nsure AI solves this by:
-1.  **Extracting** entities and regulatory relations from unstructured text.
-2.  **Clustering** knowledge into thematic communities using the Leiden algorithm.
-3.  **Synthesizing** answers using a **Hierarchy of Evidence** that prioritizes reranked, high-confidence sources.
+[![Python](https://img.shields.io/badge/Engine-Python_3.10+-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://python.org)
+[![React](https://img.shields.io/badge/Console-React_18-61DAFB?style=for-the-badge&logo=react&logoColor=black)](https://reactjs.org)
+[![Gemini](https://img.shields.io/badge/LLM-Google_Gemini-4285F4?style=for-the-badge&logo=google&logoColor=white)](https://aistudio.google.com)
+[![Architecture](https://img.shields.io/badge/Architecture-GraphRAG-gold?style=for-the-badge)](https://arxiv.org/abs/2404.16130)
 
 ---
 
-## 🚀 Key Features
+## 🐣 Newbie's Corner: What is this?
 
-### 1. Narrative KG Pipeline Visualization
-A dynamic, 6-stage operational animation on the homepage that demonstrates the system's inner workings:
-- **Ingestion**: Multi-protocol parsing of PDFs and URLs.
-- **Extraction**: Node-edge mapping of agents, provisions, and dependencies.
-- **Leiden Detection**: Hierarchical community partitioning.
-- **Hybrid Retrieval**: Simultaneous semantic scanning and graph neighbor expansion.
+Imagine you have a 500-page policy book. 
+*   **Standard AI (RAG)** looks for keywords, finds a relevant page, and tries to summarize it. It often misses how a rule on page 10 interacts with an exception on page 412.
+*   **Nsure AI (GraphRAG)** reads the whole book first. It identifies "Entities" (like *Policy Holder*, *Claim*, *Exclusion*) and "Relations" (like *Claim [IS SUBJECT TO] Exclusion*). 
+*   It builds a **Knowledge Graph**—a giant map of how everything connects. When you ask a question, it navigates this map to find the truth, even if it's buried across multiple sections.
 
-### 2. Scenario-Based Reasoning
-The system is uniquely optimized for complex "What-If" queries. It identifies conditional rules and policy exclusions (e.g., "Section 4.2", "Clause B") to provide precise assessments for situational questions.
+### ⚖️ The Superiority Gap
 
-### 3. High-Fidelity Synthesis
-- **Evidence Scaling**: Accesses up to 60+ candidates with a 4,000-character context budget.
-- **Grounded Assertions**: Explicitly instructed to avoid hedging ("it seems") in favor of direct, evidence-backed statements and technical citations.
-
-### 4. Professional Intelligence Console
-- **Premium Aesthetics**: A dark, glassmorphic UI with vibrant heading hierarchies and gold-accented terminology.
-- **Citable Output**: Every answer includes a list of used evidence IDs and extracted key facts for instant auditability.
+| Feature | Standard RAG | Nsure GraphRAG |
+| :--- | :--- | :--- |
+| **Logic** | Simple keyword/vector match | Structural relationship mapping |
+| **Context** | Local (few chunks) | Global (entire graph communities) |
+| **Hallucination** | High (lacks grounding) | Near Zero (grounded in graph edges) |
+| **Complex Queries** | Struggles with 3-step logic | Excels at "What-if" scenarios |
 
 ---
 
-## 🛠 Technical Architecture
+## 🛠 Operational Workflow
 
-### Backend (Python/FastAPI)
-- **Knowledge Graph**: Built using `spacy` for NLP and custom relationship schemas.
-- **LLM Engine**: Powered by Google Gemini (Flash/Pro) for extraction and answer synthesis.
-- **Reranking**: Custom cross-encoder logic for prioritizing policy relevance over simple keyword overlap.
-- **Vector Search**: Integrated semantic indexing of document chunks.
+Nsure AI operates through a high-precision 6-stage pipeline, visualized in real-time on your dashboard:
 
-### Frontend (React/TypeScript/Vite)
-- **UI Framework**: Tailwind CSS with custom thematic extensions.
-- **Animations**: Framer Motion for premium stage transitions.
-- **Components**: Fully custom Markdown renderer with high-contrast accessibility.
-
----
-
-## 💻 Installation & Setup
-
-### Prerequisites
-- Python 3.10+
-- Node.js 18+
-- [Google AI API Key](https://aistudio.google.com/app/apikey) (Gemini)
-
-### Backend Setup
-1. Clone the repository and navigate to the root.
-2. Create a `.env` file from `.env.example`:
-   ```bash
-   CP .env.example .env
-   ```
-3. Install dependencies:
-   ```bash
-   pip install -r requirements.txt
-   ```
-4. Run the engine:
-   ```bash
-   python main.py
-   ```
-
-### Frontend Setup
-1. Navigate to the `frontend` directory.
-2. Install dependencies:
-   ```bash
-   npm install
-   ```
-3. Launch the console:
-   ```bash
-   npm run dev
-   ```
+```mermaid
+graph TD
+    A[📄 Ingestion] -->|Parsing PDFs/URLs| B[🔍 Extraction]
+    B -->|Identifying Entities & Roles| C[🌐 Leiden Clustering]
+    C -->|Thematic Community Sorting| D[📝 Summarization]
+    D -->|Synthesizing Knowledge Blocks| E[🖇 Hybrid Retrieval]
+    E -->|Vector + Graph Search| F[✨ Intelligence Synthesis]
+    F -->|Final Grounded Report| G[🎯 Precision Answer]
+```
 
 ---
 
-## 📖 Usage Guide
+## 🚀 Quick-Start Pro Protocol
 
-1.  **Ingestion**: Drag and drop policy PDFs or provide a URL in the Intelligence Console.
-2.  **Graph Construction**: The system will automatically parse and build a local knowledge structure.
-3.  **Inquiry**: Ask complex questions (e.g., *"Does my policy cover pre-existing conditions if I haven't claimed in 12 months?"*).
-4.  **Verification**: Review the "Structural Evidence" cards and "Used Evidence" IDs to verify the AI's logic.
+Follow these steps to deploy the most advanced policy intelligence unit locally.
+
+### 1. The Foundation (Prerequisites)
+- **Environment**: Python 3.10+ & Node.js 18+
+- **Key**: A [Google Gemini API Key](https://aistudio.google.com/app/apikey)
+
+### 2. Ignite the Backend
+```bash
+# Clone the repository
+git clone https://github.com/IND-Anshuman/Nsure_graph_AI.git
+cd Nsure_graph_AI
+
+# Create virtual environment
+python -m venv .venv
+source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+
+# Install Core Engine dependencies
+pip install -r requirements.txt
+
+# Configure Intelligence
+cp .env.example .env
+# [STOP] Edit .env and add your GOOGLE_API_KEY
+```
+
+### 3. Launch the Terminal
+```bash
+python main.py
+```
+
+### 4. Deploy the Console
+```bash
+cd frontend
+npm install
+npm run dev
+```
+Open `http://localhost:5173` to enter the Intelligence Console.
 
 ---
 
-## ⚖ License & Versioning
+## 📜 The Intelligence Rulebook
+
+For peak performance and "God Level" accuracy, use these recommended parameters in the **Advanced Settings**:
+
+| Parameter | Recommended Range | Why? |
+| :--- | :--- | :--- |
+| **Window Size** | `14,000 - 18,000` | Optimal balance between speed and relationship density. |
+| **Parallel Workers** | `4` | Maximum stability for free-tier Gemini API limits. |
+| **Top-N Semantic** | `60 - 100` | Ensures a wide enough net to catch relevant context. |
+| **Rerank-K Pool** | `20 - 40` | Focused precision before final synthesis. |
+| **Top-K Final** | `30 - 60` | Provides the LLM with enough evidence to be authoritative. |
+
+> [!TIP]
+> Use **High Speed (MiniLM)** embeddings if you are running on a CPU. Switch to **Max Context (MPNet)** only if you have a capable GPU for faster processing.
+
+---
+
+## 🧠 Core Features
+
+- **Autonomous Graph Construction**: Automatic extraction of entities and regulatory dependencies.
+- **Hierarchical Summarization**: Powered by the **Leiden Algorithm** to find thematic clusters (e.g., all medical exclusions) automatically.
+- **Scenario Testing**: Ideal for "What-If" Analysis in insurance, legal, and compliance documents.
+- **Audit-Ready Evidence**: Every answer provides a **Hierarchy of Evidence** with clickable citations back to the source text.
+- **Stateless Intelligence**: Every research session is independent, ensuring data privacy and zero cross-leakage.
+
+---
+
+## 📂 Project Anatomy
+
+- `/graph_maker`: The "Brain". Handles NER, Leiden clustering, and graph serialization.
+- `/answer_synthesis`: The "Voice". Multi-stage retrieval and grounded report generation.
+- `/frontend`: The "Interface". Premium glassmorphic UI for high-stakes analysis.
+- `main.py`: The "Heart". FastAPI-driven coordination of the entire pipeline.
+
+---
+
+## ⚖️ License & Disclaimer
+
 **Version**: 1.0.4  
-**Philosophy**: Intelligence Beyond Parameters.  
-*Nsure AI is designed for institutional accuracy and legal-grade policy analysis.*
+**Philosophy**: Intelligence Beyond Parameters.
+
+*Nsure AI is designed for institutional-grade accuracy. It is a tool for analysts, not a replacement for legal counsel. Use responsibly.*
+
+---
+<p align="center">
+  <b>Built for the next era of Knowledge Engineering.</b>
+</p>

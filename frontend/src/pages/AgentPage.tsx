@@ -68,6 +68,9 @@ export function AgentPage() {
     KG_RERANK_TOP_K: "25",
     GEMINI_MODEL: "gemini-2.0-flash",
     KG_EXTRACTION_STRATEGY: "oneshot",
+    KG_ONESHOT_WINDOW_SIZE: "16000",
+    KG_EMBEDDING_MODEL: "sentence-transformers/all-MiniLM-L6-v2",
+    KG_EMBEDDING_DIM: "384",
   });
 
   const handleFilesUploaded = (newFiles: UploadedFile[]) => {
@@ -283,21 +286,68 @@ export function AgentPage() {
                         </div>
 
                         <div className="flex items-center justify-between group/toggle">
-                          <div className="flex flex-col gap-1">
-                            <span className="text-[10px] font-serif uppercase tracking-wider text-primary">One-Shot NER Extraction</span>
-                            <span className="text-[8px] text-muted-foreground uppercase tracking-widest leading-tight max-w-[180px]">
-                              Unified pass for entities and relations. Faster but may be less granular.
-                            </span>
+                        </div>
+
+                        <div className="space-y-3 pt-2">
+                          <div className="flex justify-between items-center">
+                            <label className="text-[9px] uppercase tracking-widest text-muted-foreground flex flex-col gap-1">
+                              Extraction Window Size
+                              <span className="text-[7px] normal-case text-muted-foreground/60 italic">Larger = Faster (30-50%), Small = Denser</span>
+                            </label>
+                            <span className="text-[10px] font-serif font-bold text-accent">{envOverrides.KG_ONESHOT_WINDOW_SIZE} chars</span>
                           </div>
                           <input
-                            type="checkbox"
-                            checked={envOverrides.KG_EXTRACTION_STRATEGY === "oneshot"}
+                            type="range"
+                            min="4000"
+                            max="30000"
+                            step="2000"
+                            value={envOverrides.KG_ONESHOT_WINDOW_SIZE}
                             onChange={(e) => setEnvOverrides(prev => ({
                               ...prev,
-                              KG_EXTRACTION_STRATEGY: e.target.checked ? "oneshot" : "cluster"
+                              KG_ONESHOT_WINDOW_SIZE: e.target.value
                             }))}
-                            className="w-4 h-4 accent-accent cursor-pointer"
+                            className="w-full accent-accent bg-blue-900/20 range-sm"
                           />
+                          <div className="space-y-3 pt-2">
+                            <div className="flex justify-between items-center">
+                              <label className="text-[9px] uppercase tracking-widest text-muted-foreground flex flex-col gap-1">
+                                Embedding Intelligence
+                                <span className="text-[7px] normal-case text-muted-foreground/60 italic">Fast (MiniLM) for CPU, High-Quality (MPNet) for GPU</span>
+                              </label>
+                            </div>
+                            <div className="grid grid-cols-2 gap-2">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setEnvOverrides(prev => ({
+                                  ...prev,
+                                  KG_EMBEDDING_MODEL: "sentence-transformers/all-MiniLM-L6-v2",
+                                  KG_EMBEDDING_DIM: "384"
+                                }))}
+                                className={cn(
+                                  "rounded-none text-[8px] h-7 border-white/10 uppercase tracking-widest font-serif",
+                                  envOverrides.KG_EMBEDDING_DIM === "384" && "border-accent bg-accent/10 text-accent"
+                                )}
+                              >
+                                High Speed
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setEnvOverrides(prev => ({
+                                  ...prev,
+                                  KG_EMBEDDING_MODEL: "sentence-transformers/all-mpnet-base-v2",
+                                  KG_EMBEDDING_DIM: "768"
+                                }))}
+                                className={cn(
+                                  "rounded-none text-[8px] h-7 border-white/10 uppercase tracking-widest font-serif",
+                                  envOverrides.KG_EMBEDDING_DIM === "768" && "border-accent bg-accent/10 text-accent"
+                                )}
+                              >
+                                Max Context
+                              </Button>
+                            </div>
+                          </div>
                         </div>
                       </div>
 
@@ -611,6 +661,76 @@ export function AgentPage() {
 
           {/* Investigation Panel (Right Sidebar) */}
           <div className="lg:col-span-3 space-y-8">
+            {/* Intelligence Rulebook (Protocol & Constraints) */}
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 mb-4">
+                <ShieldCheck className="w-4 h-4 text-accent" />
+                <h2 className="font-serif font-bold uppercase tracking-widest text-xs text-primary">Protocol & Constraints</h2>
+              </div>
+              <Card className="rounded-none border border-white/5 bg-secondary/40 p-5 space-y-5 backdrop-blur-md relative overflow-hidden group hover:bg-secondary/50 transition-colors duration-500">
+                <div className="absolute top-0 right-0 w-24 h-24 bg-accent/5 rounded-full -mr-12 -mt-12 blur-2xl" />
+
+                <div className="space-y-4 relative z-10">
+                  <div className="space-y-2">
+                    <span className="text-[10px] font-serif uppercase tracking-widest text-accent font-bold flex items-center gap-2">
+                      <div className="w-1 h-1 bg-accent rotate-45" />
+                      Ingestion Guardrails
+                    </span>
+                    <p className="text-[10px] text-muted-foreground leading-relaxed uppercase tracking-wider font-serif italic">
+                      To prevent <span className="text-destructive">429 (Rate Limit)</span> or <span className="text-destructive">503 (Overload)</span> errors, maintain parallel workers (Doc/Rel/QA) below <span className="text-primary font-bold">8</span> and Batch Size under <span className="text-primary font-bold">25</span> for free-tier API keys.
+                    </p>
+                  </div>
+
+                  <div className="h-px bg-white/5" />
+
+                  <div className="space-y-2">
+                    <span className="text-[10px] font-serif uppercase tracking-widest text-accent font-bold flex items-center gap-2">
+                      <div className="w-1 h-1 bg-accent rotate-45" />
+                      Memory Architecture
+                    </span>
+                    <p className="text-[10px] text-muted-foreground leading-relaxed uppercase tracking-wider font-serif italic">
+                      The current intelligence model is <span className="underline decoration-accent/30 underline-offset-4">stateless</span>. It does not maintain a context window of previous inquiries. Each query is treated as an independent research session.
+                    </p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <span className="text-[10px] font-serif uppercase tracking-widest text-accent font-bold flex items-center gap-2">
+                      <div className="w-1 h-1 bg-accent rotate-45" />
+                      Optimal Parameter Rulebook
+                    </span>
+                    <div className="text-[9px] text-muted-foreground leading-relaxed uppercase tracking-wider font-serif italic space-y-1">
+                      <div className="flex justify-between border-b border-white/5 pb-1">
+                        <span>Window Size</span>
+                        <span className="text-primary font-bold">14,000 - 18,000</span>
+                      </div>
+                      <div className="flex justify-between border-b border-white/5 pb-1">
+                        <span>Parallel Workers</span>
+                        <span className="text-primary font-bold">4 (Stable)</span>
+                      </div>
+                      <div className="flex justify-between border-b border-white/5 pb-1">
+                        <span>Top-N Semantic</span>
+                        <span className="text-primary font-bold">60 - 100</span>
+                      </div>
+                      <div className="flex justify-between border-b border-white/5 pb-1">
+                        <span>Rerank-K pool</span>
+                        <span className="text-primary font-bold">20 - 40</span>
+                      </div>
+                      <div className="flex justify-between border-b border-white/5 pb-1">
+                        <span>Top-K Final</span>
+                        <span className="text-primary font-bold">30 - 60</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="h-px bg-white/5" />
+
+                  <div className="flex items-center gap-2 text-[9px] text-accent/60 uppercase tracking-widest font-serif italic">
+                    <AlertCircle className="w-3 h-3" />
+                    Adherence to protocols ensures pipeline stability.
+                  </div>
+                </div>
+              </Card>
+            </div>
             {answers.length > 0 && !isSubmitting ? (
               <motion.div
                 initial={{ opacity: 0, x: 20 }}

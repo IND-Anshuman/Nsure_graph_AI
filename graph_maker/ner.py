@@ -2227,8 +2227,10 @@ def extract_oneshot_kg_from_doc(doc_id: str, text: str) -> List[Entity]:
         
         def _process_window(idx, window_text):
             prompt = f"{ONESHOT_KG_PROMPT}\n\nDOCUMENT TEXT (WINDOW {idx+1}):\n{window_text}"
+            
             try:
-                raw = genai_generate_text(None, prompt, temperature=0.1, purpose="RELATION")
+                from utils.genai_compat import generate_text as unified_generate_text
+                raw = unified_generate_text(model=None, prompt=prompt, temperature=0.1, purpose="RELATION")
                 data = _parse_json_safely(raw, default={"entities": [], "relations": []})
                 win_entities = data.get("entities", [])
                 win_relations = data.get("relations", [])
@@ -2239,7 +2241,6 @@ def extract_oneshot_kg_from_doc(doc_id: str, text: str) -> List[Entity]:
             
             return win_entities, win_relations
 
-        logging.warning(f"One-shot Gliding Window starting for {doc_id} with {len(windows)} windows (Size: {window_size}, Overlap: {overlap})")
         
         window_workers = int(os.getenv("KG_ONESHOT_WINDOW_WORKERS", "0") or 0)
         if window_workers <= 0:

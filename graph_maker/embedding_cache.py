@@ -8,6 +8,8 @@ from typing import List, Optional
 import numpy as np
 import threading
 import sqlite3
+import time
+import logging
 try:
     from sentence_transformers import SentenceTransformer  # type: ignore
 except Exception:  # pragma: no cover
@@ -212,6 +214,7 @@ def get_embeddings_with_cache(texts: List[str]) -> np.ndarray:
             missing_keys.append(k)
 
     if missing_texts:
+        t_start = time.perf_counter()
         if model is None:
             new_embs = _hash_embed(missing_texts, dim=dim_default)
         else:
@@ -234,6 +237,9 @@ def get_embeddings_with_cache(texts: List[str]) -> np.ndarray:
 
         for k, v in zip(missing_keys, new_embs):
             key_to_vec[k] = np.asarray(v, dtype=np.float32).reshape(-1)
+        
+        t_end = time.perf_counter()
+        logging.info(f"[Embed] Computed {len(missing_texts)} new embeddings in {t_end - t_start:.2f}s")
 
     # 3) Assemble into final numpy array in correct order
     # Determine dim from any available vector.
