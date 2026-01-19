@@ -1,3 +1,4 @@
+from __future__ import annotations
 # ai_setup.py
 
 import os
@@ -10,7 +11,6 @@ try:
     from openai import OpenAI  # type: ignore
 except Exception:
     OpenAI = None  # type: ignore
-from __future__ import annotations
 from typing import List, Dict, Set, Tuple, Optional, Any
 # NLP & Embeddings (Lazy Loaded)
 _NLP = None
