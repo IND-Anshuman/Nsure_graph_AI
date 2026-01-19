@@ -25,10 +25,11 @@ cache_embeddings.sqlite3
 cache_oneshot_relations.json
 cache_retrieval_index.json
 *.graphml
-# Exclude generic text files but KEEP requirements.txt
-!requirements.txt
+# Exclude generic text files
 *.txt
 *.pdf
+# EXCEPT requirements.txt (Order matters: inclusion must come after exclusion)
+!requirements.txt
 logs/
 temp/
 
