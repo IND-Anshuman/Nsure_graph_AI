@@ -66,6 +66,10 @@ logging.getLogger("google.genai").setLevel(logging.WARNING)
 app = Flask(__name__, static_folder='frontend/dist', static_url_path='/')
 app.url_map.strict_slashes = False
 
+@app.get("/health")
+def health_check():
+    return jsonify({"status": "active", "version": "1.0.4", "message": "Nsure AI Backend is fully operational."})
+
 # Enable CORS for frontend communication during development
 CORS(app)
 

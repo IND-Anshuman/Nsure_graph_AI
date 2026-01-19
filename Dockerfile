@@ -9,19 +9,24 @@ ENV PORT=5000
 # Set working directory
 WORKDIR /app
 
-# Install system dependencies required for PDF parsing and C-extensions
+# Install system dependencies required for C-extensions and NLP libraries
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     libssl-dev \
     libffi-dev \
     gcc \
+    g++ \
+    zlib1g-dev \
+    libxml2-dev \
+    pkg-config \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements first to leverage Docker cache
 COPY requirements.txt .
 
-# Install Python dependencies
-RUN pip install --no-cache-dir -r requirements.txt
+# Upgrade pip and install Python dependencies
+RUN pip install --no-cache-dir --upgrade pip setuptools wheel \
+    && pip install --no-cache-dir -r requirements.txt
 
 # Pre-download SpaCy model to avoid runtime overhead
 RUN python -m spacy download en_core_web_sm

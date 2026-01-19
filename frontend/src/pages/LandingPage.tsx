@@ -6,6 +6,7 @@ import { Github, ArrowRight, Brain, Share2, ShieldCheck, Sparkles } from "lucide
 import { Card } from "@/components/ui/card";
 import { NsureLogo } from "@/components/NsureLogo";
 import { KGPipelineAnimation } from "@/components/KGPipelineAnimation";
+import { getHealth } from "@/lib/api";
 
 export function LandingPage() {
   return (
@@ -40,7 +41,7 @@ export function LandingPage() {
                 <Github className="w-4 h-4" />
                 Documentation
               </Button>
-              <Link to="/agent">
+              <Link to="/agent" onClick={() => getHealth().catch(() => { })}>
                 <Button size="lg" className="gap-2 rounded-none border border-accent/50 bg-accent/10 text-accent hover:bg-accent hover:text-accent-foreground transition-all duration-500 font-serif px-8 shadow-[0_0_15px_rgba(212,175,55,0.1)]">
                   ACCESS SYSTEM
                   <ArrowRight className="w-4 h-4" />
@@ -90,7 +91,7 @@ export function LandingPage() {
               transition={{ delay: 0.5, duration: 0.6 }}
               className="mb-12"
             >
-              <Link to="/agent">
+              <Link to="/agent" onClick={() => getHealth().catch(() => { })}>
                 <Button size="lg" className="text-lg px-8 py-6 h-auto gap-3 rounded-none border border-accent bg-transparent text-accent hover:bg-accent hover:text-accent-foreground transition-all duration-500 font-serif shadow-[0_0_20px_rgba(212,175,55,0.15)]">
                   <Brain className="w-5 h-5 icon-glow" />
                   INITIATE RESEARCH
