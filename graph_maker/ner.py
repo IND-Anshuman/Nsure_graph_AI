@@ -10,9 +10,9 @@ try:
     from openai import OpenAI  # type: ignore
 except Exception:
     OpenAI = None  # type: ignore
-from sentence_transformers import SentenceTransformer
-from typing import List, Dict, Set, Tuple, Optional, Any
-import spacy
+# NLP & Embeddings (Lazy Loaded)
+_NLP = None
+_EMB_MODEL = None
 from sklearn.cluster import MiniBatchKMeans
 import json
 import re
@@ -29,7 +29,12 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 import threading
 from bisect import bisect_right
 
-nlp = spacy.load("en_core_web_sm")
+def _get_nlp():
+    global _NLP
+    if _NLP is None:
+        import spacy
+        _NLP = spacy.load("en_core_web_sm")
+    return _NLP
 
 
 load_dotenv()
@@ -47,21 +52,26 @@ _ONESHOT_RELATION_CACHE = DiskJSONCache("cache_oneshot_relations.json")
 _SEMANTIC_REL_CACHE = DiskJSONCache("cache_semantic_relations.json")
 
 
-def get_emb_model() -> SentenceTransformer:
+def get_emb_model():
+    """Lazy-load the local embedding model."""
     global _EMB_MODEL
     if _EMB_MODEL is not None:
         return _EMB_MODEL
+    
+    # If Gemini provider is used, we don't need the local model at all.
+    provider = (os.getenv("KG_EMBEDDING_PROVIDER", "local") or "local").strip().lower()
+    if provider == "gemini":
+        return None
 
-    model_name = os.getenv("KG_EMBEDDING_MODEL", "sentence-transformers/all-MiniLM-L6-v2")
-    local_only = (os.getenv("KG_EMBEDDING_LOCAL_ONLY", "1") or "1").strip() != "0"
     try:
+        from sentence_transformers import SentenceTransformer
+        model_name = os.getenv("KG_EMBEDDING_MODEL", "sentence-transformers/all-MiniLM-L6-v2")
+        local_only = (os.getenv("KG_EMBEDDING_LOCAL_ONLY", "1") or "1").strip() != "0"
         _EMB_MODEL = SentenceTransformer(model_name, local_files_only=local_only)
         return _EMB_MODEL
     except Exception as exc:
-        # Do not fail the pipeline on restricted/offline networks.
         logging.warning("Embedding model unavailable (%s); will use hashing fallback embeddings.", exc)
-        _EMB_MODEL = None
-        return None  # type: ignore[return-value]
+        return None
 
 
 def _hash_embed(texts: List[str], *, dim: int = 384) -> np.ndarray:
@@ -97,7 +107,7 @@ def _normalize_surface(surface: str) -> str:
 
     if os.getenv("KG_NORMALIZE_LEMMAS", "0") == "1":
         try:
-            doc = nlp(s)
+            doc = _get_nlp()(s)
             lemmas = [t.lemma_.lower() for t in doc if not t.is_stop and t.is_alpha]
             s = (" ".join(lemmas) or s).strip()
         except Exception:

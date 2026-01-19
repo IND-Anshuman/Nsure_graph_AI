@@ -48,5 +48,5 @@ ENV GEMINI_EMBEDDING_MODEL=text-embedding-004
 ENV KG_EMBEDDING_DIM=768
 
 # Run the web service on container startup.
-# Reduced threads from 8 to 4 to save memory.
-CMD exec gunicorn --bind :$PORT --workers 1 --threads 4 --timeout 0 main:app
+# Reduced threads from 8 to 2 (total) to stay within 1GB RAM safely.
+CMD exec gunicorn --bind :$PORT --workers 1 --threads 2 --timeout 0 main:app

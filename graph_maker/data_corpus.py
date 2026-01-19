@@ -33,12 +33,16 @@ try:
 except Exception:  # pragma: no cover
     BeautifulSoup = None  # type: ignore
 
-nlp = None
-if spacy is not None:
-    try:
-        nlp = spacy.load("en_core_web_sm")
-    except Exception:
-        nlp = None
+_NLP = None
+
+def _get_nlp():
+    global _NLP
+    if _NLP is None and spacy is not None:
+        try:
+            _NLP = spacy.load("en_core_web_sm")
+        except Exception:
+            _NLP = None
+    return _NLP
 
 
 
@@ -390,6 +394,7 @@ def add_document_and_sentence_nodes(
     """
     sent_index: Dict[str, SentenceInfo] = {}
 
+    nlp = _get_nlp()
     if nlp is None:
         raise RuntimeError(
             "spaCy model 'en_core_web_sm' is required for sentence splitting. "
