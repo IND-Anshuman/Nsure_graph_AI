@@ -84,6 +84,16 @@ class UnifiedClient:
             return (getattr(resp, "text", "") or "").strip()
         raise ValueError(f"Unknown provider or unsupported: {self.provider}")
 
+    def embed(self, model: str, texts: List[str]) -> List[List[float]]:
+        if self.provider == "GEMINI":
+            resp = self.client.models.embed_content(
+                model=model,
+                contents=texts,
+                config={"task_type": "RETRIEVAL_DOCUMENT"}
+            )
+            return [getattr(e, "values", []) for e in resp.embeddings]
+        raise ValueError(f"Unknown provider or unsupported: {self.provider}")
+
 
 class MultiPool:
     def __init__(self, name: str):
@@ -189,3 +199,42 @@ def generate_text(model: Optional[str] = None, prompt: str = "", *, temperature:
     except Exception as e:
         logging.error(f"[GenAI] Final failure after retries: {e}")
         return ""
+
+@retry(
+    wait=wait_exponential(multiplier=2, min=3, max=40),
+    stop=stop_after_attempt(5),
+    retry=retry_if_exception_type(Exception),
+    reraise=True
+)
+def _embed_inner(model: str, texts: List[str]):
+    init()
+    pool = _pools["GENERAL"]
+    client = pool.get_next()
+    if not client:
+        raise ValueError("No Gemini API keys configured for embedding")
+    
+    # Simple rate limiting for embeddings
+    client.limiter.wait_if_needed()
+    
+    try:
+        return client.embed(model, texts)
+    except Exception as e:
+        err = str(e).upper()
+        if "429" in err or "RESOURCE_EXHAUSTED" in err:
+            logging.warning(f"[GenAI-Embed] 429 detected. Throttling.")
+            client.limiter.trigger_cooldown(60.0)
+        raise e
+
+def embed_texts(model: Optional[str] = None, texts: List[str] = []) -> List[List[float]]:
+    """Unified text embedding using Gemini."""
+    if not texts: return []
+    if not model:
+        model = os.getenv("GEMINI_EMBEDDING_MODEL", "text-embedding-004")
+        
+    try:
+        # Gemini allows batching up to 100 texts usually.
+        # We'll rely on the caller or provide a small internal chunking if needed.
+        return _embed_inner(model, texts)
+    except Exception as e:
+        logging.error(f"[GenAI-Embed] Final failure: {e}")
+        return []

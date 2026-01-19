@@ -15,6 +15,7 @@ try:
 except Exception:  # pragma: no cover
     SentenceTransformer = None  # type: ignore
 from utils.cache_utils import DiskJSONCache
+from utils.genai_compat import embed_texts, is_gemini_available
 import hashlib
 import os
 
@@ -134,6 +135,12 @@ def get_embedding_model() -> Optional["SentenceTransformer"]:  # type: ignore[na
 
     model_name = os.getenv("KG_EMBEDDING_MODEL", "sentence-transformers/all-MiniLM-L6-v2")
     local_only = (os.getenv("KG_EMBEDDING_LOCAL_ONLY", "1") or "1").strip() != "0"
+    provider = (os.getenv("KG_EMBEDDING_PROVIDER", "local") or "local").strip().lower()
+
+    if provider == "gemini":
+        # Gemini doesn't need a local model instance
+        return None
+
     try:
         # local_files_only prevents network calls when model is already cached.
         _EMB_MODEL = SentenceTransformer(model_name, local_files_only=local_only)  # type: ignore[misc]
@@ -167,6 +174,11 @@ def get_embeddings_with_cache(texts: List[str]) -> np.ndarray:
 
     model_id = os.getenv("KG_EMBEDDING_MODEL", "sentence-transformers/all-MiniLM-L6-v2")
     dim_default = int(os.getenv("KG_EMBEDDING_DIM", "384") or 384)
+    provider = (os.getenv("KG_EMBEDDING_PROVIDER", "local") or "local").strip().lower()
+
+    if provider == "gemini":
+        model_id = os.getenv("GEMINI_EMBEDDING_MODEL", "text-embedding-004")
+        dim_default = 768 # Default for text-embedding-004
 
     def _cache_key_for_text(t: str) -> str:
         # Namespaced key avoids mixing vectors from different models/dims.
@@ -215,7 +227,16 @@ def get_embeddings_with_cache(texts: List[str]) -> np.ndarray:
 
     if missing_texts:
         t_start = time.perf_counter()
-        if model is None:
+        if provider == "gemini" and is_gemini_available():
+            # Offload to Gemini API
+            logging.info(f"[Embed] Offloading {len(missing_texts)} texts to Gemini...")
+            # Gemini limit is 100 per request, we chunk it.
+            gemini_embs = []
+            for i in range(0, len(missing_texts), 100):
+                chunk = missing_texts[i : i + 100]
+                gemini_embs.extend(embed_texts(texts=chunk))
+            new_embs = np.array(gemini_embs, dtype=np.float32)
+        elif model is None:
             new_embs = _hash_embed(missing_texts, dim=dim_default)
         else:
             batch_size = int(os.getenv("KG_EMBEDDING_BATCH_SIZE", "64") or 64)

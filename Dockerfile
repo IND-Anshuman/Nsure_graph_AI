@@ -42,6 +42,11 @@ COPY . .
 # Expose the port (Cloud Run will inject its own PORT env var, but 5000 is our default)
 EXPOSE 5000
 
-# Start the application using Gunicorn for production-grade performance
-# We use 1 worker and 8 threads as a baseline for 512MB-1GB RAM instances
-CMD exec gunicorn --bind :$PORT --workers 1 --threads 8 --timeout 0 main:app
+# Default environment variables for Cloud Run optimization
+ENV KG_EMBEDDING_PROVIDER=gemini
+ENV GEMINI_EMBEDDING_MODEL=text-embedding-004
+ENV KG_EMBEDDING_DIM=768
+
+# Run the web service on container startup.
+# Reduced threads from 8 to 4 to save memory.
+CMD exec gunicorn --bind :$PORT --workers 1 --threads 4 --timeout 0 main:app

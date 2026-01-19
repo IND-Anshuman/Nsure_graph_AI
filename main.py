@@ -489,6 +489,16 @@ def _sanitize_env_overrides(overrides: Dict[str, Any]) -> Dict[str, str]:
             sanitized["GEMINI_MODEL"] = model
 
     # Embedding Settings
+    if "KG_EMBEDDING_PROVIDER" in overrides:
+        val = str(overrides["KG_EMBEDDING_PROVIDER"]).strip().lower()
+        if val in ["local", "gemini"]:
+            sanitized["KG_EMBEDDING_PROVIDER"] = val
+
+    if "GEMINI_EMBEDDING_MODEL" in overrides:
+        val = str(overrides["GEMINI_EMBEDDING_MODEL"]).strip()
+        if "embed" in val.lower():
+            sanitized["GEMINI_EMBEDDING_MODEL"] = val
+
     if "KG_EMBEDDING_MODEL" in overrides:
         val = str(overrides["KG_EMBEDDING_MODEL"]).strip()
         # Allow popular sentence-transformer models
