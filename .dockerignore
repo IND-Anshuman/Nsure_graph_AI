@@ -1,0 +1,39 @@
+# Git and metadata
+.git
+.gitignore
+.dockerignore
+.vscode
+.idea
+
+# Python environment and artifacts
+venv
+.venv
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+instance/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Local data and caches
+cache_embeddings.json
+cache_embeddings.sqlite3
+cache_oneshot_relations.json
+cache_retrieval_index.json
+*.graphml
+*.txt
+*.pdf
+logs/
+temp/
+
+# Frontend (Deploying separately to Render)
+frontend/
+node_modules/
+
+# OS specific files
+.DS_Store
+Thumbs.db

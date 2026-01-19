@@ -20,7 +20,7 @@ export function LandingPage() {
               transition={{ duration: 0.5 }}
               className="flex items-center gap-3"
             >
-              <div className="w-10 h-10 flex items-center justify-center icon-glow">
+              <div className="w-12 h-12 flex items-center justify-center icon-glow">
                 <NsureLogo className="w-full h-full text-primary" />
               </div>
               <span className="text-2xl font-serif font-bold tracking-tight text-foreground uppercase">Nsure AI</span>
@@ -35,7 +35,7 @@ export function LandingPage() {
               <Button
                 variant="ghost"
                 className="gap-2 hover:text-accent transition-colors font-sans text-sm"
-                onClick={() => window.open("https://github.com", "_blank")}
+                onClick={() => window.open("https://github.com/IND-Anshuman/Nsure_graph_AI.git", "_blank")}
               >
                 <Github className="w-4 h-4" />
                 Documentation

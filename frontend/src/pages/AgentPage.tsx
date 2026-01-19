@@ -156,7 +156,7 @@ export function AgentPage() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-6">
               <Link to="/" className="flex items-center gap-3 group">
-                <div className="w-8 h-8 flex items-center justify-center icon-glow">
+                <div className="w-10 h-10 flex items-center justify-center icon-glow">
                   <NsureLogo className="w-full h-full text-primary" />
                 </div>
                 <span className="text-xl font-serif font-bold tracking-tight text-foreground uppercase group-hover:text-accent transition-colors">NSURE AI</span>
