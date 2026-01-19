@@ -10,6 +10,8 @@ try:
     from openai import OpenAI  # type: ignore
 except Exception:
     OpenAI = None  # type: ignore
+from __future__ import annotations
+from typing import List, Dict, Set, Tuple, Optional, Any
 # NLP & Embeddings (Lazy Loaded)
 _NLP = None
 _EMB_MODEL = None
@@ -44,7 +46,6 @@ _RELATION_SCHEMA_LOCK = threading.Lock()
 
 
 # Small, fast embedding model
-_EMB_MODEL: SentenceTransformer | None = None
 _EMB_CACHE = DiskJSONCache("cache_embeddings.json")
 _CLUSTER_LABEL_CACHE = DiskJSONCache("cache_cluster_labels.json")
 _ENTITIES_CACHE = DiskJSONCache("cache_entities.json")
