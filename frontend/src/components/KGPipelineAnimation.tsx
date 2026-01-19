@@ -1,8 +1,8 @@
-import React, { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
     FileText, Database, Share2, Users, Search,
-    BookOpen, Fingerprint, Sparkles, Terminal,
+    Sparkles, Terminal,
     Cpu, Activity, Globe, Zap
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
