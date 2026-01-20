@@ -479,7 +479,10 @@ def _sanitize_env_overrides(overrides: Dict[str, Any]) -> Dict[str, str]:
     # Strategy
     if "KG_EXTRACTION_STRATEGY" in overrides:
         val = str(overrides["KG_EXTRACTION_STRATEGY"]).lower()
-        sanitized["KG_EXTRACTION_STRATEGY"] = "oneshot" if val == "oneshot" else "cluster"
+        if val in ["oneshot", "cluster", "hybrid"]:
+            sanitized["KG_EXTRACTION_STRATEGY"] = val
+        else:
+            sanitized["KG_EXTRACTION_STRATEGY"] = "hybrid"
         
     # Model (allow-list or basic validation)
     if "GEMINI_MODEL" in overrides:

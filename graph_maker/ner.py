@@ -893,6 +893,31 @@ Return ONLY a single JSON object:
 }
 """
 
+BATCH_CLUSTER_LABEL_PROMPT = """
+You are an expert Ontologist building a high-fidelity knowledge graph for LEGAL and INSURANCE domains.
+
+You will receive a numbered list of clusters. Each cluster contains surface forms (strings) that refer to the same concept.
+
+Task:
+For each cluster:
+1. Determine if it represents a meaningful Entity or Domain Concept.
+2. If YES:
+   - "is_entity": true
+   - "label": A precise semantic type (e.g., POLICY_TYPE, COVERAGE, EXCLUSION, CLAIM_PROCEDURE, REGULATORY_BODY, LEGAL_ACT, ORGANIZATION, PERSON, PROVISION, etc.).
+   - "canonical": The most standard, formal name for this concept (Title Case).
+   - "description": A high-quality, 2-3 sentence summary.
+3. If NO (junk/parsing artifact):
+   - "is_entity": false
+
+Return strictly a JSON array of objects, one for each cluster, in the same order as provided.
+Example Output Format:
+[
+  {"is_entity": true, "label": "COVERAGE", "canonical": "Third Party Liability", "description": "..."},
+  {"is_entity": false},
+  ...
+]
+"""
+
 
 def label_cluster_with_llm(cluster_items: List[str]) -> Dict:
     """Label a surface-form cluster using Gemini.
@@ -942,6 +967,84 @@ def label_cluster_with_llm(cluster_items: List[str]) -> Dict:
     data["canonical"] = canon
     _CLUSTER_LABEL_CACHE.set(cache_key, data)
     return data
+
+
+def batch_label_clusters_with_llm(clusters_to_label: List[Tuple[int, List[str]]]) -> Dict[int, Dict[str, Any]]:
+    """Label multiple clusters in one or two LLM calls for efficiency."""
+    if not clusters_to_label:
+        return {}
+    
+    results: Dict[int, Dict[str, Any]] = {}
+    
+    # First, check cache for all items
+    still_to_label = []
+    for cluster_id, items in clusters_to_label:
+        signature = json.dumps(sorted(set(items)), ensure_ascii=False)
+        cache_key = DiskJSONCache.hash_key("cluster_label_v2", signature)
+        cached = _CLUSTER_LABEL_CACHE.get(cache_key)
+        if isinstance(cached, dict):
+            results[cluster_id] = cached
+        else:
+            still_to_label.append((cluster_id, items, cache_key))
+            
+    if not still_to_label:
+        return results
+        
+    # Process in batches of 15 (good balance for context window and output reliability)
+    batch_size = int(os.getenv("KG_ENTITY_LABEL_BATCH_SIZE", "15") or 15)
+    
+    for i in range(0, len(still_to_label), batch_size):
+        chunk = still_to_label[i : i + batch_size]
+        
+        prompt_input = ""
+        for idx, (cid, items, _ckey) in enumerate(chunk):
+            prompt_input += f"Cluster {idx+1}: {json.dumps(items, ensure_ascii=False)}\n"
+            
+        prompt = f"{BATCH_CLUSTER_LABEL_PROMPT}\n\nClusters:\n{prompt_input}"
+        
+        raw = ""
+        for attempt in range(2):
+            try:
+                raw = genai_generate_text(None, prompt, temperature=0.1, purpose="ENTITY")
+                if raw: break
+            except Exception as exc:
+                logging.warning("batch_label_clusters_with_llm: API call failed: %s", exc)
+                time.sleep(1.0 * (attempt + 1))
+        
+        batch_results = _parse_json_safely(raw, default=[])
+        if not isinstance(batch_results, list) or len(batch_results) == 0:
+            # Fallback: process individually if batch fails
+            for cid, items, ckey in chunk:
+                results[cid] = label_cluster_with_llm(items)
+            continue
+            
+        # Map batch results back to cluster IDs
+        for idx, (cid, items, ckey) in enumerate(chunk):
+            if idx < len(batch_results):
+                data = batch_results[idx]
+                if not isinstance(data, dict):
+                    data = {"is_entity": True}
+            else:
+                data = {"is_entity": True}
+                
+            data.setdefault("is_entity", True)
+            if data["is_entity"] is False:
+                res = {"is_entity": False}
+            else:
+                label = data.get("label") or "ENTITY"
+                canon = data.get("canonical") or (items[0] if items else "")
+                canon = _normalize_surface(canon)
+                res = {
+                    "is_entity": True,
+                    "label": label,
+                    "canonical": canon,
+                    "description": data.get("description")
+                }
+            
+            _CLUSTER_LABEL_CACHE.set(ckey, res)
+            results[cid] = res
+            
+    return results
 
 
 def cluster_candidates(candidates: List[str], n_clusters: int = 5) -> Dict[int, List[str]]:
@@ -1183,9 +1286,11 @@ def extract_semantic_entities_for_doc(doc_id: str, text: str) -> List[Entity]:
     # IMPORTANT: bump the version whenever canonicalization / span logic changes,
     # otherwise stale cached entities can collapse legal provisions (e.g., all
     # articles under canonical "article").
-    strategy = (os.getenv("KG_EXTRACTION_STRATEGY", "cluster") or "cluster").strip().lower()
+    strategy = (os.getenv("KG_EXTRACTION_STRATEGY", "hybrid") or "hybrid").strip().lower()
     if strategy == "oneshot":
         return extract_oneshot_kg_from_doc(doc_id, text)
+    if strategy == "hybrid":
+        return extract_hybrid_kg_from_doc(doc_id, text)
 
     canon_mode = (os.getenv("KG_ENTITY_CANONICAL_MODE", "cluster") or "cluster").strip().lower()
     # Cache key includes canonicalization mode so switching modes takes effect immediately.
@@ -1253,40 +1358,18 @@ def extract_semantic_entities_for_doc(doc_id: str, text: str) -> List[Entity]:
         for items in (cluster_items_ranked[:max_llm_clusters] if max_llm_clusters > 0 else [])
     )
 
-    # Pre-label LLM-eligible clusters in parallel to reduce wall-clock time.
-    # This does not change which clusters are labeled; it only overlaps network latency.
+    # Pre-label LLM-eligible clusters (Batch strategy for speed)
     llm_meta_by_cluster: Dict[int, Dict[str, Any]] = {}
     if (not disable_llm) and llm_allowed_signatures:
-        label_workers = int(os.getenv("KG_LLM_LABEL_WORKERS", "2") or 2)
-        if label_workers < 1:
-            label_workers = 1
-
-        def _default_meta(items: List[str]) -> Dict[str, Any]:
-            return {
-                "is_entity": True,
-                "label": "ENTITY",
-                "canonical": _normalize_surface(items[0] if items else ""),
-                "description": None,
-            }
-
-        if label_workers > 1:
-            with ThreadPoolExecutor(max_workers=label_workers) as ex:
-                futs = {}
-                for cluster_id, items in clusters.items():
-                    sig = DiskJSONCache.hash_key("cluster_sig_v1", json.dumps(sorted(set(items)), ensure_ascii=False))
-                    if sig in llm_allowed_signatures:
-                        futs[ex.submit(label_cluster_with_llm, items)] = (cluster_id, items)
-
-                for fut in as_completed(futs):
-                    cluster_id, items = futs[fut]
-                    try:
-                        meta = fut.result()
-                        if isinstance(meta, dict):
-                            llm_meta_by_cluster[cluster_id] = meta
-                        else:
-                            llm_meta_by_cluster[cluster_id] = _default_meta(items)
-                    except Exception:
-                        llm_meta_by_cluster[cluster_id] = _default_meta(items)
+        eligible_clusters = []
+        for cluster_id, items in clusters.items():
+            sig = DiskJSONCache.hash_key("cluster_sig_v1", json.dumps(sorted(set(items)), ensure_ascii=False))
+            if sig in llm_allowed_signatures:
+                eligible_clusters.append((cluster_id, items))
+        
+        if eligible_clusters:
+            # Use batch labeling to reduce API calls
+            llm_meta_by_cluster = batch_label_clusters_with_llm(eligible_clusters)
 
     max_mentions_per_surface = int(os.getenv("KG_MAX_MENTIONS_PER_SURFACE", "8"))
     max_mentions_per_doc = int(os.getenv("KG_MAX_MENTIONS_PER_DOC", "2500"))
@@ -1913,6 +1996,36 @@ Return ONLY a JSON object:
 }
 """
 
+HYBRID_KG_PROMPT = """
+You are an expert Ontologist specializing in LEGAL, INSURANCE, and FINANCE domains.
+
+Task:
+Analyze the PROVIDED DOCUMENT and extract the core SEMANTIC SKELETON of the Knowledge Graph.
+Instead of exhaustive sentence-by-sentence extraction, focus on the HIGH-LEVEL identity and relationships.
+
+1. ENTITIES/CONCEPTS:
+   - Identify all primary actors, legal acts, sections, policy types, and domain concepts mentioned.
+   - For each, provide a "canonical" standard name, a precise "label", and a RICH 2-3 sentence "description".
+   - Capture at least ONE "mention" (exact text snippet) for each.
+
+2. RELATIONSHIPS:
+   - Identify the major semantic connections between these entities.
+   - Use high-confidence relationships like DEFINES, APPLIES_TO, REQUIRES, EXCLUDES, PROVIDES_COVERAGE, etc.
+   - For each relation, provide "head", "relation", "tail", "confidence", and an "evidence_snippet".
+
+Return ONLY a JSON object:
+{
+  "entities": [
+    {"canonical": "...", "label": "...", "description": "...", "mention": "..."},
+    ...
+  ],
+  "relations": [
+    {"head": "...", "relation": "...", "tail": "...", "confidence": 0.95, "evidence_snippet": "..."},
+    ...
+  ]
+}
+"""
+
 
 def _load_relation_schema() -> Dict[str, Any]:
     """Load relation schema/ontology (cached).
@@ -2213,8 +2326,8 @@ def extract_oneshot_kg_from_doc(doc_id: str, text: str) -> List[Entity]:
         _ONESHOT_RELATION_CACHE.set(doc_latest_key, cached)
     else:
         # 1. Gliding Window Logic
-        window_size = int(os.getenv("KG_ONESHOT_WINDOW_SIZE", "8000"))
-        overlap = int(os.getenv("KG_ONESHOT_WINDOW_OVERLAP", "2000"))
+        window_size = int(os.getenv("KG_ONESHOT_WINDOW_SIZE", "12000") or 12000)
+        overlap = int(os.getenv("KG_ONESHOT_WINDOW_OVERLAP", "3000") or 3000)
         
         windows = []
         if len(text) <= window_size:
@@ -2381,6 +2494,87 @@ def extract_oneshot_kg_from_doc(doc_id: str, text: str) -> List[Entity]:
     return all_entities
 
 
+def extract_hybrid_kg_from_doc(doc_id: str, text: str) -> List[Entity]:
+    """Hybrid approach: One-shot LLM global structure + exhaustive local mention finding."""
+    digest = _text_digest(text)
+    cache_key = DiskJSONCache.hash_key("hybrid_v1", doc_id, digest)
+    cached = _ONESHOT_RELATION_CACHE.get(cache_key)
+    
+    if cached and isinstance(cached, dict):
+        logging.info(f"Hybrid: Cache hit for {doc_id}")
+        # Ensure 'latest' cache for Phase 5 to find these relations easily
+        doc_latest_key = DiskJSONCache.hash_key("oneshot_doc_latest", doc_id)
+        _ONESHOT_RELATION_CACHE.set(doc_latest_key, cached)
+    else:
+        logging.warning(f"Hybrid: Performing ONE-SHOT global extraction for {doc_id} (0 rate limit risk)")
+        prompt = f"{HYBRID_KG_PROMPT}\n\nDOCUMENT TEXT:\n{text}"
+        
+        try:
+            from utils.genai_compat import generate_text as unified_generate_text
+            # Use the "RELATION" purpose which often maps to Flash for maximum throughput
+            raw = unified_generate_text(model=None, prompt=prompt, temperature=0.1, purpose="RELATION")
+            cached = _parse_json_safely(raw, default={"entities": [], "relations": []})
+            
+            # Persist for reruns and Phase 5 use
+            _ONESHOT_RELATION_CACHE.set(cache_key, cached)
+            doc_latest_key = DiskJSONCache.hash_key("oneshot_doc_latest", doc_id)
+            _ONESHOT_RELATION_CACHE.set(doc_latest_key, cached)
+            
+        except Exception as e:
+            logging.error(f"Hybrid: Global extraction failed for {doc_id}: {e}")
+            cached = {"entities": [], "relations": []}
+
+    # Now, boost the results with local exhaustive finding
+    llm_entities = cached.get("entities", [])
+    all_boosted: List[Entity] = []
+    
+    # Pre-filter word set for speed
+    doc_word_set = set(re.findall(r"[a-z0-9]+", (text or "").lower()))
+    
+    max_mentions_per_surface = int(os.getenv("KG_MAX_MENTIONS_PER_SURFACE", "12"))
+    
+    # 1. Map LLM semantic entities to all their mentions using local find_spans
+    for ent_data in llm_entities:
+        canon = ent_data.get("canonical", "")
+        mention = ent_data.get("mention", canon)
+        if not canon and not mention: 
+            continue
+        
+        # Search for both canon and mention variants
+        surfaces = {canon, mention} if mention else {canon}
+        seen_spans = set()
+        
+        for surface in surfaces:
+            if not surface: continue
+            spans = find_spans(text, surface, max_spans=max_mentions_per_surface, word_set=doc_word_set)
+            for start, end in spans:
+                if (start, end) in seen_spans: 
+                    continue
+                seen_spans.add((start, end))
+                
+                all_boosted.append(Entity(
+                    text=text[start:end],
+                    label=ent_data.get("label", "ENTITY"),
+                    start=start,
+                    end=end,
+                    source="hybrid_llm_booster",
+                    canonical=canon,
+                    description=ent_data.get("description"),
+                    context=text[max(0, start-80):min(len(text), end+80)],
+                    doc_id=doc_id
+                ))
+
+    # 2. Add structural entities locally (Rules are 429-free)
+    try:
+        all_boosted.extend(_extract_numbered_provision_headings(text, doc_id))
+        all_boosted.extend(_extract_constitution_structure_entities(text, doc_id))
+    except Exception:
+        pass
+        
+    logging.info(f"Hybrid: {doc_id} -> {len(llm_entities)} semantic seeds expanded to {len(all_boosted)} rich mentions.")
+    return all_boosted
+
+
 def _dedupe_entities_for_llm(ent_list: List[Tuple[Entity, str]]) -> List[Dict[str, str]]:
     """Unique entities by canonical string for LLM payload."""
     seen: Set[str] = set()
@@ -2495,8 +2689,8 @@ def add_semantic_relation_edges(
     all_entities_per_doc: Dict[str, List[Entity]],
     sent_index: Dict[str, SentenceInfo],
 ):
-    strategy = (os.getenv("KG_EXTRACTION_STRATEGY", "cluster") or "cluster").strip().lower()
-    if strategy == "oneshot":
+    strategy = (os.getenv("KG_EXTRACTION_STRATEGY", "hybrid") or "hybrid").strip().lower()
+    if strategy in {"oneshot", "hybrid"}:
         return _add_semantic_relation_edges_oneshot(graph, sent_index)
 
     # Build per-sentence entity lists from existing MENTION_IN edges (Phase 4), which is

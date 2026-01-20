@@ -64,6 +64,19 @@ class RateLimiter:
                 self.cooldown_until = new_cooldown
 
 
+# --- Global Rate Limiter Registry ---
+# This ensures that if the same API key is used in multiple pools (ENTITY, QA, etc.),
+# they all share the same RPM state and cooldowns.
+_LIMITER_REGISTRY: Dict[str, RateLimiter] = {}
+_REGISTRY_LOCK = threading.Lock()
+
+def get_limiter(key: str, max_rpm: int = 15) -> RateLimiter:
+    with _REGISTRY_LOCK:
+        if key not in _LIMITER_REGISTRY:
+            _LIMITER_REGISTRY[key] = RateLimiter(key, max_rpm=max_rpm)
+        return _LIMITER_REGISTRY[key]
+
+
 class UnifiedClient:
     """Wraps a provider client with its specific rate limiter."""
     def __init__(self, provider: str, client: Any, limiter: RateLimiter):
@@ -73,15 +86,45 @@ class UnifiedClient:
 
     def generate(self, model: str, prompt: str, temperature: float) -> str:
         if self.provider == "GEMINI":
-            resp = self.client.models.generate_content(
-                model=model,
-                contents=prompt,
-                config={
-                    "temperature": float(temperature),
-                    "max_output_tokens": 65536,
-                },
-            )
-            return (getattr(resp, "text", "") or "").strip()
+            # 400 Bad Request often happens with Experimental models or max_output_tokens being too high.
+            # 65536 is safe for 1.5 Pro/Flash, but for 2.0 Flash we might want to be conservative.
+            # We also explicitly disable AFC logic to stop the "AFC is enabled" logs and potential errors.
+            # Explicitly disable safety filters to prevent rejections on legal terminology (liability, injury, etc.)
+            safety_settings = [
+                {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
+                {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"},
+                {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_NONE"},
+                {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"},
+            ]
+            
+            try:
+                resp = self.client.models.generate_content(
+                    model=model,
+                    contents=prompt,
+                    config={
+                        "temperature": float(temperature),
+                        "max_output_tokens": 8192 if "2.0-flash" in model else 64000,
+                        "automatic_function_calling": {"disable": True},
+                        "safety_settings": safety_settings
+                    },
+                )
+                return (getattr(resp, "text", "") or "").strip()
+            except Exception as e:
+                err_str = str(e).upper()
+                if "400" in err_str:
+                    logging.warning(f"[GenAI] 400 Bad Request for {model}. Retrying with relaxed config.")
+                    resp = self.client.models.generate_content(
+                        model=model,
+                        contents=prompt,
+                        config={
+                            "temperature": float(temperature),
+                            "max_output_tokens": 4096,
+                            "automatic_function_calling": {"disable": True},
+                            "safety_settings": safety_settings
+                        },
+                    )
+                    return (getattr(resp, "text", "") or "").strip()
+                raise e
         raise ValueError(f"Unknown provider or unsupported: {self.provider}")
 
     def embed(self, model: str, texts: List[str]) -> List[List[float]]:
@@ -133,21 +176,37 @@ def init():
         _pools[p] = MultiPool(p)
 
     # Load Gemini Keys
-    gemini_keys = _parse_keys("GOOGLE_API_KEY")
     gemini_rpm = int(os.getenv("GEMINI_RPM", "15"))
-    for key in gemini_keys:
+    
+    # 1. Load General Keys
+    for key in _parse_keys("GOOGLE_API_KEY"):
         if _genai:
             try:
                 client = _genai.Client(api_key=key)
-                limiter = RateLimiter(key, max_rpm=gemini_rpm)
+                limiter = get_limiter(key, max_rpm=gemini_rpm)
                 u_client = UnifiedClient("GEMINI", client, limiter)
                 _pools["GENERAL"].add_client(u_client)
-                # Add to specific pools if configured in env
-                if os.getenv("GOOGLE_API_KEY_ENTITY"): _pools["ENTITY"].add_client(u_client)
-                if os.getenv("GOOGLE_API_KEY_RELATION"): _pools["RELATION"].add_client(u_client)
-                if os.getenv("GOOGLE_API_KEY_QA"): _pools["QA"].add_client(u_client)
             except Exception as e:
-                logging.error(f"[GenAI] Failed to init client for key {key[:6]}: {e}")
+                logging.error(f"[GenAI] Failed to init GENERAL client: {e}")
+
+    # 2. Load Task-Specific Keys
+    for p in ["ENTITY", "RELATION", "QA"]:
+        env_var = f"GOOGLE_API_KEY_{p}"
+        purpose_keys = _parse_keys(env_var)
+        if purpose_keys:
+            # Use specific RPM if provided, else fall back to general
+            p_rpm = int(os.getenv(f"GEMINI_RPM_{p}", str(gemini_rpm)))
+            for key in purpose_keys:
+                try:
+                    client = _genai.Client(api_key=key)
+                    limiter = get_limiter(key, max_rpm=p_rpm)
+                    _pools[p].add_client(UnifiedClient("GEMINI", client, limiter))
+                except Exception as e:
+                    logging.error(f"[GenAI] Failed to init {p} client: {e}")
+        else:
+            # Fallback: link GENERAL clients to this pool if no specific keys exist
+            with _pools[p].lock:
+                _pools[p].clients = _pools["GENERAL"].clients
 
     _configured = True
 

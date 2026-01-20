@@ -65,8 +65,8 @@ def _compute_entity_importance(entity_G: nx.Graph, seed: int = 0) -> Dict[str, f
     try:
         if n <= 250:
             return nx.betweenness_centrality(entity_G, normalized=True, weight="weight")
-        if n <= 2000:
-            k = min(250, n)
+        if n <= 1000:
+            k = min(50, n)
             return nx.betweenness_centrality(entity_G, normalized=True, weight="weight", k=k, seed=seed)
         return nx.pagerank(entity_G, weight="weight")
     except Exception:
@@ -800,11 +800,21 @@ def build_and_add_community_nodes(graph: KnowledgeGraph,
     # Map: (level, comm_id) -> community_node_id string
     comm_node_map: Dict[Tuple[int, int], str] = {}
 
+    if verbose:
+        print("[communities] Preparing Phase 7 community nodes & summaries...")
+
     # Precompute centrality on the entity graph so we can rank members by importance
+    if verbose:
+        print("[communities] Building entity graph for importance calculation...")
     entity_G = _build_entity_graph(graph)
+    
+    if verbose:
+        print(f"[communities] Computing entity importance ({entity_G.number_of_nodes()} nodes)...")
     centrality_scores = _compute_entity_importance(entity_G, seed=0)
 
     # Precompute evidence grounding map once (dominant cost otherwise).
+    if verbose:
+        print("[communities] Precomputing mention map for grounding...")
     mention_map = _precompute_mention_in_sentence_counts(graph)
 
     # Filter out degenerate levels before materializing nodes.
@@ -825,13 +835,17 @@ def build_and_add_community_nodes(graph: KnowledgeGraph,
     community_results = filtered_results
 
     def _build_summary(ent_infos: List[Dict[str, Any]], evidence_sents: List[Dict[str, Any]]) -> Dict[str, Any]:
-        if disable_summaries or genai is None:
+        if disable_summaries or genai_generate_text is None:
             return {"title": None, "micro_summary": None, "extractive_bullets": []}
-        return _summarize_community_with_llm(genai, ent_infos, evidence_sents)
+        # Pass dummy module since genai_generate_text is used internally
+        return _summarize_community_with_llm(None, ent_infos, evidence_sents)
 
     # First pass: create community nodes for each level
     # Optionally parallelize summary generation; node insertion stays on main thread.
     pending: List[Tuple[int, int, str, List[str], List[Dict[str, Any]], List[Dict[str, Any]], float, float]] = []
+    if verbose:
+        print("[communities] Filtering community levels and preparing summaries...")
+
     for res in community_results:
         level = res.level
         # community nodes in res.community_nodes: {comm_id: [member_node_ids]}
@@ -879,9 +893,13 @@ def build_and_add_community_nodes(graph: KnowledgeGraph,
 
     summaries: Dict[Tuple[int, int], Dict[str, Any]] = {}
     if pending:
+        if verbose:
+            print(f"[communities] Generating summaries for {len(pending)} communities (workers={summary_workers})...")
         if summary_workers <= 1 or len(pending) <= 4:
-            for (level, comm_id, _comm_node_id, _members, ent_infos, evidence_sents, _iw, _ew) in pending:
+            for i, (level, comm_id, _comm_node_id, _members, ent_infos, evidence_sents, _iw, _ew) in enumerate(pending):
                 summaries[(level, comm_id)] = _build_summary(ent_infos, evidence_sents)
+                if verbose and (i + 1) % 10 == 0:
+                    print(f"  -> {i + 1}/{len(pending)} summaries completed")
         else:
             from concurrent.futures import ThreadPoolExecutor, as_completed
             with ThreadPoolExecutor(max_workers=summary_workers) as ex:
@@ -889,12 +907,19 @@ def build_and_add_community_nodes(graph: KnowledgeGraph,
                     ex.submit(_build_summary, ent_infos, evidence_sents): (level, comm_id)
                     for (level, comm_id, _cid, _m, ent_infos, evidence_sents, _iw, _ew) in pending
                 }
+                done_count = 0
                 for fut in as_completed(futs):
                     key = futs[fut]
+                    done_count += 1
                     try:
                         summaries[key] = fut.result() or {"title": None, "micro_summary": None, "extractive_bullets": []}
                     except Exception:
                         summaries[key] = {"title": None, "micro_summary": None, "extractive_bullets": []}
+                    if verbose and done_count % 10 == 0:
+                        print(f"  -> {done_count}/{len(pending)} summaries completed")
+
+    if verbose:
+        print(f"[communities] Finalizing {len(pending)} COMMUNITY nodes...")
 
     for (level, comm_id, comm_node_id, members, ent_infos, evidence_sents, internal_weight, external_weight) in pending:
         summary_obj = summaries.get((level, comm_id), {"title": None, "micro_summary": None, "extractive_bullets": []})
@@ -992,8 +1017,12 @@ def build_and_add_community_nodes(graph: KnowledgeGraph,
 
     # Mark bridge members with betweenness centrality to highlight connectors
     try:
+        if verbose:
+            print("[communities] Identifying bridge members...")
         _mark_bridge_members(
             graph,
+            entity_G=entity_G,
+            centrality=centrality_scores,
             edge_types=[
                 "CO_OCCURS_WITH",
                 "USED_WITH",
@@ -1007,19 +1036,31 @@ def build_and_add_community_nodes(graph: KnowledgeGraph,
                 "SUBDOMAIN_OF",
             ],
         )
-    except Exception:
-        # best-effort; do not fail pipeline
+    except Exception as e:
+        if verbose:
+            print(f"[communities] Bridge member identification failed: {e}")
         pass
 
     return comm_node_map
 
 
-def _mark_bridge_members(graph: KnowledgeGraph, edge_types: Optional[List[str]] = None, top_k: int = 12) -> None:
+def _mark_bridge_members(
+    graph: KnowledgeGraph,
+    entity_G: Optional[nx.Graph] = None,
+    centrality: Optional[Dict[str, float]] = None,
+    edge_types: Optional[List[str]] = None,
+    top_k: int = 12
+) -> None:
     """Compute betweenness centrality on the entity graph and flag high connectors."""
-    G = _build_entity_graph(graph, edge_types=edge_types)
-    if G.number_of_nodes() == 0:
+    if entity_G is None:
+        entity_G = _build_entity_graph(graph, edge_types=edge_types)
+    
+    if entity_G.number_of_nodes() == 0:
         return
-    centrality = _compute_entity_importance(G, seed=0)
+        
+    if centrality is None:
+        centrality = _compute_entity_importance(entity_G, seed=0)
+        
     if not centrality:
         return
     # pick top-k by centrality
