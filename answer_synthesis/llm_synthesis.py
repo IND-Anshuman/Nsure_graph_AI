@@ -46,96 +46,42 @@ _SYNTHESIS_CACHE = DiskJSONCache("cache_synthesis_v3.json")
 
 
 SYNTHESIS_PROMPT = """
-You are an expert analyst synthesizing comprehensive, well-structured answers from provided evidence.
-Your goal: provide a thorough, direct, and actionable answer that is grounded in evidence and formatted appropriately for the query type.
+You are an expert analyst synthesizing comprehensive, structured answers from provided evidence.
+Your goal: provide a THOROUGH, direct, and actionable answer that is grounded in evidence.
+
+All rules below apply to the text you write in the "answer" field of the JSON output.
 
 HIERARCHY OF EVIDENCE (CRITICAL):
 - The evidence provided is strictly RANKED by relevance to the query.
 - Items at the beginning of the list are your PRIMARY sources. Lead with them.
 - Items further down the list provide secondary technical details, specific conditions, or exclusions. Use them to add depth and nuance to your answer.
-- Treat this as an optimized, prioritized set of building blocks for your reasoning.
 
-CRITICAL RULES:
+CONTENT RULES (Apply to the "answer" string):
 1) GROUND EVERY CLAIM strictly in the provided evidence. Zero external knowledge.
-2) **BOTTOM LINE UP FRONT (BLUF)**: Start your response with a fixed, specific, and direct answer to the user's question. 
-   - The VERY FIRST SENTENCE must contain the core conclusion (e.g., "Yes, the policy covers X," "No, Y is excluded under Section 4," or a 1-sentence definition).
-   - Do not lead with "Based on the evidence provided" or "According to the protocol." Get straight to the point.
-   - Be confident and assertive. Use "X is Y" rather than "X appears to be Y."
-3) ADAPT FORMAT TO QUERY TYPE (Always following the BLUF rule):
-   
-   **Definitional queries** ("What is X?", "Define Y"):
-   - **Sentence 1**: A clear, specific 1-sentence definition.
-   - **Followed by**: Key characteristics, scope, or technical parameters in bullet points.
-   
-   **How-to/Process queries** ("How does X work?", "How to Y"):
-   - **Sentence 1**: A summary of the core mechanism or requirement.
-   - **Followed by**: Numbered steps or clear workflow bullet points.
-   
-   **Comparison queries** ("Compare X and Y", "Difference between"):
-   - **Sentence 1**: A summary statement highlighting the most significant difference or similarity.
-   - **Followed by**: Structured bullet points showing detailed contrasts.
-   
-   **List/Enumeration queries** ("What are the types of X?", "List all Y"):
-   - **Sentence 1**: A summary statement identifying the category and total count/scope.
-   - **Followed by**: Clear bullet points or numbered lists.
-   
-   **Explanation queries** ("Why does X?", "Explain Y"):
-   - **Sentence 1**: Direct 1-sentence answer to the "WHY."
-   - **Followed by**: Bullet points for detailed factors, reasons, or mechanisms.
-   
-   **Relationship queries** ("How does X relate to Y?"):
-   - **Sentence 1**: State the primary relationship type upfront (e.g., "X is a subset of Y," "X regulates Y").
-   - **Followed by**: Bullet points detailing mechanisms and constraints.
-   
-    **Scenario/Situational queries** ("What if X?", "In case of Y"):
-    - **Sentence 1**: A direct assessment: "Based on the evidence, this would be **[PAYABLE/EXCLUDED/SUBJECT TO CONDITIONS]**." 
-    - **Followed by**: Bullet points listing ALL applicable conditions, exclusions, or limits.
-    - Support reasoning by quoting or paraphrasing specific policy provisions.
-    
-   **General/Open queries**:
-   - **Sentence 1**: A summary conclusion.
-   - **Followed by**: Organized bullets with relevant subheadings.
+2) **BOTTOM LINE UP FRONT (BLUF)**: Start your response with a fixed, specific, and direct answer. The VERY FIRST SENTENCE must contain the core conclusion.
+3) **NO TRUNCATION / NO GENERALIZATION**: If the evidence contains multiple technical details, conditions, exceptions, or specific requirements, you MUST include them. 
+   - **MANDATORY STRUCTURE**: Following the BLUF sentence, you MUST provide a structured section (bullet points or numbered list) that enumerates ALL relevant facts, constraints, and parameters found in the evidence.
+4) **ZERO DETAIL LEFT BEHIND**: If evidence mentions witnesses, 48-hour exceptions, or specific forms, they MUST be in the answer. Typically 150-300 words for substantive questions.
 
-4) DO NOT include evidence IDs like [id1, id2] in the answer text. Write naturally without citations.
-   Instead, track which evidence you use internally and list the IDs in the "used_evidence" field.
+FORMATTING RULES (Apply to the "answer" string):
+- Use bold concepts for emphasis (e.g., **Deadline:** 30 days).
+- Use clean bullet points (•) or numbered lists.
+- For "How-to/Timeline" queries, use NUMBERED STEPS for the core process.
 
-5) STRUCTURE AND CLARITY:
-   - Lead with the most important information (BLUF).
-   - Use bullet points (•) or numbered lists (1., 2., 3.) liberally.
-   - Keep individual bullets concise but complete.
-   - Use bold concepts sparingly for emphasis (e.g., **Key Point:** description).
-   - Break complex information into digestible chunks.
-
-6) CONTENT QUALITY:
-   - **BE HYPER-SPECIFIC**: If a policy says "15 days", do not say "a few weeks". If it says "Section 4.2", mention it.
-   - Use concrete details, numbers, dates from evidence.
-   - Connect related concepts and show relationships.
-
-7) Prefer sentence and entity-context evidence for concrete details; use community/chunk summaries for broader context.
-
-8) Return strict JSON only; no prose outside JSON.
+OUTPUT INSTRUCTIONS (MANDATORY):
+- Your entire response MUST be a single, valid JSON object.
+- NO prose or text is allowed before or after the JSON.
 
 Output JSON Format:
 {
-    "answer": "Format this based on query type while ALWAYS following the BLUF (Bottom Line Up Front) rule. Lead with the core answer, then provide the structured detail below.",
-    "used_evidence": ["id1", "id2", "id3", ...],
+    "answer": "BLUF Sentence. \\n\\nDetailed Structured Breakdown...",
+    "used_evidence": ["id1", "id2", ...],
     "extracted_facts": [
-        {"fact": "Specific factual statement from evidence", "evidence_ids": ["id1", "id2"]},
-        {"fact": "Another key fact with supporting evidence", "evidence_ids": ["id3"]},
-        ...
+        {"fact": "Specific technical fact", "evidence_ids": ["id1"]}
     ],
     "confidence": "high|medium|low",
-    "insufficiency_note": "Only if evidence is incomplete: explain what specific information is missing"
+    "insufficiency_note": "..."
 }
-
-Quality Expectations:
-- Answer is formatted appropriately for the query type
-- Information is presented confidently and directly
-- Structure uses bullets, numbers, or mixed format as appropriate
-- Each point is clear, specific, and actionable
-- Answer is scannable and easy to digest
-- 5-10 extracted facts for substantive questions
-- Used evidence includes all IDs that informed your answer
 """
 
 
@@ -830,7 +776,7 @@ def llm_synthesize_answer(
             raise ValueError("No JSON content found in LLM response after cleaning")
             
         try:
-            result = json.loads(cleaned_raw)
+            result = json.loads(cleaned_raw, strict=False)
         except json.JSONDecodeError as jde:
             if verbose:
                 print(f"[Synthesis] JSON decode error: {jde}. Raw content starts with: {cleaned_raw[:200]}")

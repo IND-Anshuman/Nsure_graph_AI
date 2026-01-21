@@ -161,7 +161,7 @@ def _parse_json_safely(raw: str, default):
         if not cleaned:
             return default
         # First attempt: direct parse
-        return json.loads(cleaned)
+        return json.loads(cleaned, strict=False)
     except Exception:
         pass
 
@@ -182,12 +182,12 @@ def _parse_json_safely(raw: str, default):
         for cand in candidates:
             try:
                 # Try simple parse
-                return json.loads(cand)
+                return json.loads(cand, strict=False)
             except Exception:
                 # Try repair if it looks like a truncated object/list
                 try:
                     repaired = _robust_json_repair(cand)
-                    return json.loads(repaired)
+                    return json.loads(repaired, strict=False)
                 except Exception:
                     continue
     except Exception:
@@ -1287,8 +1287,6 @@ def extract_semantic_entities_for_doc(doc_id: str, text: str) -> List[Entity]:
     # otherwise stale cached entities can collapse legal provisions (e.g., all
     # articles under canonical "article").
     strategy = (os.getenv("KG_EXTRACTION_STRATEGY", "hybrid") or "hybrid").strip().lower()
-    if strategy == "oneshot":
-        return extract_oneshot_kg_from_doc(doc_id, text)
     if strategy == "hybrid":
         return extract_hybrid_kg_from_doc(doc_id, text)
 
@@ -1961,57 +1959,27 @@ Return ONLY a JSON list:
 ]
 """
 
-ONESHOT_KG_PROMPT = """
-You are an expert Ontologist specializing in LEGAL, INSURANCE, and FINANCE domains.
-
-Task:
-Perform a deep, exhaustive extraction of all ENTITIES, CONCEPTS, and RELATIONSHIPS from the provided document chunk.
-Your goal is HIGH RECALL. Document the granular structural relationship of all provisions, definitions, and obligations.
-
-1. ENTITIES/CONCEPTS:
-   - Canonical name: Formal standard name (e.g., "The Insurer", "Section 149(2)").
-   - Label: Precise type (POLICY_TYPE, COVERAGE, EXCLUSION, CLAIM_PROCEDURE, REGULATORY_BODY, LEGAL_ACT, PROVISION, CONDITION, etc.).
-   - Description: 2-3 sentences explaining the concept's exact meaning.
-   - Mention: The exact phrase/word used in the text.
-
-2. RELATIONSHIPS:
-   - Head/Tail: Canonical names of entities extracted above.
-   - Relation: UPPERCASE_WITH_UNDERSCORES.
-   - Confidence: 0..1.
-   - Evidence Snippet: Exact text phrase supporting the connection.
-
-Priority Relation Types:
-- DEFINES, PROVIDES_FOR, EMPOWERS, REQUIRES, PROHIBITS, LIMITS, AMENDS, SUBJECT_TO, NOTWITHSTANDING, EXCEPTS, APPLIES_TO, BALANCES_WITH, CONSIDERS_VIEWS_OF, PROCEDURE_FOR, INTERPRETS, OVERRIDES, OWNS, ISSUES, GUARANTEED_BY, REGULATED_BY, COMPLIES_WITH.
-
-Return ONLY a JSON object:
-{
-  "entities": [
-    {"canonical": "...", "label": "...", "description": "...", "mention": "..."},
-    ...
-  ],
-  "relations": [
-    {"head": "...", "relation": "...", "tail": "...", "confidence": 0.95, "evidence_snippet": "..."},
-    ...
-  ]
-}
-"""
-
 HYBRID_KG_PROMPT = """
 You are an expert Ontologist specializing in LEGAL, INSURANCE, and FINANCE domains.
 
 Task:
-Analyze the PROVIDED DOCUMENT and extract the core SEMANTIC SKELETON of the Knowledge Graph.
-Instead of exhaustive sentence-by-sentence extraction, focus on the HIGH-LEVEL identity and relationships.
+Analyze the PROVIDED DOCUMENT and extract the core SEMANTIC SKELETON. 
+Your goal is to capture the structural "spine" of the document while retaining CRITICAL technical precision.
 
 1. ENTITIES/CONCEPTS:
-   - Identify all primary actors, legal acts, sections, policy types, and domain concepts mentioned.
-   - For each, provide a "canonical" standard name, a precise "label", and a RICH 2-3 sentence "description".
-   - Capture at least ONE "mention" (exact text snippet) for each.
+   - Identify all primary actors, legal structures, sections (e.g., "Section 4"), specific policy parameters (e.g., "30-day Notice Period"), and domain concepts.
+   - For EACH entity:
+     - "canonical": A clean, standardized name.
+     - "label": A high-level category (e.g., ACTOR, PROVISION, LIMIT, EXCLUSION).
+     - "description": VERY IMPORTANT. Provide a 2-4 sentence technical summary. Include ANY specific numbers, dates, or constraints found in the text (e.g., "Maximum liability of $50,000" or "Valid for 12 months").
+     - "mention": The exact snippet from the text.
 
 2. RELATIONSHIPS:
-   - Identify the major semantic connections between these entities.
-   - Use high-confidence relationships like DEFINES, APPLIES_TO, REQUIRES, EXCLUDES, PROVIDES_COVERAGE, etc.
-   - For each relation, provide "head", "relation", "tail", "confidence", and an "evidence_snippet".
+   - Focus on functional and logical connections (e.g., ACTOR --REQUIRES_NOTICE_WITHIN--> TIME_LIMIT).
+   - Use specific labels: APPLIES_TO, REQUIRES, EXCLUDES, LIMITS, DEFINES, OBLIGATES.
+   - For each: include "head", "relation", "tail", "confidence", and "evidence_snippet".
+
+DO NOT TRUNCATE. Identify the most valuable 25-40 entities that represent the complete logical scope of the text.
 
 Return ONLY a JSON object:
 {
@@ -2313,185 +2281,6 @@ def _normalize_relation_label(label: str, schema: Dict[str, Any]) -> Optional[st
     return s
 
 
-def extract_oneshot_kg_from_doc(doc_id: str, text: str) -> List[Entity]:
-    """Extract entities and relations in one shot for a document."""
-    digest = _text_digest(text)
-    cache_key = DiskJSONCache.hash_key("oneshot_v1", doc_id, digest)
-    cached = _ONESHOT_RELATION_CACHE.get(cache_key)
-    
-    if cached and isinstance(cached, dict):
-        entities_data = cached.get("entities", [])
-        # CRITICAL: Always ensure 'latest' mapping exists even on cache hit for Phase 5 retrieval
-        doc_latest_key = DiskJSONCache.hash_key("oneshot_doc_latest", doc_id)
-        _ONESHOT_RELATION_CACHE.set(doc_latest_key, cached)
-    else:
-        # 1. Gliding Window Logic
-        window_size = int(os.getenv("KG_ONESHOT_WINDOW_SIZE", "12000") or 12000)
-        overlap = int(os.getenv("KG_ONESHOT_WINDOW_OVERLAP", "3000") or 3000)
-        
-        windows = []
-        if len(text) <= window_size:
-            windows.append(text)
-        else:
-            step = window_size - overlap
-            for i in range(0, len(text), step):
-                chunk = text[i:i + window_size]
-                if len(chunk) < 500 and windows: # Skip tiny trailing chunks if possible
-                    continue
-                windows.append(chunk)
-                if i + window_size >= len(text):
-                    break
-        
-        global_entities = []
-        global_relations = []
-        seen_entity_canons = {} # canonical -> full object
-        seen_relation_keys = set() # (head, rel, tail)
-        
-        logging.warning(f"One-shot Gliding Window starting for {doc_id} with {len(windows)} windows (Size: {window_size}, Overlap: {overlap})")
-        
-        def _process_window(idx, window_text):
-            prompt = f"{ONESHOT_KG_PROMPT}\n\nDOCUMENT TEXT (WINDOW {idx+1}):\n{window_text}"
-            
-            try:
-                from utils.genai_compat import generate_text as unified_generate_text
-                raw = unified_generate_text(model=None, prompt=prompt, temperature=0.1, purpose="RELATION")
-                data = _parse_json_safely(raw, default={"entities": [], "relations": []})
-                win_entities = data.get("entities", [])
-                win_relations = data.get("relations", [])
-            except Exception as e:
-                logging.error(f"One-shot Window {idx+1} KG Extraction failed: {e}")
-                win_entities = []
-                win_relations = []
-            
-            return win_entities, win_relations
-
-        
-        window_workers = int(os.getenv("KG_ONESHOT_WINDOW_WORKERS", "0") or 0)
-        if window_workers <= 0:
-            # Lowered from 10 to 4 to better respect free-tier RPM limits
-            window_workers = min(4, (os.cpu_count() or 2))
-
-        if len(windows) <= 1 or window_workers <= 1:
-            for idx, window_text in enumerate(windows):
-                logging.warning(f"  -> Processing Window {idx+1}/{len(windows)} ({len(window_text)} chars)...")
-                win_entities, win_relations = _process_window(idx, window_text)
-                
-                # Merge logic
-                for ent in win_entities:
-                    canon = str(ent.get("canonical", "")).strip()
-                    if not canon: continue
-                    if canon not in seen_entity_canons:
-                        seen_entity_canons[canon] = ent
-                        global_entities.append(ent)
-                    else:
-                        existing = seen_entity_canons[canon]
-                        if len(str(ent.get("description", ""))) > len(str(existing.get("description", ""))):
-                            existing["description"] = ent["description"]
-                
-                for rel in win_relations:
-                    head = str(rel.get("head", "")).strip()
-                    tail = str(rel.get("tail", "")).strip()
-                    label = str(rel.get("relation", "")).strip()
-                    if not head or not tail or not label: continue
-                    
-                    rel_key = (head, label, tail)
-                    if rel_key not in seen_relation_keys:
-                        global_relations.append(rel)
-                        seen_relation_keys.add(rel_key)
-        else:
-            logging.warning(f"  -> Processing {len(windows)} windows in parallel (workers={window_workers})...")
-            with ThreadPoolExecutor(max_workers=window_workers) as ex:
-                futs = {ex.submit(_process_window, i, t): i for i, t in enumerate(windows)}
-                for fut in as_completed(futs):
-                    idx = futs[fut]
-                    win_entities, win_relations = fut.result()
-                    
-                    # Merge logic (needs lock or single-threaded post-process, but here we process as-completed)
-                    # Note: seen_entity_canons and lists are being modified; for safety in as_completed loop
-                    # we should be careful, but since it's a single consumer thread here it's fine.
-                    for ent in win_entities:
-                        canon = str(ent.get("canonical", "")).strip()
-                        if not canon: continue
-                        if canon not in seen_entity_canons:
-                            seen_entity_canons[canon] = ent
-                            global_entities.append(ent)
-                        else:
-                            existing = seen_entity_canons[canon]
-                            if len(str(ent.get("description", ""))) > len(str(existing.get("description", ""))):
-                                existing["description"] = ent["description"]
-                    
-                    for rel in win_relations:
-                        head = str(rel.get("head", "")).strip()
-                        tail = str(rel.get("tail", "")).strip()
-                        label = str(rel.get("relation", "")).strip()
-                        if not head or not tail or not label: continue
-                        
-                        rel_key = (head, label, tail)
-                        if rel_key not in seen_relation_keys:
-                            global_relations.append(rel)
-                            seen_relation_keys.add(rel_key)
-
-        entities_data = global_entities
-        relations_data = global_relations
-
-        cached = {
-            "entities": entities_data,
-            "relations": relations_data,
-            "digest": digest,
-            "window_count": len(windows)
-        }
-        # Store results
-        v2_cache_key = DiskJSONCache.hash_key("oneshot_v2", doc_id, digest)
-        _ONESHOT_RELATION_CACHE.set(v2_cache_key, cached)
-        doc_latest_key = DiskJSONCache.hash_key("oneshot_doc_latest", doc_id)
-        _ONESHOT_RELATION_CACHE.set(doc_latest_key, cached)
-
-        msg = f"One-shot Gliding Window finished. Total: {len(entities_data)} entities, {len(relations_data)} relations across {len(windows)} windows."
-        logging.warning(msg)
-
-    # Process entities and find spans
-    all_entities: List[Entity] = []
-    # Build a simple token set for fast pre-filtering
-    doc_word_set = set(re.findall(r"[a-z0-9]+", (text or "").lower()))
-    
-    max_mentions_per_surface = int(os.getenv("KG_MAX_MENTIONS_PER_SURFACE", "8"))
-    
-    for ent in entities_data:
-        canon = ent.get("canonical")
-        mention = ent.get("mention")
-        label = ent.get("label", "ENTITY")
-        desc = ent.get("description")
-        if not canon and not mention:
-            continue
-            
-        # Try both mention (if provided) and canonical for span finding.
-        # Use fallback to canon if mention is missing or not found.
-        spans = []
-        if mention:
-            spans = find_spans(text, mention, max_spans=max_mentions_per_surface, word_set=doc_word_set)
-        
-        if not spans and canon:
-            spans = find_spans(text, canon, max_spans=max_mentions_per_surface, word_set=doc_word_set)
-            
-        if not spans:
-            logging.debug(f"One-shot: Could not find span for '{canon}' (mention: '{mention}')")
-            continue
-            
-        for start, end in spans:
-            all_entities.append(Entity(
-                text=text[start:end],
-                label=label,
-                start=start,
-                end=end,
-                source="oneshot",
-                canonical=canon,
-                description=desc,
-                context=text[max(0, start-80):min(len(text), end+80)],
-                doc_id=doc_id
-            ))
-            
-    logging.info(f"One-shot successfully mapped {len(all_entities)} entity instances to text for {doc_id}")
-    return all_entities
 
 
 def extract_hybrid_kg_from_doc(doc_id: str, text: str) -> List[Entity]:
@@ -2689,9 +2478,7 @@ def add_semantic_relation_edges(
     all_entities_per_doc: Dict[str, List[Entity]],
     sent_index: Dict[str, SentenceInfo],
 ):
-    strategy = (os.getenv("KG_EXTRACTION_STRATEGY", "hybrid") or "hybrid").strip().lower()
-    if strategy in {"oneshot", "hybrid"}:
-        return _add_semantic_relation_edges_oneshot(graph, sent_index)
+    return _add_semantic_relation_edges_from_extraction_cache(graph, sent_index)
 
     # Build per-sentence entity lists from existing MENTION_IN edges (Phase 4), which is
     # far faster than scanning all sentences for every extracted entity.
@@ -2903,8 +2690,8 @@ def add_semantic_relation_edges(
     return created_edges
 
 
-def _add_semantic_relation_edges_oneshot(graph: KnowledgeGraph, sent_index: Dict[str, SentenceInfo]) -> List[KGEdge]:
-    """Helper to load pre-extracted relations from oneshot cache and add to graph."""
+def _add_semantic_relation_edges_from_extraction_cache(graph: KnowledgeGraph, sent_index: Dict[str, SentenceInfo]) -> List[KGEdge]:
+    """Helper to load pre-extracted relations from extraction cache and add to graph."""
     created_edges: List[KGEdge] = []
     seen_rel_edges: Set[Tuple[str, str, str, str]] = set()
     

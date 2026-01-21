@@ -70,8 +70,14 @@ app.url_map.strict_slashes = False
 def health_check():
     return jsonify({"status": "active", "version": "1.0.4", "message": "Nsure AI Backend is fully operational."})
 
-# Enable CORS for frontend communication during development
-CORS(app)
+# Enable CORS for frontend communication
+# In production, specify origins via ALLOWED_ORIGINS (comma-separated URLs)
+allowed_origins_str = os.getenv("ALLOWED_ORIGINS", "*")
+if allowed_origins_str == "*":
+    CORS(app)
+else:
+    allowed_origins = [o.strip() for o in allowed_origins_str.split(",") if o.strip()]
+    CORS(app, origins=allowed_origins)
 
 @app.route('/', defaults={'path': ''})
 @app.route('/<path:path>')
@@ -180,7 +186,8 @@ def _save_uploaded_pdf(upload_dir: Path) -> str:
         raise ValueError(f"Uploaded file type '{ext}' is not supported. Allowed types: {', '.join(allowed_exts)}")
 
     upload_dir.mkdir(parents=True, exist_ok=True)
-    out_path = upload_dir / f"{_now_ms()}_{filename}"
+    # Use a unique prefix to avoid collisions
+    out_path = upload_dir / f"tmp_{_now_ms()}_{filename}"
     f.save(str(out_path))
     return str(out_path)
 
@@ -479,7 +486,7 @@ def _sanitize_env_overrides(overrides: Dict[str, Any]) -> Dict[str, str]:
     # Strategy
     if "KG_EXTRACTION_STRATEGY" in overrides:
         val = str(overrides["KG_EXTRACTION_STRATEGY"]).lower()
-        if val in ["oneshot", "cluster", "hybrid"]:
+        if val in ["cluster", "hybrid"]:
             sanitized["KG_EXTRACTION_STRATEGY"] = val
         else:
             sanitized["KG_EXTRACTION_STRATEGY"] = "hybrid"
@@ -516,14 +523,6 @@ def _sanitize_env_overrides(overrides: Dict[str, Any]) -> Dict[str, str]:
         val = _safe_int(overrides["KG_EMBEDDING_BATCH_SIZE"], 64)
         sanitized["KG_EMBEDDING_BATCH_SIZE"] = str(max(1, min(512, val)))
 
-    # Extraction Window Sizes
-    if "KG_ONESHOT_WINDOW_SIZE" in overrides:
-        val = _safe_int(overrides["KG_ONESHOT_WINDOW_SIZE"], 8000)
-        sanitized["KG_ONESHOT_WINDOW_SIZE"] = str(max(1000, min(100000, val)))
-    
-    if "KG_ONESHOT_WINDOW_OVERLAP" in overrides:
-        val = _safe_int(overrides["KG_ONESHOT_WINDOW_OVERLAP"], 2000)
-        sanitized["KG_ONESHOT_WINDOW_OVERLAP"] = str(max(0, min(50000, val)))
 
     return sanitized
 
@@ -726,109 +725,122 @@ def query() -> Any:
     t0 = time.perf_counter()
 
     # Parse inputs
-    source = _resolve_source_from_request()
+    source = None
+    try:
+        source = _resolve_source_from_request()
 
-    if request.files and request.files.get("pdf") is not None:
-        questions = _coerce_questions(request.form.get("questions"))
-        options = _read_json_field(request.form.get("options"), default={})
-    else:
-        payload = request.get_json(silent=True) or {}
-        questions = _coerce_questions(payload.get("questions") or payload.get("question"))
-        options = _read_json_field(payload.get("options"), default={})
-
-    if not questions:
-        return jsonify({"error": "No questions provided"}), 400
-
-    verbose = bool(options.get("verbose", False))
-    env_overrides = _sanitize_env_overrides(options.get("env_overrides", {}))
-
-    with ScopedEnv(env_overrides):
-        cache = _resolve_cache_options(options)
-
-        # Build graph
-        build_opts = options.get("build", {}) if isinstance(options.get("build"), dict) else {}
-        graph, graph_key, graphml_path = _get_or_build_graph(
-            source=source,
-            verbose=verbose,
-            build_opts=build_opts,
-            cache=cache,
-        )
-
-        t_graph = time.perf_counter()
-
-        # Build index
-        index_opts = options.get("index", {}) if isinstance(options.get("index"), dict) else {}
-        index_items, embeddings, index_key = _get_or_build_index(
-            graph=graph,
-            graph_key=graph_key,
-            verbose=verbose,
-            index_opts=index_opts,
-            cache=cache,
-        )
-
-        if not index_items:
-            return jsonify({"error": "No index items were built (graph may be empty)."}), 500
-
-        t_index = time.perf_counter()
-
-        # Retrieval/rerank/synthesis knobs
-        qa_opts = options.get("qa", {}) if isinstance(options.get("qa"), dict) else {}
-        top_n_semantic = int(qa_opts.get("top_n_semantic", 20) or 20)
-        top_k_final = int(qa_opts.get("top_k_final", 40) or 40)
-        rerank_top_k = int(qa_opts.get("rerank_top_k", 12) or 12)
-
-        clean_questions = [str(q).strip() for q in questions if str(q).strip()]
-
-        # Parallelize per-question work to reduce wall-clock time.
-        # Keep concurrency modest to avoid LLM rate limits.
-        env_workers = os.getenv("KG_QA_MAX_WORKERS") or os.getenv("KG_QA_WORKERS") or "2"
-        requested_workers = _safe_int(qa_opts.get("max_workers") or qa_opts.get("workers"), int(env_workers or 2))
-        max_workers = max(1, min(len(clean_questions), requested_workers))
-
-        answers: List[Dict[str, Any]] = []
-        if max_workers <= 1 or len(clean_questions) <= 1:
-            for q in clean_questions:
-                answers.append(
-                    _answer_one(
-                        q=q,
-                        graph=graph,
-                        index_items=index_items,
-                        embeddings=embeddings,
-                        verbose=verbose,
-                        qa_opts=qa_opts,
-                        top_n_semantic=top_n_semantic,
-                        top_k_final=top_k_final,
-                        rerank_top_k=rerank_top_k,
-                    )
-                )
+        if request.files and request.files.get("pdf") is not None:
+            questions = _coerce_questions(request.form.get("questions"))
+            options = _read_json_field(request.form.get("options"), default={})
         else:
-            futures = {}
-            with ThreadPoolExecutor(max_workers=max_workers) as ex:
-                for i, q in enumerate(clean_questions):
-                    fut = ex.submit(
-                        _answer_one,
-                        q=q,
-                        graph=graph,
-                        index_items=index_items,
-                        embeddings=embeddings,
-                        verbose=verbose,
-                        qa_opts=qa_opts,
-                        top_n_semantic=top_n_semantic,
-                        top_k_final=top_k_final,
-                        rerank_top_k=rerank_top_k,
-                    )
-                    futures[fut] = i
-                results: List[Tuple[int, Dict[str, Any]]] = []
-                for fut in as_completed(futures):
-                    idx = futures[fut]
-                    try:
-                        results.append((idx, fut.result()))
-                    except Exception as e:
-                        results.append((idx, {"question": clean_questions[idx], "error": str(e)}))
-                results.sort(key=lambda x: x[0])
-                answers = [r for _, r in results]
+            payload = request.get_json(silent=True) or {}
+            questions = _coerce_questions(payload.get("questions") or payload.get("question"))
+            options = _read_json_field(payload.get("options"), default={})
 
-        t_done = time.perf_counter()
+        if not questions:
+            return jsonify({"error": "No questions provided"}), 400
+
+        verbose = bool(options.get("verbose", False))
+        env_overrides = _sanitize_env_overrides(options.get("env_overrides", {}))
+
+        with ScopedEnv(env_overrides):
+            cache = _resolve_cache_options(options)
+
+            # Build graph
+            build_opts = options.get("build", {}) if isinstance(options.get("build"), dict) else {}
+            graph, graph_key, graphml_path = _get_or_build_graph(
+                source=source,
+                verbose=verbose,
+                build_opts=build_opts,
+                cache=cache,
+            )
+
+            t_graph = time.perf_counter()
+
+            # Build index
+            index_opts = options.get("index", {}) if isinstance(options.get("index"), dict) else {}
+            index_items, embeddings, index_key = _get_or_build_index(
+                graph=graph,
+                graph_key=graph_key,
+                verbose=verbose,
+                index_opts=index_opts,
+                cache=cache,
+            )
+
+            if not index_items:
+                return jsonify({"error": "No index items were built (graph may be empty)."}), 500
+
+            t_index = time.perf_counter()
+
+            # Retrieval/rerank/synthesis knobs
+            qa_opts = options.get("qa", {}) if isinstance(options.get("qa"), dict) else {}
+            top_n_semantic = int(qa_opts.get("top_n_semantic", 20) or 20)
+            top_k_final = int(qa_opts.get("top_k_final", 40) or 40)
+            rerank_top_k = int(qa_opts.get("rerank_top_k", 12) or 12)
+
+            clean_questions = [str(q).strip() for q in questions if str(q).strip()]
+
+            # Parallelize per-question work to reduce wall-clock time.
+            # Keep concurrency modest to avoid LLM rate limits.
+            env_workers = os.getenv("KG_QA_MAX_WORKERS") or os.getenv("KG_QA_WORKERS") or "2"
+            requested_workers = _safe_int(qa_opts.get("max_workers") or qa_opts.get("workers"), int(env_workers or 2))
+            max_workers = max(1, min(len(clean_questions), requested_workers))
+
+            answers: List[Dict[str, Any]] = []
+            if max_workers <= 1 or len(clean_questions) <= 1:
+                for q in clean_questions:
+                    answers.append(
+                        _answer_one(
+                            q=q,
+                            graph=graph,
+                            index_items=index_items,
+                            embeddings=embeddings,
+                            verbose=verbose,
+                            qa_opts=qa_opts,
+                            top_n_semantic=top_n_semantic,
+                            top_k_final=top_k_final,
+                            rerank_top_k=rerank_top_k,
+                        )
+                    )
+            else:
+                futures = {}
+                with ThreadPoolExecutor(max_workers=max_workers) as ex:
+                    for i, q in enumerate(clean_questions):
+                        fut = ex.submit(
+                            _answer_one,
+                            q=q,
+                            graph=graph,
+                            index_items=index_items,
+                            embeddings=embeddings,
+                            verbose=verbose,
+                            qa_opts=qa_opts,
+                            top_n_semantic=top_n_semantic,
+                            top_k_final=top_k_final,
+                            rerank_top_k=rerank_top_k,
+                        )
+                        futures[fut] = i
+                    results: List[Tuple[int, Dict[str, Any]]] = []
+                    for fut in as_completed(futures):
+                        idx = futures[fut]
+                        try:
+                            results.append((idx, fut.result()))
+                        except Exception as e:
+                            results.append((idx, {"question": clean_questions[idx], "error": str(e)}))
+                    results.sort(key=lambda x: x[0])
+                    answers = [r for _, r in results]
+
+            t_done = time.perf_counter()
+
+    finally:
+        # Cleanup temporary upload if it exists
+        if request.files and request.files.get("pdf") is not None and source and os.path.exists(source):
+            try:
+                if "tmp_" in os.path.basename(source):
+                    os.remove(source)
+                    if verbose:
+                        logging.info(f"Cleaned up temporary upload: {source}")
+            except Exception as e:
+                logging.error(f"Failed to cleanup {source}: {e}")
 
     return jsonify(
         {

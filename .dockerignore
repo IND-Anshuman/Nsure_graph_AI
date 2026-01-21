@@ -33,10 +33,6 @@ cache_retrieval_index.json
 logs/
 temp/
 
-# Frontend (Deploying separately to Render)
-frontend/
-node_modules/
-
 # OS specific files
 .DS_Store
 Thumbs.db

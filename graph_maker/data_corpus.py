@@ -253,49 +253,6 @@ def build_corpus_from_sources(sources: List[str]) -> Dict[str, str]:
         name = name.split("?")[0] or "index"
         return name
 
-    def _find_cached_url_file(u: str) -> Optional[str]:
-        """Try to find a cached local copy for a URL.
-
-        Looks in:
-        - env KG_SOURCES_CACHE_DIR (if set)
-        - ./outputs
-        - current working directory
-        """
-        base = _url_basename(u)
-        # For safety, avoid creating directories implicitly here.
-        search_dirs: List[str] = []
-        cache_dir = os.getenv("KG_SOURCES_CACHE_DIR")
-        if cache_dir:
-            search_dirs.append(cache_dir)
-        search_dirs.append(os.path.join(os.getcwd(), "outputs"))
-        search_dirs.append(os.getcwd())
-
-        for d in search_dirs:
-            try:
-                candidate = os.path.join(d, base)
-            except Exception:
-                continue
-            if os.path.exists(candidate) and os.path.isfile(candidate):
-                return candidate
-        return None
-
-    def _maybe_cache_pdf_bytes(u: str, data: bytes) -> None:
-        """Best-effort cache of downloaded PDFs for offline reruns."""
-        try:
-            if not u.lower().endswith(".pdf"):
-                return
-            out_dir = os.getenv("KG_SOURCES_CACHE_DIR") or os.path.join(os.getcwd(), "outputs")
-            os.makedirs(out_dir, exist_ok=True)
-            filename = _url_basename(u)
-            path = os.path.join(out_dir, filename)
-            # Don't overwrite if already exists.
-            if os.path.exists(path):
-                return
-            with open(path, "wb") as f:
-                f.write(data)
-        except Exception:
-            # Cache failures should never fail ingestion.
-            return
 
     for src in sources:
         if _is_url(src):
@@ -304,33 +261,20 @@ def build_corpus_from_sources(sources: List[str]) -> Dict[str, str]:
             doc_id = pathlib.Path(name).stem or "web_doc"
 
             try:
-                # Special-case: if it's a PDF, fetch bytes so we can optionally cache them.
+                headers = {
+                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+                }
+                # Special-case: if it's a PDF, fetch bytes
                 if src.lower().endswith(".pdf"):
-                    headers = {
-                        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
-                    }
                     resp = requests.get(src, timeout=30, headers=headers)
                     resp.raise_for_status()
-                    _maybe_cache_pdf_bytes(src, resp.content)
                     text = _extract_text_from_pdf_bytes(resp.content)
                 else:
                     text = _extract_text_from_url(src)
             except RequestException as e:
-                cached = _find_cached_url_file(src)
-                if cached and os.path.exists(cached):
-                    ext = pathlib.Path(cached).suffix.lower()
-                    if ext == ".pdf":
-                        text = _extract_text_from_pdf_file(cached)
-                    else:
-                        with open(cached, "r", encoding="utf-8", errors="ignore") as f:
-                            text = _clean_whitespace(f.read())
-                else:
-                    raise RuntimeError(
-                        "Failed to fetch URL source and no local cache was found. "
-                        f"URL: {src}\n"
-                        "To run offline, download the file and add it as a local path in main_pipeline.py sources, "
-                        "or place it in ./outputs (or set KG_SOURCES_CACHE_DIR)."
-                    ) from e
+                raise RuntimeError(
+                    f"Failed to fetch URL source. URL: {src}"
+                ) from e
         else:
             # Local file
             path = os.path.abspath(src)

@@ -346,7 +346,7 @@ def llm_rerank_candidates(
         if not raw or not raw.strip():
             raise ValueError("No JSON content found in LLM response")
             
-        result = json.loads(raw)
+        result = json.loads(raw, strict=False)
         
         # Validate result
         ranked_ids = result.get("ranked_evidence_ids", [])

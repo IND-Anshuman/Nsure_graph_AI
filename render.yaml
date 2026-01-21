@@ -17,7 +17,5 @@ services:
         value: sentence-transformers/all-MiniLM-L6-v2
       - key: KG_EMBEDDING_DIM
         value: "384"
-      - key: KG_ONESHOT_WINDOW_SIZE
-        value: "16000"
       - key: FLASK_ENV
         value: production

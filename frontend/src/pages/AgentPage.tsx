@@ -67,8 +67,7 @@ export function AgentPage() {
     KG_TOP_K_FINAL: "60",
     KG_RERANK_TOP_K: "25",
     GEMINI_MODEL: "gemini-2.0-flash",
-    KG_EXTRACTION_STRATEGY: "oneshot",
-    KG_ONESHOT_WINDOW_SIZE: "16000",
+    KG_EXTRACTION_STRATEGY: "hybrid",
     KG_EMBEDDING_MODEL: "sentence-transformers/all-MiniLM-L6-v2",
     KG_EMBEDDING_DIM: "384",
   });
@@ -291,62 +290,41 @@ export function AgentPage() {
                         <div className="space-y-3 pt-2">
                           <div className="flex justify-between items-center">
                             <label className="text-[9px] uppercase tracking-widest text-muted-foreground flex flex-col gap-1">
-                              Extraction Window Size
-                              <span className="text-[7px] normal-case text-muted-foreground/60 italic">Larger = Faster (30-50%), Small = Denser</span>
+                              Embedding Intelligence
+                              <span className="text-[7px] normal-case text-muted-foreground/60 italic">Fast (MiniLM) for CPU, High-Quality (MPNet) for GPU</span>
                             </label>
-                            <span className="text-[10px] font-serif font-bold text-accent">{envOverrides.KG_ONESHOT_WINDOW_SIZE} chars</span>
                           </div>
-                          <input
-                            type="range"
-                            min="4000"
-                            max="30000"
-                            step="2000"
-                            value={envOverrides.KG_ONESHOT_WINDOW_SIZE}
-                            onChange={(e) => setEnvOverrides(prev => ({
-                              ...prev,
-                              KG_ONESHOT_WINDOW_SIZE: e.target.value
-                            }))}
-                            className="w-full accent-accent bg-blue-900/20 range-sm"
-                          />
-                          <div className="space-y-3 pt-2">
-                            <div className="flex justify-between items-center">
-                              <label className="text-[9px] uppercase tracking-widest text-muted-foreground flex flex-col gap-1">
-                                Embedding Intelligence
-                                <span className="text-[7px] normal-case text-muted-foreground/60 italic">Fast (MiniLM) for CPU, High-Quality (MPNet) for GPU</span>
-                              </label>
-                            </div>
-                            <div className="grid grid-cols-2 gap-2">
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => setEnvOverrides(prev => ({
-                                  ...prev,
-                                  KG_EMBEDDING_MODEL: "sentence-transformers/all-MiniLM-L6-v2",
-                                  KG_EMBEDDING_DIM: "384"
-                                }))}
-                                className={cn(
-                                  "rounded-none text-[8px] h-7 border-white/10 uppercase tracking-widest font-serif",
-                                  envOverrides.KG_EMBEDDING_DIM === "384" && "border-accent bg-accent/10 text-accent"
-                                )}
-                              >
-                                High Speed
-                              </Button>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => setEnvOverrides(prev => ({
-                                  ...prev,
-                                  KG_EMBEDDING_MODEL: "sentence-transformers/all-mpnet-base-v2",
-                                  KG_EMBEDDING_DIM: "768"
-                                }))}
-                                className={cn(
-                                  "rounded-none text-[8px] h-7 border-white/10 uppercase tracking-widest font-serif",
-                                  envOverrides.KG_EMBEDDING_DIM === "768" && "border-accent bg-accent/10 text-accent"
-                                )}
-                              >
-                                Max Context
-                              </Button>
-                            </div>
+                          <div className="grid grid-cols-2 gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setEnvOverrides(prev => ({
+                                ...prev,
+                                KG_EMBEDDING_MODEL: "sentence-transformers/all-MiniLM-L6-v2",
+                                KG_EMBEDDING_DIM: "384"
+                              }))}
+                              className={cn(
+                                "rounded-none text-[8px] h-7 border-white/10 uppercase tracking-widest font-serif",
+                                envOverrides.KG_EMBEDDING_DIM === "384" && "border-accent bg-accent/10 text-accent"
+                              )}
+                            >
+                              High Speed
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setEnvOverrides(prev => ({
+                                ...prev,
+                                KG_EMBEDDING_MODEL: "sentence-transformers/all-mpnet-base-v2",
+                                KG_EMBEDDING_DIM: "768"
+                              }))}
+                              className={cn(
+                                "rounded-none text-[8px] h-7 border-white/10 uppercase tracking-widest font-serif",
+                                envOverrides.KG_EMBEDDING_DIM === "768" && "border-accent bg-accent/10 text-accent"
+                              )}
+                            >
+                              Max Context
+                            </Button>
                           </div>
                         </div>
                       </div>
@@ -390,7 +368,7 @@ export function AgentPage() {
                         </div>
 
                         <div className="grid grid-cols-2 gap-4">
-                          <div className={cn("space-y-2", envOverrides.KG_EXTRACTION_STRATEGY === "oneshot" && "opacity-40 pointer-events-none")}>
+                          <div className={cn("space-y-2")}>
                             <label className="text-[9px] uppercase tracking-widest text-muted-foreground flex flex-col gap-1">
                               Rel Workers
                               <span className="text-[7px] normal-case text-muted-foreground/60 italic">Relation identification (1-16)</span>
@@ -399,13 +377,12 @@ export function AgentPage() {
                               type="number"
                               min="1"
                               max="16"
-                              disabled={envOverrides.KG_EXTRACTION_STRATEGY === "oneshot"}
                               value={envOverrides.KG_RELATION_WORKERS}
                               onChange={(e) => setEnvOverrides(prev => ({ ...prev, KG_RELATION_WORKERS: e.target.value }))}
                               className="w-full bg-background/50 border border-white/10 p-2 text-xs font-serif focus:border-accent/50 transition-colors"
                             />
                           </div>
-                          <div className={cn("space-y-2", envOverrides.KG_EXTRACTION_STRATEGY === "oneshot" && "opacity-40 pointer-events-none")}>
+                          <div className={cn("space-y-2")}>
                             <label className="text-[9px] uppercase tracking-widest text-muted-foreground flex flex-col gap-1">
                               Rel Batch Size
                               <span className="text-[7px] normal-case text-muted-foreground/60 italic">Items per API call (1-100)</span>
@@ -414,7 +391,6 @@ export function AgentPage() {
                               type="number"
                               min="1"
                               max="100"
-                              disabled={envOverrides.KG_EXTRACTION_STRATEGY === "oneshot"}
                               value={envOverrides.KG_RELATION_BATCH_SIZE}
                               onChange={(e) => setEnvOverrides(prev => ({ ...prev, KG_RELATION_BATCH_SIZE: e.target.value }))}
                               className="w-full bg-background/50 border border-white/10 p-2 text-xs font-serif focus:border-accent/50 transition-colors"
@@ -700,8 +676,8 @@ export function AgentPage() {
                     </span>
                     <div className="text-[9px] text-muted-foreground leading-relaxed uppercase tracking-wider font-serif italic space-y-1">
                       <div className="flex justify-between border-b border-white/5 pb-1">
-                        <span>Window Size</span>
-                        <span className="text-primary font-bold">14,000 - 18,000</span>
+                        <span>Extraction Mode</span>
+                        <span className="text-primary font-bold">Hybrid Global</span>
                       </div>
                       <div className="flex justify-between border-b border-white/5 pb-1">
                         <span>Parallel Workers</span>
@@ -745,13 +721,13 @@ export function AgentPage() {
                   <Card className="rounded-none border border-blue-900/20 bg-secondary/60 p-6 space-y-6 backdrop-blur-xl shadow-2xl">
                     <div>
                       <span className="text-[10px] font-serif uppercase tracking-wider text-muted-foreground mb-3 block">Confidence Manifestation</span>
-                      <div className={`text-center py-4 border font-serif italic text-lg ${answers[0].confidence === 'high'
+                      <div className={`text-center py-4 border font-serif italic text-lg ${answers[0]?.confidence === 'high'
                         ? 'border-emerald-500/30 bg-emerald-500/5 text-emerald-400'
-                        : answers[0].confidence === 'medium'
+                        : answers[0]?.confidence === 'medium'
                           ? 'border-accent/30 bg-accent/5 text-accent'
                           : 'border-red-500/30 bg-red-500/5 text-red-400'
                         }`}>
-                        {answers[0].confidence?.toUpperCase() || 'UNVERIFIED'}
+                        {answers[0]?.confidence?.toUpperCase() || 'UNVERIFIED'}
                       </div>
                     </div>
 
@@ -759,7 +735,7 @@ export function AgentPage() {
                       <div className="space-y-3 border-t border-blue-900/20 pt-6">
                         <div className="flex justify-between items-end">
                           <span className="text-[10px] font-serif uppercase text-muted-foreground">Synthesis Time</span>
-                          <span className="text-sm font-serif font-bold italic text-primary">{queryStats.timing.total.toFixed(2)}s</span>
+                          <span className="text-sm font-serif font-bold italic text-primary">{queryStats?.timing?.total?.toFixed(2)}s</span>
                         </div>
                         <div className="flex justify-between items-end">
                           <span className="text-[10px] font-serif uppercase text-muted-foreground">Graph Depth</span>
@@ -770,7 +746,7 @@ export function AgentPage() {
                   </Card>
                 </div>
 
-                {answers[0].evidence_texts && answers[0].evidence_texts.length > 0 && (
+                {answers[0]?.evidence_texts && answers[0]?.evidence_texts?.length > 0 && (
                   <div className="space-y-4 text-left">
                     <div className="flex items-center gap-2 mb-4">
                       <QUOTE className="w-4 h-4 text-accent" />
@@ -809,7 +785,7 @@ export function AgentPage() {
           </p>
         </div>
       </footer>
-    </div>
+    </div >
   );
 }
 
