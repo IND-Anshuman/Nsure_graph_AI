@@ -120,7 +120,7 @@ export function KGPipelineAnimation() {
             <div className="grid lg:grid-cols-12 gap-12 items-start">
 
                 {/* Left: Animation Area (7 Cols) */}
-                <div className="lg:col-span-12 xl:col-span-7 relative aspect-[16/10] bg-secondary/20 rounded-none border border-white/5 realistic-shadow overflow-hidden flex flex-col">
+                <div className="flex w-full lg:col-span-12 xl:col-span-7 relative aspect-[16/10] bg-secondary/20 rounded-none border border-white/5 realistic-shadow overflow-hidden flex flex-col min-h-[300px] lg:min-h-auto">
                     <div className="absolute inset-0 paper-overlay opacity-[0.05]" />
 
                     <div className="flex-1 relative flex items-center justify-center">

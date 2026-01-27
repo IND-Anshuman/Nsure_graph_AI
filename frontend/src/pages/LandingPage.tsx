@@ -35,16 +35,16 @@ export function LandingPage() {
             >
               <Button
                 variant="ghost"
-                className="gap-2 hover:text-accent transition-colors font-sans text-sm"
+                className="gap-2 hover:text-accent transition-colors font-sans text-xs px-2 h-8"
                 onClick={() => window.open("https://github.com/IND-Anshuman/Nsure_graph_AI.git", "_blank")}
               >
-                <Github className="w-4 h-4" />
-                Documentation
+                <Github className="w-3.5 h-3.5" />
+                Docs
               </Button>
               <Link to="/agent" onClick={() => getHealth().catch(() => { })}>
-                <Button size="lg" className="gap-2 rounded-none border border-accent/50 bg-accent/10 text-accent hover:bg-accent hover:text-accent-foreground transition-all duration-500 font-serif px-8 shadow-[0_0_15px_rgba(212,175,55,0.1)]">
+                <Button size="sm" className="gap-2 rounded-none border border-accent/50 bg-accent/10 text-accent hover:bg-accent hover:text-accent-foreground transition-all duration-500 font-serif px-4 shadow-[0_0_15px_rgba(212,175,55,0.1)]">
                   ACCESS SYSTEM
-                  <ArrowRight className="w-4 h-4" />
+                  <ArrowRight className="w-3.5 h-3.5" />
                 </Button>
               </Link>
             </motion.div>

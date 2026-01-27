@@ -166,11 +166,11 @@ export function AgentPage() {
               </Badge>
             </div>
 
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 flex-shrink-0">
               <Link to="/">
                 <Button variant="ghost" size="sm" className="gap-2 font-serif uppercase tracking-widest text-[10px] hover:text-accent">
                   <Home className="w-3.5 h-3.5" />
-                  Terminal
+                  <span className="hidden sm:inline">Terminal</span>
                 </Button>
               </Link>
               <Button
@@ -180,7 +180,7 @@ export function AgentPage() {
                 onClick={() => setShowAdvanced(!showAdvanced)}
               >
                 <Settings className="w-3.5 h-3.5" />
-                Advanced
+                <span className="hidden sm:inline">Advanced</span>
               </Button>
             </div>
           </div>
@@ -287,46 +287,7 @@ export function AgentPage() {
                         <div className="flex items-center justify-between group/toggle">
                         </div>
 
-                        <div className="space-y-3 pt-2">
-                          <div className="flex justify-between items-center">
-                            <label className="text-[9px] uppercase tracking-widest text-muted-foreground flex flex-col gap-1">
-                              Embedding Intelligence
-                              <span className="text-[7px] normal-case text-muted-foreground/60 italic">Fast (MiniLM) for CPU, High-Quality (MPNet) for GPU</span>
-                            </label>
-                          </div>
-                          <div className="grid grid-cols-2 gap-2">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => setEnvOverrides(prev => ({
-                                ...prev,
-                                KG_EMBEDDING_MODEL: "sentence-transformers/all-MiniLM-L6-v2",
-                                KG_EMBEDDING_DIM: "384"
-                              }))}
-                              className={cn(
-                                "rounded-none text-[8px] h-7 border-white/10 uppercase tracking-widest font-serif",
-                                envOverrides.KG_EMBEDDING_DIM === "384" && "border-accent bg-accent/10 text-accent"
-                              )}
-                            >
-                              High Speed
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => setEnvOverrides(prev => ({
-                                ...prev,
-                                KG_EMBEDDING_MODEL: "sentence-transformers/all-mpnet-base-v2",
-                                KG_EMBEDDING_DIM: "768"
-                              }))}
-                              className={cn(
-                                "rounded-none text-[8px] h-7 border-white/10 uppercase tracking-widest font-serif",
-                                envOverrides.KG_EMBEDDING_DIM === "768" && "border-accent bg-accent/10 text-accent"
-                              )}
-                            >
-                              Max Context
-                            </Button>
-                          </div>
-                        </div>
+                        {/* Embedding Intelligence Section Removed as per request (Context Type Model) */}
                       </div>
 
                       {/* Worker Settings Section */}
@@ -637,7 +598,74 @@ export function AgentPage() {
 
           {/* Investigation Panel (Right Sidebar) */}
           <div className="lg:col-span-3 space-y-8">
-            {/* Intelligence Rulebook (Protocol & Constraints) */}
+            {answers.length > 0 && !isSubmitting ? (
+              <motion.div
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                className="space-y-8"
+              >
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2 mb-4">
+                    <ShieldCheck className="w-4 h-4 text-accent" />
+                    <h2 className="font-serif font-bold uppercase tracking-widest text-xs text-primary">Integrity Metrics</h2>
+                  </div>
+                  <Card className="rounded-none border border-blue-900/20 bg-secondary/60 p-6 space-y-6 backdrop-blur-xl shadow-2xl">
+                    <div>
+                      <span className="text-[10px] font-serif uppercase tracking-wider text-muted-foreground mb-3 block">Confidence Manifestation</span>
+                      <div className={`text-center py-4 border font-serif italic text-lg ${answers[0]?.confidence === 'high'
+                        ? 'border-emerald-500/30 bg-emerald-500/5 text-emerald-400'
+                        : answers[0]?.confidence === 'medium'
+                          ? 'border-accent/30 bg-accent/5 text-accent'
+                          : 'border-red-500/30 bg-red-500/5 text-red-400'
+                        }`}>
+                        {answers[0]?.confidence?.toUpperCase() || 'UNVERIFIED'}
+                      </div>
+                    </div>
+
+                    {queryStats && (
+                      <div className="space-y-3 border-t border-blue-900/20 pt-6">
+                        <div className="flex justify-between items-end">
+                          <span className="text-[10px] font-serif uppercase text-muted-foreground">Synthesis Time</span>
+                          <span className="text-sm font-serif font-bold italic text-primary">{queryStats?.timing?.total?.toFixed(2)}s</span>
+                        </div>
+                        <div className="flex justify-between items-end">
+                          <span className="text-[10px] font-serif uppercase text-muted-foreground">Graph Depth</span>
+                          <span className="text-sm font-serif font-bold italic text-primary">L-24</span>
+                        </div>
+                      </div>
+                    )}
+                  </Card>
+                </div>
+
+                {answers[0]?.evidence_texts && answers[0]?.evidence_texts?.length > 0 && (
+                  <div className="space-y-4 text-left">
+                    <div className="flex items-center gap-2 mb-4">
+                      <QUOTE className="w-4 h-4 text-accent" />
+                      <h2 className="font-serif font-bold uppercase tracking-widest text-xs text-primary">Contextual Proofs</h2>
+                    </div>
+                    <div className="max-h-[500px] overflow-y-auto custom-scrollbar space-y-4 pr-2">
+                      {answers[0].evidence_texts.slice(0, 12).map((text, idx) => (
+                        <div key={idx} className="p-4 bg-secondary/40 border-b border-blue-900/20 hover:bg-secondary/60 transition-all relative group">
+                          <span className="absolute -left-2 top-4 w-5 h-5 bg-accent text-background text-[8px] flex items-center justify-center font-bold font-serif opacity-0 group-hover:opacity-100 transition-opacity">
+                            {idx + 1}
+                          </span>
+                          <p className="text-[11px] leading-relaxed text-muted-foreground font-sans">
+                            "{text}"
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </motion.div>
+            ) : (
+              <div className="flex flex-col items-center justify-center h-[400px] text-center space-y-4 border border-dashed border-border p-8 grayscale opacity-50">
+                <Network className="w-8 h-8 text-muted-foreground" />
+                <p className="text-[10px] font-serif uppercase tracking-widest text-muted-foreground">Waiting for query initiation</p>
+              </div>
+            )}
+
+            {/* Intelligence Rulebook (Protocol & Constraints) - Moved to Bottom */}
             <div className="space-y-4">
               <div className="flex items-center gap-2 mb-4">
                 <ShieldCheck className="w-4 h-4 text-accent" />
@@ -707,79 +735,13 @@ export function AgentPage() {
                 </div>
               </Card>
             </div>
-            {answers.length > 0 && !isSubmitting ? (
-              <motion.div
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                className="space-y-8"
-              >
-                <div className="space-y-4">
-                  <div className="flex items-center gap-2 mb-4">
-                    <ShieldCheck className="w-4 h-4 text-accent" />
-                    <h2 className="font-serif font-bold uppercase tracking-widest text-xs text-primary">Integrity Metrics</h2>
-                  </div>
-                  <Card className="rounded-none border border-blue-900/20 bg-secondary/60 p-6 space-y-6 backdrop-blur-xl shadow-2xl">
-                    <div>
-                      <span className="text-[10px] font-serif uppercase tracking-wider text-muted-foreground mb-3 block">Confidence Manifestation</span>
-                      <div className={`text-center py-4 border font-serif italic text-lg ${answers[0]?.confidence === 'high'
-                        ? 'border-emerald-500/30 bg-emerald-500/5 text-emerald-400'
-                        : answers[0]?.confidence === 'medium'
-                          ? 'border-accent/30 bg-accent/5 text-accent'
-                          : 'border-red-500/30 bg-red-500/5 text-red-400'
-                        }`}>
-                        {answers[0]?.confidence?.toUpperCase() || 'UNVERIFIED'}
-                      </div>
-                    </div>
-
-                    {queryStats && (
-                      <div className="space-y-3 border-t border-blue-900/20 pt-6">
-                        <div className="flex justify-between items-end">
-                          <span className="text-[10px] font-serif uppercase text-muted-foreground">Synthesis Time</span>
-                          <span className="text-sm font-serif font-bold italic text-primary">{queryStats?.timing?.total?.toFixed(2)}s</span>
-                        </div>
-                        <div className="flex justify-between items-end">
-                          <span className="text-[10px] font-serif uppercase text-muted-foreground">Graph Depth</span>
-                          <span className="text-sm font-serif font-bold italic text-primary">L-24</span>
-                        </div>
-                      </div>
-                    )}
-                  </Card>
-                </div>
-
-                {answers[0]?.evidence_texts && answers[0]?.evidence_texts?.length > 0 && (
-                  <div className="space-y-4 text-left">
-                    <div className="flex items-center gap-2 mb-4">
-                      <QUOTE className="w-4 h-4 text-accent" />
-                      <h2 className="font-serif font-bold uppercase tracking-widest text-xs text-primary">Contextual Proofs</h2>
-                    </div>
-                    <div className="max-h-[500px] overflow-y-auto custom-scrollbar space-y-4 pr-2">
-                      {answers[0].evidence_texts.slice(0, 12).map((text, idx) => (
-                        <div key={idx} className="p-4 bg-secondary/40 border-b border-blue-900/20 hover:bg-secondary/60 transition-all relative group">
-                          <span className="absolute -left-2 top-4 w-5 h-5 bg-accent text-background text-[8px] flex items-center justify-center font-bold font-serif opacity-0 group-hover:opacity-100 transition-opacity">
-                            {idx + 1}
-                          </span>
-                          <p className="text-[11px] leading-relaxed text-muted-foreground font-sans">
-                            "{text}"
-                          </p>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </motion.div>
-            ) : (
-              <div className="flex flex-col items-center justify-center h-[400px] text-center space-y-4 border border-dashed border-border p-8 grayscale opacity-50">
-                <Network className="w-8 h-8 text-muted-foreground" />
-                <p className="text-[10px] font-serif uppercase tracking-widest text-muted-foreground">Waiting for query initiation</p>
-              </div>
-            )}
           </div>
         </div>
       </main>
 
       <footer className="container mx-auto px-6 py-12 border-t border-blue-900/20 mt-24">
         <div className="flex flex-col items-center gap-4">
-          <NsureLogo className="w-6 h-6 text-accent/20" />
+          <NsureLogo className="w-12 h-12 text-accent/20" />
           <p className="text-[10px] text-muted-foreground uppercase tracking-[0.3em] font-serif italic text-center">
             Institutional Graph Intelligence Platform &bull; Nsure AI &bull; Est. 2026
           </p>
