@@ -7,10 +7,11 @@ Nsure AI is a production-grade GraphRAG (Graph Retrieval-Augmented Generation) s
 
 ### Backend (Flask + Python)
 - **Framework**: Flask with CORS support
-- **Graph Processing**: NetworkX, Louvain communities
-- **LLM Integration**: OpenAI, Google Gemini
+- **Graph Processing**: NetworkX, Leiden/Louvain communities
+- **Extraction Strategy**: Hybrid (One-shot + Iterative) for higher recall
+- **LLM Integration**: Google Gemini (Primary), OpenAI (Supported)
 - **Document Processing**: PDFPlumber, BeautifulSoup
-- **Embeddings**: Sentence Transformers
+- **Embeddings**: Google Gemini (`text-embedding-004`), Sentence Transformers
 
 ### Frontend (React + TypeScript)
 - **Framework**: React 18 + TypeScript + Vite
@@ -197,15 +198,25 @@ Content-Type: application/json
 OPENAI_API_KEY=sk-...
 GOOGLE_API_KEY=...
 
-# Optional Settings
-KG_API_HOST=127.0.0.1
+# Core Configuration
+KG_EXTRACTION_STRATEGY=hybrid   # Options: hybrid, one_shot
+KG_EMBEDDING_PROVIDER=gemini    # Options: gemini, openai
+KG_EMBEDDING_MODEL=text-embedding-004
+KG_EMBEDDING_DIM=768
+
+# Performance & Memory Optimization
+KG_DOC_WORKERS=1                # Concurrent documents
+KG_RELATION_WORKERS=1           # Concurrent extraction threads
+KG_COMMUNITY_SUMMARY_WORKERS=1  # Concurrent summary threads
+KG_QA_MAX_WORKERS=2             # Answer synthesis threads
+
+# API Settings
+KG_API_HOST=0.0.0.0
 KG_API_PORT=5000
 KG_API_DEBUG=0
 KG_API_CACHE_DIR=outputs/api_cache
 KG_API_GRAPHS_DIR=outputs/api_graphs
 KG_API_UPLOAD_DIR=outputs/api_uploads
-KG_DOC_WORKERS=4
-KG_QA_MAX_WORKERS=2
 KG_ALLOW_LOCAL_PATH=0
 ```
 
@@ -218,33 +229,33 @@ VITE_API_URL=http://localhost:5000
 
 ```
 Nsure_graph_AI/
-├── frontend/                 # React frontend
+├── answer_synthesis/        # Retrieval & Answering Logic
+│   ├── engine.py            # KgRagEngine & Answer Generation
+│   ├── hybrid_search.py     # Hybrid Vector + Graph Search
+│   ├── llm_rerank.py        # Candidate Reranking
+│   ├── llm_synthesis.py     # Final Answer Construction
+│   └── retrieval.py         # Context Retrieval
+├── frontend/                # React frontend
 │   ├── src/
 │   │   ├── components/      # UI components
 │   │   │   ├── ui/          # shadcn/ui components
-│   │   │   ├── BackgroundParticles.tsx
+│   │   │   ├── KGPipelineAnimation.tsx
 │   │   │   ├── FileUpload.tsx
-│   │   │   └── VibrantEffects.tsx
-│   │   ├── lib/
-│   │   │   ├── api.ts       # API service layer
-│   │   │   └── utils.ts     # Utility functions
-│   │   ├── pages/
+│   │   │   └── ...
+│   │   ├── lib/             # Utilities
+│   │   ├── pages/           # Application Pages
 │   │   │   ├── LandingPage.tsx
 │   │   │   └── AgentPage.tsx
-│   │   ├── App.tsx
-│   │   └── main.tsx
-│   ├── package.json
-│   └── vite.config.ts
-├── main.py                  # Flask API server
-├── graph_maker.py           # KG construction
-├── engine.py                # Query engine
-├── ner.py                   # Entity extraction
-├── Community_processing.py  # Community detection
-├── phase8_retrieval_enhanced.py  # Indexing
-├── hybrid_search.py         # Search algorithm
-├── llm_rerank.py            # LLM reranking
-├── llm_synthesis.py         # Answer synthesis
-├── requirements.txt
+│   │   └── ...
+├── graph_maker/             # Knowledge Graph Construction
+│   ├── Community_processing.py # Leiden/Louvain Communities
+│   ├── data_corpus.py       # Document Ingestion
+│   ├── graph_maker.py       # Main Graph Assembly Logic
+│   ├── ner.py               # Entity/Relation Extraction (Hybrid)
+│   └── relation_schema.py   # Schema Definitions
+├── main.py                  # Flask API Entry Point
+├── Dockerfile               # Production Build
+├── requirements.txt         # Dependencies
 └── README.md
 ```
 

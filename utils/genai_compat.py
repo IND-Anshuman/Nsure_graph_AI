@@ -176,7 +176,8 @@ def init():
         _pools[p] = MultiPool(p)
 
     # Load Gemini Keys
-    gemini_rpm = int(os.getenv("GEMINI_RPM", "15"))
+    # Default to 2 RPM for extreme safety
+    gemini_rpm = int(os.getenv("GEMINI_RPM", "2"))
     
     # 1. Load General Keys
     for key in _parse_keys("GOOGLE_API_KEY"):
@@ -218,8 +219,8 @@ def is_gemini_available() -> bool:
     return is_available()
 
 @retry(
-    wait=wait_exponential(multiplier=2, min=3, max=40),
-    stop=stop_after_attempt(5),
+    wait=wait_exponential(multiplier=2, min=3, max=60),
+    stop=stop_after_attempt(1),
     retry=retry_if_exception_type(Exception),
     reraise=True
 )
@@ -260,8 +261,8 @@ def generate_text(model: Optional[str] = None, prompt: str = "", *, temperature:
         return ""
 
 @retry(
-    wait=wait_exponential(multiplier=2, min=3, max=40),
-    stop=stop_after_attempt(5),
+    wait=wait_exponential(multiplier=2, min=3, max=60),
+    stop=stop_after_attempt(1),
     retry=retry_if_exception_type(Exception),
     reraise=True
 )

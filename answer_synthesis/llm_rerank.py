@@ -36,37 +36,46 @@ _CROSS_ENCODER_NAME: Optional[str] = None
 
 
 RERANK_PROMPT = """
-You are an expert at ranking evidence for question answering.
+You are an expert LEGAL & FINANCE evidence evaluator.
+Your goal is to select the most precise and definitive evidence to answer the user's question, filtering out noise.
 
 Evidence item fields:
-- id
-- type: "SENTENCE", "ENTITY_CONTEXT", "ENTITY", "COMMUNITY", "CHUNK", etc.
-- text
-- semantic_score, graph_score, cross_score (higher is better)
+- id: unique identifier
+- type: "SENTENCE", "ENTITY_CONTEXT", "ENTITY", "COMMUNITY", "CHUNK"
+- text: the content snippet
+- score: retrieval relevance signals
 
 Instructions:
-- Read the question and evidence list.
-- Select and order evidence that is useful to answer the question, including supporting rules and definitions.
-- Prioritize items whose type is "SENTENCE" or "ENTITY_CONTEXT".
-- Use "COMMUNITY" or "CHUNK" items for broad thematic context.
-- When two items express similar content, keep the more specific / technical one.
-- If an item is totally irrelevant, exclude it.
-- **VOLUME**: Aim to provide a robust set of 15-20+ items if relevance is moderate to high, to ensure synthesis has sufficient building blocks.
+1. **Analyze the Question Intent**:
+   - **Structure**: If seeking hierarchy (Sections/Articles), prioritize headers and parent clauses.
+   - **Definitions**: If asking "What is X?", prioritize "X means..." or "X is defined as...".
+   - **Process**: If asking "How to...", prioritize steps, deadlines, and forms.
+   - **Exclusions**: If asking "Is X covered?", hunt for "Exclusion", "Unless", "Does not apply".
+   - **Timeline**: If asking dates, prioritize "Effective Date", "Waiting Period", "Retroactive".
+   - **Scenario**: If hypothetical, find the *conditional rules* (relationships between actors).
 
-Scoring rubric (highest first):
-- relevance to question
-- value as a supporting rule/condition
-- degree of direct factual overlap with the query intent
-- specificity and technical detail
-- novelty (penalize 100% duplicates, but keep variations)
+2. **Evaluate Specificity (The "Gold Standard")**:
+   - **PREFER**: Specific clauses with numbers, dates, caps, or strict conditions.
+   - **AVOID**: Generic marketing summaries or broad descriptions.
+   - **TRUMPING**: A specific Policy Definition ALWAYS beats a common-sense or generic usage.
 
-Output JSON only (no prose):
+3. **Context & Completeness**:
+   - "ENTITY_CONTEXT" / "COMMUNITY": Use for broad framing (Medium priority).
+   - "SENTENCE": Use for core proof (High priority).
+   - **Volume**: Select 15-20 items to ensure the Synthesis step has enough building blocks.
+
+Scoring Rubric (Rank High to Low):
+1. **Direct Answer / Definition**: The exact answer (e.g., "$5,000 limit").
+2. **Governing Clause**: The legal section controlling the topic.
+3. **Crucial Condition**: "Subject to...", "Provided that...".
+4. **Context**: Background info.
+5. **Irrelevant**: Noise (Exclude).
+
+Output JSON only (no markdown, no prose):
 {
     "ranked_evidence_ids": ["id1", "id2", ...],
-    "rationale": "1-2 sentences on why the top items were chosen"
+    "rationale": "Brief explanation of choice (e.g., 'Selected definition of X and exclusion Y')."
 }
-
-CRITICAL: For scenario or conditional questions, RETAIN evidence that establishes a rule, limit, or condition (e.g., 'Exclusion 4b says...', 'Section 2.1 requires...') even if the evidence does not explicitly mention the scenario's specific actors or details. These are the building blocks for reasoning.
 """
 
 

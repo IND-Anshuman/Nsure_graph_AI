@@ -458,7 +458,7 @@ def _sanitize_env_overrides(overrides: Dict[str, Any]) -> Dict[str, str]:
     ]
     for k in worker_keys:
         if k in overrides:
-            val = _safe_int(overrides[k], 4)
+            val = _safe_int(overrides[k], 1)  # Default to 1 for safety
             sanitized[k] = str(max(1, min(16, val)))
             
     # Batch size (1-100)
