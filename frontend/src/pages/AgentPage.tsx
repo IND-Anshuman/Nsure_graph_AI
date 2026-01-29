@@ -442,13 +442,15 @@ export function AgentPage() {
                             Gemini Model Version
                             <span className="text-[7px] normal-case text-muted-foreground/60 italic">Specify model used for extraction & synthesis</span>
                           </label>
-                          <input
-                            type="text"
+                          <select
                             value={envOverrides.GEMINI_MODEL}
                             onChange={(e) => setEnvOverrides(prev => ({ ...prev, GEMINI_MODEL: e.target.value }))}
-                            className="w-full bg-background/50 border border-white/10 p-3 text-xs font-serif focus:border-accent/50 transition-colors"
-                            placeholder="e.gemini-2.0-flash"
-                          />
+                            className="w-full bg-background/50 border border-white/10 p-3 text-xs font-serif focus:border-accent/50 transition-colors appearance-none"
+                          >
+                            <option value="gemini-2.0-flash">gemini-2.0-flash (Recommended)</option>
+                            <option value="gemini-2.5-flash-lite">gemini-2.5-flash-lite</option>
+                            <option value="gemini-2.5-pro">gemini-2.5-pro</option>
+                          </select>
                         </div>
                       </div>
                     </Card>
