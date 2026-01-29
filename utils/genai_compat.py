@@ -103,7 +103,7 @@ class UnifiedClient:
                     contents=prompt,
                     config={
                         "temperature": float(temperature),
-                        "max_output_tokens": 16384 if "2.0-flash" in model else 64000,
+                        "max_output_tokens": 8192 if "2.0-flash" in model else 64000,
                         "automatic_function_calling": {"disable": True},
                         "safety_settings": safety_settings
                     },
