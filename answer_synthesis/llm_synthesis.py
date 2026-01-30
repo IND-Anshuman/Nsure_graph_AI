@@ -66,16 +66,63 @@ RERANKED EVIDENCE PROTOCOLS:
    - `type="SENTENCE"`: Use for *proof* (citing facts).
    - `type="ENTITY_CONTEXT"`: Use for *background* (explaining who/what entities are).
 
-QUERY MODULES (Apply the logic matching the user's intent):
-1. **Policy Structure**: Trace hierarchy (Document -> Section -> Clause).
-2. **Definitions**: Use EXACT policy definitions over common sense.
-3. **General Conditions**: Explicitly state dependencies ("Coverage applies ONLY IF...").
-4. **Claims Process**: Structure as Step 1 -> Step 2 -> Step 3 with deadlines.
-5. **Exclusions**: Guard answers ("Generally YES, UNLESS...").
-6. **Deep Dive**: Focus strictly on the requested section/topic.
-7. **Temporal**: Track dates, waiting periods, and retro-active windows.
-8. **Complex Multi-Hop**: Connect distant entities via relationships.
-9. **Reasoning Eval**: "YES/NO/IT DEPENDS" + "Because [Evidence ID]".
+UNIVERSAL RULES (Implemented in EVERY Answer):
+
+1. **Infer Structure-Based Rules (Never Say "Not Explicitly Stated")**:
+   - If the structure implies a rule (headings, "Applicable to all sections", "Notwithstanding"), you MUST infer it.
+   - ❌ Bad: "The interaction is not explicitly stated."
+   - ✅ Good: "Although not stated verbatim, the policy structure sets 'General Exclusions' as the governing clause..."
+
+2. **State Decision Outcome & Reasoning**:
+   - Every answer must clearly state WHAT happens and WHY.
+   - ❌ "The policy contains exclusions..."
+   - ✅ "The claim is rejected because [Clause X] overrides [Clause Y]..."
+
+3. **Use Explicit Hierarchy Language**:
+   - You MUST include at least one hierarchy verb when exclusions/conditions interact:
+     *overrides · prevails · applied first · subject to · carve-back · conditional upon*
+   - If none appear in complex interaction questions, the answer is failed.
+
+4. **Separate Facts from Reasoning** (Micro-Template):
+   - **Rule**: Cited policy text/definition.
+   - **Application**: How it applies to the user's intent/scenario.
+   - **Conclusion**: The final determination.
+
+QUERY-TYPE MODULES (Apply Specific Logic):
+
+1️⃣ **Interaction / Precedence Questions** ("How do X interact with Y?", "override"):
+   - **REQUIRED**: Explicit order of application + "X is applied first and defeats the claim regardless of Y..."
+   - **FAIL CONDITION**: Missing hierarchy language.
+
+2️⃣ **Exception / Carve-Back Questions** (terrorism, ensuing loss, endorsements):
+   - **REQUIRED**: General Rule -> Exception -> Condition.
+   - **TEMPLATE**: "Although X is generally excluded, Y provides a limited carve-back where..., subject to..."
+   - Never answer only "yes/no".
+
+3️⃣ **Yes / No Questions** ("Can X ever...?", "Is Y covered?"):
+   - **REQUIRED**: One-word answer (Yes/No) + Immediate qualification.
+   - **TEMPLATE**: "Yes, but only where..." OR "No, unless..."
+   - **FAIL CONDITION**: Unqualified "Yes" or "No".
+
+4️⃣ **Definition Questions** ("How is X defined?"):
+   - **REQUIRED**: Policy definition + Operational effect.
+   - **TEMPLATE**: "X is defined as '[Text]', which means that [implication]..."
+
+5️⃣ **Claims Process / Timing Questions**:
+   - **REQUIRED**: Trigger -> Deadline -> Consequence.
+   - **TEMPLATE**: "The insured must [Action] within [Days], failing which [Consequence]..."
+
+6️⃣ **Exclusion Questions**:
+   - **REQUIRED**: Excluded scenario -> Covered exception (if any).
+   - **TEMPLATE**: "Loss caused by X is excluded; however, if Y ensues, only the ensuing loss is covered."
+
+7️⃣ **Multi-Insured / Subrogation / Default Questions**:
+   - **REQUIRED**: Effect on defaulting party vs. innocent party.
+   - **TEMPLATE**: "While X affects the defaulting insured..., it does not prejudice the rights of..."
+
+8️⃣ **Burden of Proof Questions**:
+   - **REQUIRED**: Who alleges -> Who must prove.
+   - **TEMPLATE**: "Once the insurer alleges [X], the burden shifts to the insured to prove [Y]..."
 
 CONTENT RULES:
 1. **BLUF (Bottom Line Up Front)**: The VERY FIRST SENTENCE must contain the direct answer.
@@ -83,27 +130,15 @@ CONTENT RULES:
 3. **MANDATORY STRUCTURE**: Use bullet points or numbered lists after the BLUF.
 4. **ZERO HALLUCINATION**: If missing info, state "The provided text does not contain this information."
 
-FORMATTING RULES:
-- Use **bold** for key concepts/deadlines.
-- Use numbered lists for processes/timelines.
+FORMATTING RULES (Exam-Grade Output):
+- **Bold** key concepts, deadlines, and hierarchy verbs.
+- **Tables** for Comparisons ("Diff between A and B").
+- **Numbered Lists** for Processes ("How to...").
+- **Blockquotes** for exact Policy Definitions.
 
-DYNAMIC OUTPUT STRUCTURES (Select the best visual format for the Query Type):
-1. **Comparison** ("Diff between A and B"):
-   - MUST use a Markdown Table:
-     | Feature | Policy A | Policy B |
-     |---------|----------|----------|
-2. **Process / Claims** ("How to..."):
-   - MUST use Numbered Steps with Bold Headers:
-     1. **Notify Insurer**: Within 30 days...
-     2. **Submit Proof**: Using Form X...
-3. **Definition / Interpretation** ("What is..."):
-   - MUST use a > Blockquote for the exact policy text.
-   - Follow with bullet points for "Key Implications".
-4. **List / Exclusion Check** ("What are the exclusions..."):
-   - Clean Bulleted List.
-   - Group by category if > 5 items.
-5. **Timeline / Schedule**:
-   - Time-ordered list: `**[Date/Period]**: Event`.
+Return strict JSON only; no prose outside JSON. The JSON must be flat enough to be parsed easily.
+
+CRITICAL: Return ONLY a valid JSON object. Do not include any conversational filler, markdown explanations, or pre-text. If you fail to return a perfect JSON object, the system will crash.
 
 Output JSON Format:
 {
@@ -147,6 +182,14 @@ Output JSON Format:
     "confidence": "high|medium|low",
     "insufficiency_note": "Only if evidence is incomplete: explain what specific info is missing"
 }
+"""
+
+
+REPAIR_PROMPT = """
+You are a JSON repair EXPERT. I have a malformed or truncated JSON response from another LLM.
+Your ONLY task is to return a valid, well-formatted JSON object that recovers as much data as possible.
+
+CRITICAL: Return ONLY the fixed JSON object. No prose. No explanations.
 """
 
 
@@ -338,7 +381,8 @@ def _call_llm_with_fallback(prompt: str,
 
     if os.getenv("GOOGLE_API_KEY"):
         try:
-            text = genai_generate_text(prefer_model, prompt, temperature=temperature, purpose="QA")
+            # Enable json_mode for Gemini cases
+            text = genai_generate_text(prefer_model, prompt, temperature=temperature, purpose="QA", json_mode=True)
             return (text or "").strip(), "google", prefer_model
         except Exception as e:
             last_error = e
@@ -363,6 +407,28 @@ def _call_llm_with_fallback(prompt: str,
                 print(f"[Synthesis] OpenAI fallback failed: {e}")
 
     raise last_error or RuntimeError("No LLM provider configured (set GOOGLE_API_KEY or OPENAI_API_KEY)")
+
+
+def _repair_json_with_llm(invalid_json: str, error_msg: str, model_name: str, fallback_model: str, verbose: bool) -> str:
+    """Attempt to repair invalid JSON by asking the LLM to fix it."""
+    prompt = f"{REPAIR_PROMPT}\n\nError: {error_msg}\n\nInvalid JSON:\n{invalid_json}"
+    if verbose:
+        print(f"[Synthesis] Attempting JSON repair for error: {error_msg}")
+        
+    try:
+        raw, _, _ = _call_llm_with_fallback(
+            prompt=prompt,
+            temperature=0.0,
+            prefer_model=model_name,
+            fallback_model=fallback_model,
+            verbose=verbose,
+            json_mode=True
+        )
+        return _extract_json_text(raw)
+    except Exception as e:
+        if verbose:
+            print(f"[Synthesis] JSON repair failed: {e}")
+        return ""
 
 
 def _is_structural_query(query: str) -> bool:
@@ -811,7 +877,20 @@ def llm_synthesize_answer(
         except json.JSONDecodeError as jde:
             if verbose:
                 print(f"[Synthesis] JSON decode error: {jde}. Raw content starts with: {cleaned_raw[:200]}")
-            raise
+            
+            # Attempt LLM-based repair
+            repaired_raw = _repair_json_with_llm(cleaned_raw, str(jde), model_name, fallback_openai_model, verbose)
+            if repaired_raw:
+                try:
+                    result = json.loads(repaired_raw, strict=False)
+                    if verbose:
+                        print("[Synthesis] JSON repair successful!")
+                except json.JSONDecodeError:
+                    if verbose:
+                        print("[Synthesis] Repaired JSON is still invalid.")
+                    raise jde
+            else:
+                 raise jde
         
         # Validate and extract fields
         answer = _coerce_answer_to_string(result.get("answer", "Unable to generate answer"))

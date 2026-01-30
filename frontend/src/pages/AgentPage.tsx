@@ -66,7 +66,7 @@ export function AgentPage() {
     KG_TOP_N_SEMANTIC: "60",
     KG_TOP_K_FINAL: "60",
     KG_RERANK_TOP_K: "25",
-    GEMINI_MODEL: "gemini-2.0-flash",
+    GEMINI_MODEL: "gemini-2.5-pro",
     KG_EXTRACTION_STRATEGY: "hybrid",
     KG_EMBEDDING_MODEL: "sentence-transformers/all-MiniLM-L6-v2",
     KG_EMBEDDING_DIM: "384",
@@ -447,9 +447,10 @@ export function AgentPage() {
                             onChange={(e) => setEnvOverrides(prev => ({ ...prev, GEMINI_MODEL: e.target.value }))}
                             className="w-full bg-background/50 border border-white/10 p-3 text-xs font-serif focus:border-accent/50 transition-colors appearance-none"
                           >
-                            <option value="gemini-2.0-flash">gemini-2.0-flash (Recommended)</option>
-                            <option value="gemini-2.5-flash-lite">gemini-2.5-flash-lite</option>
-                            <option value="gemini-2.5-pro">gemini-2.5-pro</option>
+                            <option value="gemini-2.5-pro">gemini-2.5-pro (The Gold Standard)</option>
+                            <option value="gemini-2.5-flash">gemini-2.5-flash (High-Fidelity Flash)</option>
+                            <option value="gemini-3-pro-preview">gemini-3-pro-preview (Next-Gen Experimental)</option>
+                            <option value="gemini-pro-latest">gemini-pro-latest (Latest stable Pro)</option>
                           </select>
                         </div>
                       </div>

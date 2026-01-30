@@ -1963,36 +1963,69 @@ HYBRID_KG_PROMPT = """
 You are an expert Ontologist specializing in LEGAL, INSURANCE, and FINANCE domains.
 
 Task:
-Analyze the PROVIDED DOCUMENT and extract the core SEMANTIC SKELETON. 
-Your goal is to capture the structural "spine" of the document while retaining CRITICAL technical precision.
+Analyze the PROVIDED DOCUMENT and extract an EXHAUSTIVE SEMANTIC KNOWLEDGE GRAPH.
+Your goal is to capture the complete logical structure, including all rules, conditions, and technical details.
 
-1. ENTITIES/CONCEPTS:
-   - Identify all primary actors, legal structures, sections (e.g., "Section 4"), specific policy parameters (e.g., "30-day Notice Period"), and domain concepts.
+STRATEGY: Be exhaustive. Relations are the MOST IMPORTANT part of the graph. Capture every semantic connection first, then extract as many unique entities as possible.
+
+1. RELATIONSHIPS:
+   - Identify ALL functional and logical connections between entities.
+   - Use specific labels: APPLIES_TO, REQUIRES, EXCLUDES, LIMITS, DEFINES, OBLIGATES, OVERRIDES, SUBJECT_TO, CARVE_BACK, PRECEDES.
+   - For each: include "head", "relation", "tail", "confidence", and "evidence_snippet".
+
+2. ENTITIES/CONCEPTS:
+   - Identify ALL meaningful actors, legal structures, sections (e.g., "Section 4"), specific policy parameters (e.g., "30-day Notice Period"), limits, exclusions, and domain concepts.
+   - DO NOT TRUNCATE. Extract as many unique entities as possible (aim for 100+ for substantial documents) to ensure high-fidelity retrieval.
    - For EACH entity:
      - "canonical": A clean, standardized name.
-     - "label": A high-level category (e.g., ACTOR, PROVISION, LIMIT, EXCLUSION).
+     - "label": A high-level category (e.g., ACTOR, PROVISION, LIMIT, EXCLUSION, CONDITION).
      - "description": VERY IMPORTANT. Provide a 2-4 sentence technical summary. Include ANY specific numbers, dates, or constraints found in the text (e.g., "Maximum liability of $50,000" or "Valid for 12 months").
      - "mention": The exact snippet from the text.
 
-2. RELATIONSHIPS:
-   - Focus on functional and logical connections (e.g., ACTOR --REQUIRES_NOTICE_WITHIN--> TIME_LIMIT).
-   - Use specific labels: APPLIES_TO, REQUIRES, EXCLUDES, LIMITS, DEFINES, OBLIGATES.
-   - For each: include "head", "relation", "tail", "confidence", and "evidence_snippet".
-
-DO NOT TRUNCATE. Identify the most valuable 25-40 entities that represent the complete logical scope of the text.
-
 Return ONLY a JSON object:
 {
-  "entities": [
-    {"canonical": "...", "label": "...", "description": "...", "mention": "..."},
-    ...
-  ],
   "relations": [
     {"head": "...", "relation": "...", "tail": "...", "confidence": 0.95, "evidence_snippet": "..."},
+    ...
+  ],
+  "entities": [
+    {"canonical": "...", "label": "...", "description": "...", "mention": "..."},
     ...
   ]
 }
 """
+
+KGR_REPAIR_PROMPT = """
+You are a JSON repair EXPERT. I have a malformed or TRUNCATED JSON Knowledge Graph extraction that I need fixed.
+The JSON should contain "relations" and "entities".
+
+RULES:
+1. If the JSON is truncated (ends abruptly), close all open brackets/braces and ensure the syntax is valid.
+2. Ensure "relations" is a list of objects and "entities" is a list of objects.
+3. Keep as much existing data as possible.
+4. If a relation or entity is half-written and cannot be accurately completed, remove the partial entry.
+5. Return ONLY the valid JSON object. No prose.
+
+Return format: {"relations": [...], "entities": [...]}
+"""
+
+
+def _repair_kg_json_with_llm(invalid_json: str, verbose: bool = True) -> Dict[str, Any]:
+    """Attempt to repair malformed KG JSON using the LLM."""
+    prompt = f"{KGR_REPAIR_PROMPT}\n\nMALFORMED JSON:\n{invalid_json}"
+    if verbose:
+        logging.warning("[Hybrid] Attempting JSON repair for KG extraction...")
+        
+    try:
+        from utils.genai_compat import generate_text as unified_generate_text
+        # Use a low temperature for deterministic repair
+        raw = unified_generate_text(model=None, prompt=prompt, temperature=0.0, purpose="RELATION", json_mode=True)
+        return _parse_json_safely(raw, default={"entities": [], "relations": []})
+    except Exception as e:
+        if verbose:
+            logging.error(f"[Hybrid] JSON repair failed: {e}")
+        return {"entities": [], "relations": []}
+
 
 
 def _load_relation_schema() -> Dict[str, Any]:
@@ -2301,8 +2334,19 @@ def extract_hybrid_kg_from_doc(doc_id: str, text: str) -> List[Entity]:
         try:
             from utils.genai_compat import generate_text as unified_generate_text
             # Use the "RELATION" purpose which often maps to Flash for maximum throughput
-            raw = unified_generate_text(model=None, prompt=prompt, temperature=0.1, purpose="RELATION")
-            cached = _parse_json_safely(raw, default={"entities": [], "relations": []})
+            raw = unified_generate_text(model=None, prompt=prompt, temperature=0.1, purpose="RELATION", json_mode=True)
+            
+            # Use strict=True initially if possible, or just _parse_json_safely
+            cached = _parse_json_safely(raw, default=None)
+            
+            # If parsing failed OR if it found entities but NO relations (likely truncation)
+            if cached is None or (not cached.get("relations") and cached.get("entities")):
+                logging.info(f"Hybrid: Relations potentially missing/truncated (len={len(raw)}). Triggering repair...")
+                # First attempt failed, try LLM repair
+                cached = _repair_kg_json_with_llm(raw)
+            
+            if cached and isinstance(cached, dict):
+                logging.info(f"Hybrid: Successful extraction for {doc_id}. Found {len(cached.get('entities', []))} entities and {len(cached.get('relations', []))} relations.")
             
             # Persist for reruns and Phase 5 use
             _ONESHOT_RELATION_CACHE.set(cache_key, cached)

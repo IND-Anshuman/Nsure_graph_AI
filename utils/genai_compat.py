@@ -84,7 +84,7 @@ class UnifiedClient:
         self.client = client
         self.limiter = limiter
 
-    def generate(self, model: str, prompt: str, temperature: float) -> str:
+    def generate(self, model: str, prompt: str, temperature: float, json_mode: bool = False) -> str:
         if self.provider == "GEMINI":
             # 400 Bad Request often happens with Experimental models or max_output_tokens being too high.
             # 65536 is safe for 1.5 Pro/Flash, but for 2.0 Flash we might want to be conservative.
@@ -97,31 +97,39 @@ class UnifiedClient:
                 {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"},
             ]
             
+            config = {
+                "temperature": float(temperature),
+                "max_output_tokens": 64000 if "2.0-flash" in model else 64000,
+                "automatic_function_calling": {"disable": True},
+                "safety_settings": safety_settings
+            }
+            if json_mode:
+                config["response_mime_type"] = "application/json"
+
             try:
                 resp = self.client.models.generate_content(
                     model=model,
                     contents=prompt,
-                    config={
-                        "temperature": float(temperature),
-                        "max_output_tokens": 8192 if "2.0-flash" in model else 64000,
-                        "automatic_function_calling": {"disable": True},
-                        "safety_settings": safety_settings
-                    },
+                    config=config,
                 )
                 return (getattr(resp, "text", "") or "").strip()
             except Exception as e:
                 err_str = str(e).upper()
                 if "400" in err_str:
                     logging.warning(f"[GenAI] 400 Bad Request for {model}. Retrying with relaxed config.")
+                    retry_config = {
+                        "temperature": float(temperature),
+                        "max_output_tokens": 4096,
+                        "automatic_function_calling": {"disable": True},
+                        "safety_settings": safety_settings
+                    }
+                    if json_mode:
+                        retry_config["response_mime_type"] = "application/json"
+                    
                     resp = self.client.models.generate_content(
                         model=model,
                         contents=prompt,
-                        config={
-                            "temperature": float(temperature),
-                            "max_output_tokens": 4096,
-                            "automatic_function_calling": {"disable": True},
-                            "safety_settings": safety_settings
-                        },
+                        config=retry_config,
                     )
                     return (getattr(resp, "text", "") or "").strip()
                 raise e
@@ -224,7 +232,7 @@ def is_gemini_available() -> bool:
     retry=retry_if_exception_type(Exception),
     reraise=True
 )
-def _generate_inner(model, prompt, temperature, purpose):
+def _generate_inner(model, prompt, temperature, purpose, json_mode=False):
     pool = _pools.get(purpose.upper()) or _pools["GENERAL"]
     client = pool.get_next()
     
@@ -238,7 +246,7 @@ def _generate_inner(model, prompt, temperature, purpose):
     client.limiter.wait_if_needed(purpose_rpm=purpose_rpm)
     
     try:
-        return client.generate(model, prompt, temperature)
+        return client.generate(model, prompt, temperature, json_mode=json_mode)
     except Exception as e:
         err = str(e).upper()
         if "429" in err or "RESOURCE_EXHAUSTED" in err:
@@ -246,16 +254,18 @@ def _generate_inner(model, prompt, temperature, purpose):
             client.limiter.trigger_cooldown(60.0)
         raise e
 
-def generate_text(model: Optional[str] = None, prompt: str = "", *, temperature: float = 0.1, purpose: str = "GENERAL") -> str:
+def generate_text(model: Optional[str] = None, prompt: str = "", *, temperature: float = 0.1, purpose: str = "GENERAL", json_mode: bool = False) -> str:
     """Unified text generation using Gemini."""
     init()
     if not prompt: return ""
     
     if not model:
-        model = os.getenv("GEMINI_MODEL", "gemini-1.5-flash")
+        # Re-introducing purpose-aware model selection
+        purpose_env = f"GEMINI_MODEL_{purpose.upper()}"
+        model = os.getenv(purpose_env) or os.getenv("GEMINI_MODEL", "gemini-2.5-pro")
 
     try:
-        return _generate_inner(model, prompt, temperature, purpose)
+        return _generate_inner(model, prompt, temperature, purpose, json_mode=json_mode)
     except Exception as e:
         logging.error(f"[GenAI] Final failure after retries: {e}")
         return ""
