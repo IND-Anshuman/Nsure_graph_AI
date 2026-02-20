@@ -518,6 +518,9 @@ export function AgentPage() {
                     <div className="space-y-2">
                       <h3 className="text-sm font-serif font-bold uppercase tracking-[0.2em] text-accent italic">Traversing knowledge structure</h3>
                       <p className="text-[11px] text-muted-foreground uppercase tracking-widest animate-pulse">Consulting high-fidelity knowledge graph...</p>
+                      <p className="text-[10px] text-muted-foreground uppercase tracking-widest">
+                        First query requires 3-4 minutes due to graph building.
+                      </p>
                     </div>
                   </div>
                 </motion.div>
@@ -696,7 +699,7 @@ export function AgentPage() {
                       Memory Architecture
                     </span>
                     <p className="text-[10px] text-muted-foreground leading-relaxed uppercase tracking-wider font-serif italic">
-                      The current intelligence model is <span className="underline decoration-accent/30 underline-offset-4">stateless</span>. It does not maintain a context window of previous inquiries. Each query is treated as an independent research session.
+                      The current intelligence model is <span className="underline decoration-accent/30 underline-offset-4">stateless</span>. It does not maintain a context window of previous inquiries. Each query is treated as an independent research session. <span className="text-destructive font-bold">After closing this page, the generated graph will be deleted.</span>
                     </p>
                   </div>
 

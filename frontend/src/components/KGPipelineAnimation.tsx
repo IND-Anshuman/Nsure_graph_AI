@@ -458,7 +458,7 @@ export function KGPipelineAnimation() {
                         </div>
                         <div className="pt-2 text-center">
                             <p className="text-[10px] text-accent/60 font-serif italic uppercase tracking-[0.15em]">
-                                Processing Note: May require 2-3 minutes for smaller files and 5-10 minutes for larger files.
+                                Processing Note: The first query requires 3-4 minutes due to graph building. Subsequent queries are faster.
                             </p>
                         </div>
                         <p className="text-[10px] text-muted-foreground/40 font-serif italic text-center uppercase tracking-widest">
