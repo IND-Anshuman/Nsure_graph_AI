@@ -211,7 +211,7 @@ cache_*.tmp
 outputs/
 
 # Common large generated files
-*.graphml
+
 *.pdf
 *.pkl
 *.npy
@@ -225,4 +225,5 @@ __marimo__/
 
 # Knowledge Graph Agent - Cache files
 cache_*.json
-*.graphml
+
+!outputs/

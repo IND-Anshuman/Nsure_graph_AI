@@ -1,0 +1,3989 @@
+<?xml version='1.0' encoding='utf-8'?>
+<graphml xmlns="http://graphml.graphdrawing.org/xmlns" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://graphml.graphdrawing.org/xmlns http://graphml.graphdrawing.org/xmlns/1.0/graphml.xsd"><key id="d43" for="edge" attr.name="confidence" attr.type="double"/>
+<key id="d42" for="edge" attr.name="evidence" attr.type="string"/>
+<key id="d41" for="edge" attr.name="sentence_id" attr.type="string"/>
+<key id="d40" for="edge" attr.name="confidence" attr.type="long"/>
+<key id="d39" for="edge" attr.name="is_bridge_member" attr.type="boolean"/>
+<key id="d38" for="edge" attr.name="bridge_score" attr.type="double"/>
+<key id="d37" for="edge" attr.name="comm_id" attr.type="long"/>
+<key id="d36" for="edge" attr.name="level" attr.type="long"/>
+<key id="d35" for="edge" attr.name="evidence_sentence_ids" attr.type="string"/>
+<key id="d34" for="edge" attr.name="weight" attr.type="double"/>
+<key id="d33" for="edge" attr.name="count" attr.type="long"/>
+<key id="d32" for="edge" attr.name="char_end" attr.type="long"/>
+<key id="d31" for="edge" attr.name="char_start" attr.type="long"/>
+<key id="d30" for="edge" attr.name="surface" attr.type="string"/>
+<key id="d29" for="edge" attr.name="source" attr.type="string"/>
+<key id="d28" for="edge" attr.name="index" attr.type="long"/>
+<key id="d27" for="edge" attr.name="doc_id" attr.type="string"/>
+<key id="d26" for="edge" attr.name="type" attr.type="string"/>
+<key id="d25" for="node" attr.name="modularity" attr.type="double"/>
+<key id="d24" for="node" attr.name="external_weight" attr.type="double"/>
+<key id="d23" for="node" attr.name="internal_weight" attr.type="double"/>
+<key id="d22" for="node" attr.name="coherence" attr.type="double"/>
+<key id="d21" for="node" attr.name="evidence_sentence_ids" attr.type="string"/>
+<key id="d20" for="node" attr.name="citations" attr.type="string"/>
+<key id="d19" for="node" attr.name="extractive_bullets" attr.type="string"/>
+<key id="d18" for="node" attr.name="micro_summary" attr.type="string"/>
+<key id="d17" for="node" attr.name="summary" attr.type="string"/>
+<key id="d16" for="node" attr.name="title" attr.type="string"/>
+<key id="d15" for="node" attr.name="origin_members_count" attr.type="long"/>
+<key id="d14" for="node" attr.name="members_count" attr.type="long"/>
+<key id="d13" for="node" attr.name="comm_id" attr.type="long"/>
+<key id="d12" for="node" attr.name="level" attr.type="long"/>
+<key id="d11" for="node" attr.name="description" attr.type="string"/>
+<key id="d10" for="node" attr.name="source" attr.type="string"/>
+<key id="d9" for="node" attr.name="confidence" attr.type="string"/>
+<key id="d8" for="node" attr.name="sources" attr.type="string"/>
+<key id="d7" for="node" attr.name="descriptions" attr.type="string"/>
+<key id="d6" for="node" attr.name="aliases" attr.type="string"/>
+<key id="d5" for="node" attr.name="type" attr.type="string"/>
+<key id="d4" for="node" attr.name="canonical" attr.type="string"/>
+<key id="d3" for="node" attr.name="index" attr.type="long"/>
+<key id="d2" for="node" attr.name="text" attr.type="string"/>
+<key id="d1" for="node" attr.name="doc_id" attr.type="string"/>
+<key id="d0" for="node" attr.name="label" attr.type="string"/>
+<graph edgedefault="directed"><node id="doc:tmp_1771604354512_aiclab1_1">
+  <data key="d0">DOCUMENT</data>
+  <data key="d1">tmp_1771604354512_aiclab1_1</data>
+  <data key="d2">LAB 1
+EXPERIMENT 1: RC COUPLED COMMON EMITTER AMPLIFIER USING
+BC547
+AIM - To design and study a single stage RC coupled common emitter amplifier
+using a BC547 transistor and to determine its voltage gain, input impedance = 2 kΩ,
+frequency response, and bandwidth using a sine wave input signal.
+APPARATUS REQUIRED -
+1. Regulated DC power supply
+2. Functiongenerator
+3. CRO / DSO
+4. multimeter
+5. Breadboard
+6. Connectingwires
+7. BC547 transistor
+8. Resistors and capacitors
+THEORY -
+ An RC coupled amplifier is a voltage amplifier in which resistors and capacitors
+are used to couple the AC signal from input to output while blocking DC
+components. The coupling capacitors prevent DC from one stage affecting the
+biasing of another stage.
+ In a common emitter amplifier, the emitter terminal is common to both input and
+output. The input signal is applied at the base and the output is taken from the
+collector. This configuration provides high voltage gain and introduces a phase
+inversion of 180 degrees between input and output.
+ The transistor is biased using a voltage divider bias network. This keeps the
+transistor operating in the active region so that a small change in base voltage
+causes a large change in collector current. The collector resistor converts these
+current variations into voltage variations, producing amplification.
+ When a sine wave signal is applied at the input, it causes variations in base
+current. These variations produce larger variations in collector current, resulting
+in an amplified output signal at the collector.
+pg.1-I
+24BEC064
+
+ The gain of an RC coupled amplifier depends on frequency.At low frequencies,
+the reactance of coupling and bypass capacitors is high, reducing gain. At mid
+frequencies, the gain remains nearly constant. At high frequencies, gain
+decreases due to internal transistor capacitances and the Miller effect.
+PROCEDURE –
+1. Assemble the RC coupled common emitter amplifier circuit on a breadboard
+as per the circuit diagram.
+2. Apply a DC supply voltage of 15 V to the circuit.
+3. Connect the function generator to the input through the coupling capacitor.
+4. Apply a sine wave input of 500 mV peak-to-peak.
+5. Observe the input and output waveforms on the CRO.
+6. Measure the output peak-to-peak voltage.
+7. Vary the input frequency from low to high.
+8. Record the output voltage at each frequency.
+9. Switch off the power supply after completing the experiment.
+pg.1-II
+24BEC064
+
+COMPONENTS USED –
+Component Value
+Transistor BC547
+Collector resistor 1.5 kΩ
+Emitter resistor 1 kΩ
+Base resistor R1 100 kΩ
+Base resistor R2 18 kΩ
+Input capacitor 1 µF
+Output capacitor 1 µF
+Emitter bypass capacitor 22 µF
+Supply voltage 12 V
+Parameter Value
+Signaltype Sine wave
+Input voltage 500 mV p-p
+Frequency range 1 Hz – 10 MHz
+OBSERVATION TABLE -
+Frequency Gain (Approx) Output Voltage (V p-p)
+50 Hz 24.4 8.35
+100 Hz 27.1 11.4
+150 Hz 28.2 13.6
+200 Hz 28.2 13.9
+500 Hz 28.3 14.1
+1 kHz 28.3 14.1
+2 kHz 28.4 14.2
+5 kHz 28.4 14.2
+10 kHz 28.4 14.2
+50 kHz 28.4 14.2
+100 kHz 28.4 14.2
+200 kHz 28.4 14.2
+400 kHz 27.9 13.9
+pg.1-III
+24BEC011
+
+Frequency Gain (Approx) Output Voltage (V p-p)
+500 kHz 27.4 13.7
+600 kHz 20.2 10.1
+700 kHz 17.8 8.9
+1 MHz 16.2 8.1
+CALCULATION –
+ Voltagegainis calculated using:
+=
+ At mid frequency:
+14.2
+= = 28.4
+ Voltage gain of a common emitter am0p.l5ifier is given by:
+
+Nearest standard value is cho sen=: × = 29×51.2 = 1500 Ω
+= 1 0
+pg.1-IV
+24BEC011
+
+≈ 1.5
+mA
+1.5
+= = 1000 Ω
+=
+1.5
+= 1 0
+ Base voltage:
+V
+Usingvoltage divider relation:= +0.7 = 2.2
+2
+=
+Choosing standard values: 1 + 2
+k k
+This provides stable biasing=an1d00inpu,t im=ped8ance close to 2 kΩ.
+ Lower cutoff frequency due to input capacitor:
+1
+1 =
+Taking: 2
+k Hz
+F
+
+≈ 2 Ω, ≈ 10
+1
+= ≈ 8 
+Nearest standard value: 2 × 2000 × 10
+F
+=
+ To bypass emitter resistor at lowfrequencies:
+≥ 1
+2 F
+1
+= ≈ 21 
+To ensure proper bypassing, a larger va2lu e×is1c0h×os7e5n0:
+F
+=
+pg.1-V
+24BEC011
+
+ Lower cutoff due to output capacitor:
+1
+2 =
+Takingload resistance: 2
+k
+F
+
+≥ 10 Ω
+1
+= ≈ 1.6 
+Chosenvalue: 2 × 10000 × 10
+F
+=
+ Bandwidth
+kHz
+
+≈ 
+DISCUSSION –
+The RC coupled common emitter amplifier shows variation of gain with
+frequency.At low frequencies, gain is low due to the high reactance of coupling and
+bypass capacitors.As frequency increases, the gain increases and becomes almost
+constant in the mid-frequency range.
+In the midband region, the amplifier provides maximum gain, indicating proper
+biasing and stable operation in the active region. At high frequencies, gain
+decreases due to internal transistor capacitances and the Miller effect. The large
+output voltage near midband also causes slight reduction in gain as the output
+approaches supply limits.
+CONCLUSION –
+ RC coupled common emitter amplifier was successfully designed and tested
+ High voltage gain with phase inversion was obtained
+ Gain remains constant in mid-frequency range
+ Gain decreases at low and high frequencies
+ Experimental results match expected behavior
+PRECAUTIONS –
+ Check BC547 pin configuration before connecting
+ Do not exceed rated supply voltage
+ Keep input signal amplitude small
+ Observe correct polarity of electrolytic capacitors
+pg.1-VI
+24BEC011</data>
+</node>
+<node id="sent:tmp_1771604354512_aiclab1_1:0">
+  <data key="d0">SENTENCE</data>
+  <data key="d1">tmp_1771604354512_aiclab1_1</data>
+  <data key="d3">0</data>
+  <data key="d2">LAB 1
+EXPERIMENT 1: RC COUPLED COMMON EMITTER AMPLIFIER USING
+BC547
+AIM - To design and study a single stage RC coupled common emitter amplifier
+using a BC547 transistor and to determine its voltage gain, input impedance = 2 kΩ,
+frequency response, and bandwidth using a sine wave input signal.</data>
+</node>
+<node id="sent:tmp_1771604354512_aiclab1_1:1">
+  <data key="d0">SENTENCE</data>
+  <data key="d1">tmp_1771604354512_aiclab1_1</data>
+  <data key="d3">1</data>
+  <data key="d2">APPARATUS REQUIRED -
+1.</data>
+</node>
+<node id="sent:tmp_1771604354512_aiclab1_1:2">
+  <data key="d0">SENTENCE</data>
+  <data key="d1">tmp_1771604354512_aiclab1_1</data>
+  <data key="d3">2</data>
+  <data key="d2">Regulated DC power supply
+2.</data>
+</node>
+<node id="sent:tmp_1771604354512_aiclab1_1:3">
+  <data key="d0">SENTENCE</data>
+  <data key="d1">tmp_1771604354512_aiclab1_1</data>
+  <data key="d3">3</data>
+  <data key="d2">Functiongenerator
+3. CRO / DSO
+4. multimeter
+5.</data>
+</node>
+<node id="sent:tmp_1771604354512_aiclab1_1:7">
+  <data key="d0">SENTENCE</data>
+  <data key="d1">tmp_1771604354512_aiclab1_1</data>
+  <data key="d3">7</data>
+  <data key="d2">Resistors and capacitors
+THEORY -
+ An RC coupled amplifier is a voltage amplifier in which resistors and capacitors
+are used to couple the AC signal from input to output while blocking DC
+components.</data>
+</node>
+<node id="sent:tmp_1771604354512_aiclab1_1:8">
+  <data key="d0">SENTENCE</data>
+  <data key="d1">tmp_1771604354512_aiclab1_1</data>
+  <data key="d3">8</data>
+  <data key="d2">The coupling capacitors prevent DC from one stage affecting the
+biasing of another stage.</data>
+</node>
+<node id="sent:tmp_1771604354512_aiclab1_1:10">
+  <data key="d0">SENTENCE</data>
+  <data key="d1">tmp_1771604354512_aiclab1_1</data>
+  <data key="d3">10</data>
+  <data key="d2">In a common emitter amplifier, the emitter terminal is common to both input and
+output.</data>
+</node>
+<node id="sent:tmp_1771604354512_aiclab1_1:11">
+  <data key="d0">SENTENCE</data>
+  <data key="d1">tmp_1771604354512_aiclab1_1</data>
+  <data key="d3">11</data>
+  <data key="d2">The input signal is applied at the base and the output is taken from the
+collector.</data>
+</node>
+<node id="sent:tmp_1771604354512_aiclab1_1:12">
+  <data key="d0">SENTENCE</data>
+  <data key="d1">tmp_1771604354512_aiclab1_1</data>
+  <data key="d3">12</data>
+  <data key="d2">This configuration provides high voltage gain and introduces a phase
+inversion of 180 degrees between input and output.</data>
+</node>
+<node id="sent:tmp_1771604354512_aiclab1_1:14">
+  <data key="d0">SENTENCE</data>
+  <data key="d1">tmp_1771604354512_aiclab1_1</data>
+  <data key="d3">14</data>
+  <data key="d2">The transistor is biased using a voltage divider bias network.</data>
+</node>
+<node id="sent:tmp_1771604354512_aiclab1_1:15">
+  <data key="d0">SENTENCE</data>
+  <data key="d1">tmp_1771604354512_aiclab1_1</data>
+  <data key="d3">15</data>
+  <data key="d2">This keeps the
+transistor operating in the active region so that a small change in base voltage
+causes a large change in collector current.</data>
+</node>
+<node id="sent:tmp_1771604354512_aiclab1_1:16">
+  <data key="d0">SENTENCE</data>
+  <data key="d1">tmp_1771604354512_aiclab1_1</data>
+  <data key="d3">16</data>
+  <data key="d2">The collector resistor converts these
+current variations into voltage variations, producing amplification.</data>
+</node>
+<node id="sent:tmp_1771604354512_aiclab1_1:18">
+  <data key="d0">SENTENCE</data>
+  <data key="d1">tmp_1771604354512_aiclab1_1</data>
+  <data key="d3">18</data>
+  <data key="d2">When a sine wave signal is applied at the input, it causes variations in base
+current.</data>
+</node>
+<node id="sent:tmp_1771604354512_aiclab1_1:19">
+  <data key="d0">SENTENCE</data>
+  <data key="d1">tmp_1771604354512_aiclab1_1</data>
+  <data key="d3">19</data>
+  <data key="d2">These variations produce larger variations in collector current, resulting
+in an amplified output signal at the collector.</data>
+</node>
+<node id="sent:tmp_1771604354512_aiclab1_1:21">
+  <data key="d0">SENTENCE</data>
+  <data key="d1">tmp_1771604354512_aiclab1_1</data>
+  <data key="d3">21</data>
+  <data key="d2">The gain of an RC coupled amplifier depends on frequency.</data>
+</node>
+<node id="sent:tmp_1771604354512_aiclab1_1:22">
+  <data key="d0">SENTENCE</data>
+  <data key="d1">tmp_1771604354512_aiclab1_1</data>
+  <data key="d3">22</data>
+  <data key="d2">At low frequencies,
+the reactance of coupling and bypass capacitors is high, reducing gain.</data>
+</node>
+<node id="sent:tmp_1771604354512_aiclab1_1:23">
+  <data key="d0">SENTENCE</data>
+  <data key="d1">tmp_1771604354512_aiclab1_1</data>
+  <data key="d3">23</data>
+  <data key="d2">At mid
+frequencies, the gain remains nearly constant.</data>
+</node>
+<node id="sent:tmp_1771604354512_aiclab1_1:24">
+  <data key="d0">SENTENCE</data>
+  <data key="d1">tmp_1771604354512_aiclab1_1</data>
+  <data key="d3">24</data>
+  <data key="d2">At high frequencies, gain
+decreases due to internal transistor capacitances and the Miller effect.</data>
+</node>
+<node id="sent:tmp_1771604354512_aiclab1_1:26">
+  <data key="d0">SENTENCE</data>
+  <data key="d1">tmp_1771604354512_aiclab1_1</data>
+  <data key="d3">26</data>
+  <data key="d2">Assemble the RC coupled common emitter amplifier circuit on a breadboard
+as per the circuit diagram.</data>
+</node>
+<node id="sent:tmp_1771604354512_aiclab1_1:27">
+  <data key="d0">SENTENCE</data>
+  <data key="d1">tmp_1771604354512_aiclab1_1</data>
+  <data key="d3">27</data>
+  <data key="d2">2. Apply a DC supply voltage of 15 V to the circuit.</data>
+</node>
+<node id="sent:tmp_1771604354512_aiclab1_1:28">
+  <data key="d0">SENTENCE</data>
+  <data key="d1">tmp_1771604354512_aiclab1_1</data>
+  <data key="d3">28</data>
+  <data key="d2">3. Connect the function generator to the input through the coupling capacitor.</data>
+</node>
+<node id="sent:tmp_1771604354512_aiclab1_1:29">
+  <data key="d0">SENTENCE</data>
+  <data key="d1">tmp_1771604354512_aiclab1_1</data>
+  <data key="d3">29</data>
+  <data key="d2">4. Apply a sine wave input of 500 mV peak-to-peak.</data>
+</node>
+<node id="sent:tmp_1771604354512_aiclab1_1:30">
+  <data key="d0">SENTENCE</data>
+  <data key="d1">tmp_1771604354512_aiclab1_1</data>
+  <data key="d3">30</data>
+  <data key="d2">5. Observe the input and output waveforms on the CRO.</data>
+</node>
+<node id="sent:tmp_1771604354512_aiclab1_1:31">
+  <data key="d0">SENTENCE</data>
+  <data key="d1">tmp_1771604354512_aiclab1_1</data>
+  <data key="d3">31</data>
+  <data key="d2">6. Measure the output peak-to-peak voltage.</data>
+</node>
+<node id="sent:tmp_1771604354512_aiclab1_1:32">
+  <data key="d0">SENTENCE</data>
+  <data key="d1">tmp_1771604354512_aiclab1_1</data>
+  <data key="d3">32</data>
+  <data key="d2">7. Vary the input frequency from low to high.
+8.</data>
+</node>
+<node id="sent:tmp_1771604354512_aiclab1_1:33">
+  <data key="d0">SENTENCE</data>
+  <data key="d1">tmp_1771604354512_aiclab1_1</data>
+  <data key="d3">33</data>
+  <data key="d2">Record the output voltage at each frequency.</data>
+</node>
+<node id="sent:tmp_1771604354512_aiclab1_1:34">
+  <data key="d0">SENTENCE</data>
+  <data key="d1">tmp_1771604354512_aiclab1_1</data>
+  <data key="d3">34</data>
+  <data key="d2">9. Switch off the power supply after completing the experiment.</data>
+</node>
+<node id="sent:tmp_1771604354512_aiclab1_1:35">
+  <data key="d0">SENTENCE</data>
+  <data key="d1">tmp_1771604354512_aiclab1_1</data>
+  <data key="d3">35</data>
+  <data key="d2">pg.1-II
+24BEC064
+
+COMPONENTS USED –
+Component Value
+Transistor BC547
+Collector resistor 1.5 kΩ
+Emitter resistor 1 kΩ
+Base resistor R1 100 kΩ
+Base resistor R2 18 kΩ
+Input capacitor 1 µF
+Output capacitor 1 µF
+Emitter bypass capacitor 22 µF
+Supply voltage 12 V
+Parameter Value
+Signaltype Sine wave
+Input voltage 500 mV p-p
+Frequency range 1 Hz – 10 MHz
+OBSERVATION TABLE -
+Frequency Gain (Approx) Output Voltage (V p-p)
+50</data>
+</node>
+<node id="sent:tmp_1771604354512_aiclab1_1:36">
+  <data key="d0">SENTENCE</data>
+  <data key="d1">tmp_1771604354512_aiclab1_1</data>
+  <data key="d3">36</data>
+  <data key="d2">Hz 24.4 8.35
+100 Hz 27.1 11.4
+150 Hz 28.2 13.6
+200 Hz 28.2 13.9
+500 Hz 28.3 14.1
+1 kHz 28.3 14.1
+2 kHz 28.4 14.2
+5 kHz 28.4 14.2
+10 kHz 28.4 14.2
+50 kHz 28.4 14.2
+100 kHz 28.4 14.2
+200 kHz 28.4 14.2
+400 kHz 27.9 13.9
+pg.1-III
+24BEC011
+
+Frequency Gain (Approx) Output Voltage (V p-p)
+500 kHz 27.4 13.7
+600 kHz 20.2 10.1
+700 kHz 17.8 8.9
+1 MHz 16.2 8.1
+CALCULATION –
+ Voltagegainis calculated using:</data>
+</node>
+<node id="sent:tmp_1771604354512_aiclab1_1:38">
+  <data key="d0">SENTENCE</data>
+  <data key="d1">tmp_1771604354512_aiclab1_1</data>
+  <data key="d3">38</data>
+  <data key="d2">At mid frequency:
+14.2
+= = 28.4
+ Voltage gain of a common emitter am0p.l5ifier is given by:
+
+Nearest standard value is cho sen=:</data>
+</node>
+<node id="sent:tmp_1771604354512_aiclab1_1:39">
+  <data key="d0">SENTENCE</data>
+  <data key="d1">tmp_1771604354512_aiclab1_1</data>
+  <data key="d3">39</data>
+  <data key="d2">× = 29×51.2 = 1500 Ω
+= 1 0
+pg.1-IV
+24BEC011
+
+≈ 1.5
+mA
+1.5
+= = 1000 Ω
+=
+1.5
+= 1 0
+ Base voltage:
+V
+Usingvoltage divider relation:= +0.7 = 2.2
+2
+=
+Choosing standard values: 1 + 2
+k</data>
+</node>
+<node id="sent:tmp_1771604354512_aiclab1_1:40">
+  <data key="d0">SENTENCE</data>
+  <data key="d1">tmp_1771604354512_aiclab1_1</data>
+  <data key="d3">40</data>
+  <data key="d2">k
+This provides stable biasing=an1d00inpu,t im=ped8ance close to 2 kΩ.
+</data>
+</node>
+<node id="sent:tmp_1771604354512_aiclab1_1:41">
+  <data key="d0">SENTENCE</data>
+  <data key="d1">tmp_1771604354512_aiclab1_1</data>
+  <data key="d3">41</data>
+  <data key="d2">Lower cutoff frequency due to input capacitor:
+1
+1 =
+Taking: 2
+k Hz
+F
+
+≈ 2 Ω, ≈ 10
+1
+= ≈ 8 
+Nearest standard value:</data>
+</node>
+<node id="sent:tmp_1771604354512_aiclab1_1:43">
+  <data key="d0">SENTENCE</data>
+  <data key="d1">tmp_1771604354512_aiclab1_1</data>
+  <data key="d3">43</data>
+  <data key="d2">To bypass emitter resistor at lowfrequencies:
+≥ 1
+2 F
+1
+= ≈ 21</data>
+</node>
+<node id="sent:tmp_1771604354512_aiclab1_1:44">
+  <data key="d0">SENTENCE</data>
+  <data key="d1">tmp_1771604354512_aiclab1_1</data>
+  <data key="d3">44</data>
+  <data key="d2">To ensure proper bypassing, a larger va2lu e×is1c0h×os7e5n0:</data>
+</node>
+<node id="sent:tmp_1771604354512_aiclab1_1:45">
+  <data key="d0">SENTENCE</data>
+  <data key="d1">tmp_1771604354512_aiclab1_1</data>
+  <data key="d3">45</data>
+  <data key="d2">F
+=
+pg.1-V
+24BEC011
+
+</data>
+</node>
+<node id="sent:tmp_1771604354512_aiclab1_1:46">
+  <data key="d0">SENTENCE</data>
+  <data key="d1">tmp_1771604354512_aiclab1_1</data>
+  <data key="d3">46</data>
+  <data key="d2">Lower cutoff due to output capacitor:
+1
+2 =
+Takingload resistance: 2
+k
+F
+
+≥ 10 Ω
+1
+= ≈ 1.6 
+Chosenvalue: 2</data>
+</node>
+<node id="sent:tmp_1771604354512_aiclab1_1:47">
+  <data key="d0">SENTENCE</data>
+  <data key="d1">tmp_1771604354512_aiclab1_1</data>
+  <data key="d3">47</data>
+  <data key="d2">× 10000 × 10
+F
+=
+ Bandwidth
+kHz
+
+≈ 
+DISCUSSION –
+The RC coupled common emitter amplifier shows variation of gain with
+frequency.</data>
+</node>
+<node id="sent:tmp_1771604354512_aiclab1_1:48">
+  <data key="d0">SENTENCE</data>
+  <data key="d1">tmp_1771604354512_aiclab1_1</data>
+  <data key="d3">48</data>
+  <data key="d2">At low frequencies, gain is low due to the high reactance of coupling and
+bypass capacitors.</data>
+</node>
+<node id="sent:tmp_1771604354512_aiclab1_1:49">
+  <data key="d0">SENTENCE</data>
+  <data key="d1">tmp_1771604354512_aiclab1_1</data>
+  <data key="d3">49</data>
+  <data key="d2">As frequency increases, the gain increases and becomes almost
+constant in the mid-frequency range.</data>
+</node>
+<node id="sent:tmp_1771604354512_aiclab1_1:50">
+  <data key="d0">SENTENCE</data>
+  <data key="d1">tmp_1771604354512_aiclab1_1</data>
+  <data key="d3">50</data>
+  <data key="d2">In the midband region, the amplifier provides maximum gain, indicating proper
+biasing and stable operation in the active region.</data>
+</node>
+<node id="sent:tmp_1771604354512_aiclab1_1:52">
+  <data key="d0">SENTENCE</data>
+  <data key="d1">tmp_1771604354512_aiclab1_1</data>
+  <data key="d3">52</data>
+  <data key="d2">The large
+output voltage near midband also causes slight reduction in gain as the output
+approaches supply limits.</data>
+</node>
+<node id="sent:tmp_1771604354512_aiclab1_1:53">
+  <data key="d0">SENTENCE</data>
+  <data key="d1">tmp_1771604354512_aiclab1_1</data>
+  <data key="d3">53</data>
+  <data key="d2">CONCLUSION –
+ RC coupled common emitter amplifier was successfully designed and tested
+ High voltage gain with phase inversion was obtained
+</data>
+</node>
+<node id="sent:tmp_1771604354512_aiclab1_1:54">
+  <data key="d0">SENTENCE</data>
+  <data key="d1">tmp_1771604354512_aiclab1_1</data>
+  <data key="d3">54</data>
+  <data key="d2">Gain remains constant in mid-frequency range
+</data>
+</node>
+<node id="sent:tmp_1771604354512_aiclab1_1:55">
+  <data key="d0">SENTENCE</data>
+  <data key="d1">tmp_1771604354512_aiclab1_1</data>
+  <data key="d3">55</data>
+  <data key="d2">Gain decreases at low and high frequencies
+</data>
+</node>
+<node id="sent:tmp_1771604354512_aiclab1_1:56">
+  <data key="d0">SENTENCE</data>
+  <data key="d1">tmp_1771604354512_aiclab1_1</data>
+  <data key="d3">56</data>
+  <data key="d2">Experimental results match expected behavior
+PRECAUTIONS –
+ Check BC547 pin configuration before connecting
+ Do not exceed rated supply voltage
+</data>
+</node>
+<node id="sent:tmp_1771604354512_aiclab1_1:57">
+  <data key="d0">SENTENCE</data>
+  <data key="d1">tmp_1771604354512_aiclab1_1</data>
+  <data key="d3">57</data>
+  <data key="d2">Keep input signal amplitude</data>
+</node>
+<node id="sent:tmp_1771604354512_aiclab1_1:58">
+  <data key="d0">SENTENCE</data>
+  <data key="d1">tmp_1771604354512_aiclab1_1</data>
+  <data key="d3">58</data>
+  <data key="d2">small
+ Observe correct polarity of electrolytic capacitors
+pg.1-VI
+24BEC011</data>
+</node>
+<node id="ent:experiment_1_rc_coupled_common_emitter_amplifier">
+  <data key="d0">ENTITY</data>
+  <data key="d4">Experiment 1: RC Coupled Common Emitter Amplifier</data>
+  <data key="d5">EXPERIMENT</data>
+  <data key="d6">["EXPERIMENT 1: RC COUPLED COMMON EMITTER AMPLIFIER", "EXPERIMENT 1: RC COUPLED COMMON EMITTER AMPLIFIER USING\nBC547"]</data>
+  <data key="d7">["The primary subject of the document, an experiment to design and study a single stage RC coupled common emitter amplifier using a BC547 transistor. The aim is to determine its voltage gain, input impedance, frequency response, and bandwidth."]</data>
+  <data key="d8">["tmp_1771604354512_aiclab1_1"]</data>
+  <data key="d9">high</data>
+</node>
+<node id="ent:bc547_transistor">
+  <data key="d0">ENTITY</data>
+  <data key="d4">BC547 Transistor</data>
+  <data key="d5">COMPONENT</data>
+  <data key="d6">["BC547 transistor"]</data>
+  <data key="d7">["The specific NPN bipolar junction transistor used as the active amplifying component in the common emitter amplifier circuit."]</data>
+  <data key="d8">["tmp_1771604354512_aiclab1_1"]</data>
+  <data key="d9">high</data>
+</node>
+<node id="ent:voltage_gain_av">
+  <data key="d0">ENTITY</data>
+  <data key="d4">Voltage Gain (Av)</data>
+  <data key="d5">PARAMETER</data>
+  <data key="d6">["Voltage gain", "voltage gain"]</data>
+  <data key="d7">["A primary parameter to be determined in the experiment, representing the ratio of the output voltage to the input voltage (Av = Vout / Vin). The experiment measured a mid-frequency gain of approximately 28.4."]</data>
+  <data key="d8">["tmp_1771604354512_aiclab1_1"]</data>
+  <data key="d9">high</data>
+</node>
+<node id="ent:input_impedance_rin">
+  <data key="d0">ENTITY</data>
+  <data key="d4">Input Impedance (Rin)</data>
+  <data key="d5">PARAMETER</data>
+  <data key="d6">["input impedance = 2 kΩ"]</data>
+  <data key="d7">["A parameter to be determined for the amplifier. The design target for the input impedance is specified as 2 kΩ."]</data>
+  <data key="d8">["tmp_1771604354512_aiclab1_1"]</data>
+  <data key="d9">high</data>
+</node>
+<node id="ent:frequency_response">
+  <data key="d0">ENTITY</data>
+  <data key="d4">Frequency Response</data>
+  <data key="d5">PARAMETER</data>
+  <data key="d6">["frequency response"]</data>
+  <data key="d7">["A key characteristic to be studied, describing how the amplifier's gain varies with the frequency of the input signal. The response shows low gain at low/high frequencies and constant gain at mid-frequencies."]</data>
+  <data key="d8">["tmp_1771604354512_aiclab1_1"]</data>
+  <data key="d9">high</data>
+</node>
+<node id="ent:bandwidth">
+  <data key="d0">ENTITY</data>
+  <data key="d4">Bandwidth</data>
+  <data key="d5">PARAMETER</data>
+  <data key="d6">["Bandwidth", "bandwidth"]</data>
+  <data key="d7">["A parameter to be determined, representing the range of frequencies over which the amplifier's gain is within a specified range of its maximum value. The calculated bandwidth is approximately 400 kHz."]</data>
+  <data key="d8">["tmp_1771604354512_aiclab1_1"]</data>
+  <data key="d9">high</data>
+</node>
+<node id="ent:sine_wave_input_signal">
+  <data key="d0">ENTITY</data>
+  <data key="d4">Sine Wave Input Signal</data>
+  <data key="d5">SIGNAL_TYPE</data>
+  <data key="d6">["sine wave input signal"]</data>
+  <data key="d7">["The type of signal used as the input for testing the amplifier. A specific amplitude of 500 mV peak-to-peak is used."]</data>
+  <data key="d8">["tmp_1771604354512_aiclab1_1"]</data>
+  <data key="d9">high</data>
+</node>
+<node id="ent:regulated_dc_power_supply">
+  <data key="d0">ENTITY</data>
+  <data key="d4">Regulated DC power supply</data>
+  <data key="d5">EQUIPMENT</data>
+  <data key="d6">["Regulated DC power supply"]</data>
+  <data key="d7">["Apparatus required to provide a stable DC voltage to power the amplifier circuit. The specified supply voltage is 12 V, though the procedure mentions 15 V."]</data>
+  <data key="d8">["tmp_1771604354512_aiclab1_1"]</data>
+  <data key="d9">high</data>
+</node>
+<node id="ent:function_generator">
+  <data key="d0">ENTITY</data>
+  <data key="d4">Function generator</data>
+  <data key="d5">EQUIPMENT</data>
+  <data key="d6">["Functiongenerator", "function generator"]</data>
+  <data key="d7">["Apparatus required to generate the sine wave input signal for the amplifier over a frequency range of 1 Hz to 10 MHz."]</data>
+  <data key="d8">["tmp_1771604354512_aiclab1_1"]</data>
+  <data key="d9">high</data>
+</node>
+<node id="ent:cro_dso">
+  <data key="d0">ENTITY</data>
+  <data key="d4">CRO / DSO</data>
+  <data key="d5">EQUIPMENT</data>
+  <data key="d6">["CRO / DSO"]</data>
+  <data key="d7">["Cathode Ray Oscilloscope or Digital Storage Oscilloscope. This apparatus is required to observe and measure the input and output waveforms of the amplifier."]</data>
+  <data key="d8">["tmp_1771604354512_aiclab1_1"]</data>
+  <data key="d9">high</data>
+</node>
+<node id="ent:multimeter">
+  <data key="d0">ENTITY</data>
+  <data key="d4">Multimeter</data>
+  <data key="d5">EQUIPMENT</data>
+  <data key="d6">["multimeter"]</data>
+  <data key="d7">["Apparatus required for making various electrical measurements in the circuit, such as DC voltages for biasing."]</data>
+  <data key="d8">["tmp_1771604354512_aiclab1_1"]</data>
+  <data key="d9">high</data>
+</node>
+<node id="ent:breadboard">
+  <data key="d0">ENTITY</data>
+  <data key="d4">Breadboard</data>
+  <data key="d5">EQUIPMENT</data>
+  <data key="d6">["Breadboard", "breadboard"]</data>
+  <data key="d7">["Apparatus used for assembling the temporary prototype of the amplifier circuit."]</data>
+  <data key="d8">["tmp_1771604354512_aiclab1_1"]</data>
+  <data key="d9">high</data>
+</node>
+<node id="ent:rc_coupled_amplifier">
+  <data key="d0">ENTITY</data>
+  <data key="d4">RC Coupled Amplifier</data>
+  <data key="d5">CIRCUIT_TOPOLOGY</data>
+  <data key="d6">["RC coupled amplifier"]</data>
+  <data key="d7">["A type of voltage amplifier that uses resistors and capacitors to couple the AC signal between stages while blocking DC, preventing biasing interference."]</data>
+  <data key="d8">["tmp_1771604354512_aiclab1_1"]</data>
+  <data key="d9">high</data>
+</node>
+<node id="ent:coupling_capacitors">
+  <data key="d0">ENTITY</data>
+  <data key="d4">Coupling Capacitors</data>
+  <data key="d5">COMPONENT_TYPE</data>
+  <data key="d6">["coupling capacitors"]</data>
+  <data key="d7">["Capacitors used to pass the AC signal from the input source to the amplifier's input and from the amplifier's output to the load, while blocking DC voltage."]</data>
+  <data key="d8">["tmp_1771604354512_aiclab1_1"]</data>
+  <data key="d9">high</data>
+</node>
+<node id="ent:common_emitter_amplifier">
+  <data key="d0">ENTITY</data>
+  <data key="d4">Common Emitter Amplifier</data>
+  <data key="d5">CIRCUIT_TOPOLOGY</data>
+  <data key="d6">["COMMON EMITTER AMPLIFIER", "common emitter amplifier"]</data>
+  <data key="d7">["A specific transistor amplifier configuration where the emitter terminal is common to both the input and output circuits. It is characterized by high voltage gain and a 180-degree phase inversion."]</data>
+  <data key="d8">["tmp_1771604354512_aiclab1_1"]</data>
+  <data key="d9">high</data>
+</node>
+<node id="ent:emitter_terminal">
+  <data key="d0">ENTITY</data>
+  <data key="d4">Emitter Terminal</data>
+  <data key="d5">COMPONENT_PART</data>
+  <data key="d6">["emitter terminal"]</data>
+  <data key="d7">["One of the three terminals of the BC547 transistor. In this configuration, it is common to both input and output."]</data>
+  <data key="d8">["tmp_1771604354512_aiclab1_1"]</data>
+  <data key="d9">high</data>
+</node>
+<node id="ent:base_terminal">
+  <data key="d0">ENTITY</data>
+  <data key="d4">Base Terminal</data>
+  <data key="d5">COMPONENT_PART</data>
+  <data key="d6">["Base", "base"]</data>
+  <data key="d7">["One of the three terminals of the BC547 transistor. The input signal is applied to this terminal."]</data>
+  <data key="d8">["tmp_1771604354512_aiclab1_1"]</data>
+  <data key="d9">high</data>
+</node>
+<node id="ent:collector_terminal">
+  <data key="d0">ENTITY</data>
+  <data key="d4">Collector Terminal</data>
+  <data key="d5">COMPONENT_PART</data>
+  <data key="d6">["Collector", "collector"]</data>
+  <data key="d7">["One of the three terminals of the BC547 transistor. The amplified output signal is taken from this terminal."]</data>
+  <data key="d8">["tmp_1771604354512_aiclab1_1"]</data>
+  <data key="d9">high</data>
+</node>
+<node id="ent:phase_inversion_of_180_degrees">
+  <data key="d0">ENTITY</data>
+  <data key="d4">Phase Inversion of 180 degrees</data>
+  <data key="d5">CHARACTERISTIC</data>
+  <data key="d6">["phase\ninversion of 180 degrees"]</data>
+  <data key="d7">["A characteristic of the common emitter amplifier where the output signal is 180 degrees out of phase with the input signal."]</data>
+  <data key="d8">["tmp_1771604354512_aiclab1_1"]</data>
+  <data key="d9">high</data>
+</node>
+<node id="ent:voltage_divider_bias_network">
+  <data key="d0">ENTITY</data>
+  <data key="d4">Voltage Divider Bias Network</data>
+  <data key="d5">CIRCUIT_TOPOLOGY</data>
+  <data key="d6">["voltage divider bias network"]</data>
+  <data key="d7">["A biasing circuit, using resistors R1 (100 kΩ) and R2 (18 kΩ), designed to set a stable DC operating point (Q-point) for the transistor in the active region."]</data>
+  <data key="d8">["tmp_1771604354512_aiclab1_1"]</data>
+  <data key="d9">high</data>
+</node>
+<node id="ent:transistor_operation_in_active_region">
+  <data key="d0">ENTITY</data>
+  <data key="d4">Transistor Operation in Active Region</data>
+  <data key="d5">OPERATING_MODE</data>
+  <data key="d6">["active region"]</data>
+  <data key="d7">["The desired operating mode for the transistor to function as an amplifier, where a small change in base voltage causes a large, proportional change in collector current."]</data>
+  <data key="d8">["tmp_1771604354512_aiclab1_1"]</data>
+  <data key="d9">high</data>
+</node>
+<node id="ent:collector_resistor_rc">
+  <data key="d0">ENTITY</data>
+  <data key="d4">Collector Resistor (Rc)</data>
+  <data key="d5">COMPONENT</data>
+  <data key="d6">["Collector resistor", "collector resistor"]</data>
+  <data key="d7">["A resistor connected to the collector terminal, used to convert the amplified variations in collector current into a corresponding output voltage variation. Its value is 1.5 kΩ."]</data>
+  <data key="d8">["tmp_1771604354512_aiclab1_1"]</data>
+  <data key="d9">high</data>
+</node>
+<node id="ent:amplifier_gain_dependence_on_frequency">
+  <data key="d0">ENTITY</data>
+  <data key="d4">Amplifier Gain Dependence on Frequency</data>
+  <data key="d5">CONCEPT</data>
+  <data key="d6">["gain of an RC coupled amplifier depends on frequency"]</data>
+  <data key="d7">["The principle that the voltage gain of an RC coupled amplifier is not constant across all frequencies. It is low at very low and very high frequencies and maximum in a mid-frequency range."]</data>
+  <data key="d8">["tmp_1771604354512_aiclab1_1"]</data>
+  <data key="d9">high</data>
+</node>
+<node id="ent:low_frequency_range">
+  <data key="d0">ENTITY</data>
+  <data key="d4">Low-Frequency Range</data>
+  <data key="d5">FREQUENCY_RANGE</data>
+  <data key="d6">["low frequencies"]</data>
+  <data key="d7">["The range of frequencies where the amplifier gain is reduced due to the high reactance of coupling and bypass capacitors."]</data>
+  <data key="d8">["tmp_1771604354512_aiclab1_1"]</data>
+  <data key="d9">high</data>
+</node>
+<node id="ent:mid_frequency_range">
+  <data key="d0">ENTITY</data>
+  <data key="d4">Mid-Frequency Range</data>
+  <data key="d5">FREQUENCY_RANGE</data>
+  <data key="d6">["mid\nfrequencies", "mid-frequency range"]</data>
+  <data key="d7">["The range of frequencies where the amplifier gain is nearly constant and at its maximum value. In the experiment, this is observed from approximately 500 Hz to 200 kHz."]</data>
+  <data key="d8">["tmp_1771604354512_aiclab1_1"]</data>
+  <data key="d9">high</data>
+</node>
+<node id="ent:high_frequency_range">
+  <data key="d0">ENTITY</data>
+  <data key="d4">High-Frequency Range</data>
+  <data key="d5">FREQUENCY_RANGE</data>
+  <data key="d6">["high frequencies"]</data>
+  <data key="d7">["The range of frequencies where the amplifier gain decreases due to the effects of internal transistor capacitances and the Miller effect."]</data>
+  <data key="d8">["tmp_1771604354512_aiclab1_1"]</data>
+  <data key="d9">high</data>
+</node>
+<node id="ent:high_reactance_of_capacitors">
+  <data key="d0">ENTITY</data>
+  <data key="d4">High Reactance of Capacitors</data>
+  <data key="d5">PARAMETER</data>
+  <data key="d6">["reactance of coupling and bypass capacitors is high"]</data>
+  <data key="d7">["At low frequencies, the impedance (reactance) of coupling and bypass capacitors becomes significant, which causes a voltage drop and reduces the overall gain of the amplifier."]</data>
+  <data key="d8">["tmp_1771604354512_aiclab1_1"]</data>
+  <data key="d9">high</data>
+</node>
+<node id="ent:internal_transistor_capacitances">
+  <data key="d0">ENTITY</data>
+  <data key="d4">Internal Transistor Capacitances</data>
+  <data key="d5">PARAMETER</data>
+  <data key="d6">["internal transistor capacitances"]</data>
+  <data key="d7">["Parasitic capacitances inherent within the transistor structure (e.g., between base-collector, base-emitter) that limit the amplifier's performance at high frequencies."]</data>
+  <data key="d8">["tmp_1771604354512_aiclab1_1"]</data>
+  <data key="d9">high</data>
+</node>
+<node id="ent:miller_effect">
+  <data key="d0">ENTITY</data>
+  <data key="d4">Miller Effect</data>
+  <data key="d5">CONCEPT</data>
+  <data key="d6">["Miller effect"]</data>
+  <data key="d7">["An effect in inverting amplifiers where the capacitance between the input and output terminals appears as a much larger capacitance at the input, limiting the high-frequency response."]</data>
+  <data key="d8">["tmp_1771604354512_aiclab1_1"]</data>
+  <data key="d9">high</data>
+</node>
+<node id="ent:procedure_step_1_assemble_circuit">
+  <data key="d0">ENTITY</data>
+  <data key="d4">Procedure Step 1: Assemble Circuit</data>
+  <data key="d5">PROCEDURE_STEP</data>
+  <data key="d6">["Assemble the RC coupled common emitter amplifier circuit on a breadboard"]</data>
+  <data key="d7">["The first step in the experimental procedure, which involves building the RC coupled common emitter amplifier circuit on a breadboard."]</data>
+  <data key="d8">["tmp_1771604354512_aiclab1_1"]</data>
+  <data key="d9">high</data>
+</node>
+<node id="ent:procedure_step_2_apply_dc_supply">
+  <data key="d0">ENTITY</data>
+  <data key="d4">Procedure Step 2: Apply DC Supply</data>
+  <data key="d5">PROCEDURE_STEP</data>
+  <data key="d6">["Apply a DC supply voltage of 15 V to the circuit"]</data>
+  <data key="d7">["The second step in the procedure, applying a DC supply voltage of 15 V to the circuit. This value conflicts with the 12 V listed in the components table."]</data>
+  <data key="d8">["tmp_1771604354512_aiclab1_1"]</data>
+  <data key="d9">high</data>
+</node>
+<node id="ent:procedure_step_3_connect_function_generator">
+  <data key="d0">ENTITY</data>
+  <data key="d4">Procedure Step 3: Connect Function Generator</data>
+  <data key="d5">PROCEDURE_STEP</data>
+  <data key="d6">["Connect the function generator to the input through the coupling capacitor"]</data>
+  <data key="d7">["The third step in the procedure, connecting the signal source to the amplifier's input via the input coupling capacitor."]</data>
+  <data key="d8">["tmp_1771604354512_aiclab1_1"]</data>
+  <data key="d9">high</data>
+</node>
+<node id="ent:procedure_step_4_apply_input_signal">
+  <data key="d0">ENTITY</data>
+  <data key="d4">Procedure Step 4: Apply Input Signal</data>
+  <data key="d5">PROCEDURE_STEP</data>
+  <data key="d6">["Apply a sine wave input of 500 mV peak-to-peak"]</data>
+  <data key="d7">["The fourth step in the procedure, applying a sine wave with an amplitude of 500 mV peak-to-peak to the amplifier's input."]</data>
+  <data key="d8">["tmp_1771604354512_aiclab1_1"]</data>
+  <data key="d9">high</data>
+</node>
+<node id="ent:collector_resistor_1_5_k">
+  <data key="d0">ENTITY</data>
+  <data key="d4">Collector Resistor 1.5 kΩ</data>
+  <data key="d5">COMPONENT_VALUE</data>
+  <data key="d6">["Collector resistor 1.5 kΩ"]</data>
+  <data key="d7">["The specific value of the collector resistor (Rc) used in the circuit."]</data>
+  <data key="d8">["tmp_1771604354512_aiclab1_1"]</data>
+  <data key="d9">high</data>
+</node>
+<node id="ent:emitter_resistor_1_k">
+  <data key="d0">ENTITY</data>
+  <data key="d4">Emitter Resistor 1 kΩ</data>
+  <data key="d5">COMPONENT_VALUE</data>
+  <data key="d6">["Emitter resistor 1 kΩ"]</data>
+  <data key="d7">["The specific value of the emitter resistor (Re) used in the circuit for biasing stability."]</data>
+  <data key="d8">["tmp_1771604354512_aiclab1_1"]</data>
+  <data key="d9">high</data>
+</node>
+<node id="ent:base_resistor_r1_100_k">
+  <data key="d0">ENTITY</data>
+  <data key="d4">Base Resistor R1 100 kΩ</data>
+  <data key="d5">COMPONENT_VALUE</data>
+  <data key="d6">["Base resistor R1 100 kΩ"]</data>
+  <data key="d7">["The specific value of the upper resistor (R1) in the voltage divider bias network."]</data>
+  <data key="d8">["tmp_1771604354512_aiclab1_1"]</data>
+  <data key="d9">high</data>
+</node>
+<node id="ent:base_resistor_r2_18_k">
+  <data key="d0">ENTITY</data>
+  <data key="d4">Base Resistor R2 18 kΩ</data>
+  <data key="d5">COMPONENT_VALUE</data>
+  <data key="d6">["Base resistor R2 18 kΩ"]</data>
+  <data key="d7">["The specific value of the lower resistor (R2) in the voltage divider bias network."]</data>
+  <data key="d8">["tmp_1771604354512_aiclab1_1"]</data>
+  <data key="d9">high</data>
+</node>
+<node id="ent:input_capacitor_1_f">
+  <data key="d0">ENTITY</data>
+  <data key="d4">Input Capacitor 1 µF</data>
+  <data key="d5">COMPONENT_VALUE</data>
+  <data key="d6">["Input capacitor 1 µF"]</data>
+  <data key="d7">["The specific value of the input coupling capacitor (Cin) used in the circuit."]</data>
+  <data key="d8">["tmp_1771604354512_aiclab1_1"]</data>
+  <data key="d9">high</data>
+</node>
+<node id="ent:output_capacitor_1_f">
+  <data key="d0">ENTITY</data>
+  <data key="d4">Output Capacitor 1 µF</data>
+  <data key="d5">COMPONENT_VALUE</data>
+  <data key="d6">["Output capacitor 1 µF"]</data>
+  <data key="d7">["The specific value of the output coupling capacitor (Cout) used in the circuit."]</data>
+  <data key="d8">["tmp_1771604354512_aiclab1_1"]</data>
+  <data key="d9">high</data>
+</node>
+<node id="ent:emitter_bypass_capacitor_22_f">
+  <data key="d0">ENTITY</data>
+  <data key="d4">Emitter Bypass Capacitor 22 µF</data>
+  <data key="d5">COMPONENT_VALUE</data>
+  <data key="d6">["Emitter bypass capacitor 22 µF"]</data>
+  <data key="d7">["The specific value of the emitter bypass capacitor (Ce) used to bypass the emitter resistor at AC frequencies to increase gain."]</data>
+  <data key="d8">["tmp_1771604354512_aiclab1_1"]</data>
+  <data key="d9">high</data>
+</node>
+<node id="ent:supply_voltage_12_v">
+  <data key="d0">ENTITY</data>
+  <data key="d4">Supply Voltage 12 V</data>
+  <data key="d5">PARAMETER_VALUE</data>
+  <data key="d6">["Supply voltage 12 V"]</data>
+  <data key="d7">["The specified DC supply voltage (Vcc) for the circuit as listed in the components table. This value conflicts with the 15 V mentioned in the procedure."]</data>
+  <data key="d8">["tmp_1771604354512_aiclab1_1"]</data>
+  <data key="d9">high</data>
+</node>
+<node id="ent:input_voltage_500_mv_p_p">
+  <data key="d0">ENTITY</data>
+  <data key="d4">Input Voltage 500 mV p-p</data>
+  <data key="d5">PARAMETER_VALUE</data>
+  <data key="d6">["Input voltage 500 mV p-p"]</data>
+  <data key="d7">["The peak-to-peak amplitude of the sine wave input signal used for testing the amplifier."]</data>
+  <data key="d8">["tmp_1771604354512_aiclab1_1"]</data>
+  <data key="d9">high</data>
+</node>
+<node id="ent:frequency_range_1_hz_10_mhz">
+  <data key="d0">ENTITY</data>
+  <data key="d4">Frequency Range 1 Hz – 10 MHz</data>
+  <data key="d5">PARAMETER_VALUE</data>
+  <data key="d6">["Frequency range 1 Hz – 10 MHz"]</data>
+  <data key="d7">["The range of frequencies over which the input signal was varied to study the amplifier's frequency response."]</data>
+  <data key="d8">["tmp_1771604354512_aiclab1_1"]</data>
+  <data key="d9">high</data>
+</node>
+<node id="ent:check_bc547_pin_configuration">
+  <data key="d0">ENTITY</data>
+  <data key="d4">Check BC547 Pin Configuration</data>
+  <data key="d5">PRECAUTION</data>
+  <data key="d6">["Check BC547 pin configuration", "Check BC547 pin configuration before connecting"]</data>
+  <data key="d7">["A precaution to be taken before connecting the transistor to ensure the emitter, base, and collector leads are correctly identified and placed in the circuit."]</data>
+  <data key="d8">["tmp_1771604354512_aiclab1_1"]</data>
+  <data key="d9">high</data>
+</node>
+<node id="ent:rated_supply_voltage">
+  <data key="d0">ENTITY</data>
+  <data key="d4">Rated Supply Voltage</data>
+  <data key="d5">LIMIT</data>
+  <data key="d6">["rated supply voltage"]</data>
+  <data key="d7">["A precaution advising not to exceed the maximum specified supply voltage for the components, particularly the BC547 transistor, to avoid damage."]</data>
+  <data key="d8">["tmp_1771604354512_aiclab1_1"]</data>
+  <data key="d9">high</data>
+</node>
+<node id="ent:input_signal_amplitude">
+  <data key="d0">ENTITY</data>
+  <data key="d4">Input Signal Amplitude</data>
+  <data key="d5">LIMIT</data>
+  <data key="d6">["input signal amplitude"]</data>
+  <data key="d7">["A precaution to keep the input signal amplitude small to ensure the amplifier operates in its linear region and avoids output signal clipping or distortion."]</data>
+  <data key="d8">["tmp_1771604354512_aiclab1_1"]</data>
+  <data key="d9">high</data>
+</node>
+<node id="ent:observe_correct_polarity_of_electrolytic_capacitors">
+  <data key="d0">ENTITY</data>
+  <data key="d4">Observe Correct Polarity of Electrolytic Capacitors</data>
+  <data key="d5">PRECAUTION</data>
+  <data key="d6">["Observe correct polarity of electrolytic capacitors"]</data>
+  <data key="d7">["A precaution to ensure that polarized capacitors, such as electrolytic types used for coupling and bypassing, are connected with the correct positive and negative polarity."]</data>
+  <data key="d8">["tmp_1771604354512_aiclab1_1"]</data>
+  <data key="d9">high</data>
+</node>
+<node id="ent:expected_behavior">
+  <data key="d0">ENTITY</data>
+  <data key="d4">Expected Behavior</data>
+  <data key="d5">CONCEPT</data>
+  <data key="d6">["expected behavior"]</data>
+  <data key="d7">["The theoretical performance of the RC coupled common emitter amplifier, which the experimental results are compared against and found to match."]</data>
+  <data key="d8">["tmp_1771604354512_aiclab1_1"]</data>
+  <data key="d9">high</data>
+</node>
+<node id="ent:block_dc_components">
+  <data key="d0">ENTITY</data>
+  <data key="d4">Block DC Components</data>
+  <data key="d5">FUNCTION</data>
+  <data key="d6">["blocking DC\ncomponents"]</data>
+  <data key="d7">["A primary function of coupling capacitors in an AC amplifier, which is to prevent the DC bias voltage of one stage from affecting the DC bias of the next stage."]</data>
+  <data key="d8">["tmp_1771604354512_aiclab1_1"]</data>
+  <data key="d9">high</data>
+</node>
+<node id="ent:convert_current_variations_to_voltage_variations">
+  <data key="d0">ENTITY</data>
+  <data key="d4">Convert Current Variations to Voltage Variations</data>
+  <data key="d5">FUNCTION</data>
+  <data key="d6">["converts these\ncurrent variations into voltage variations"]</data>
+  <data key="d7">["The primary function of the collector resistor (Rc). As the transistor's collector current varies in response to the input signal, this current flows through Rc, creating a varying voltage drop (V=IR), which forms the output voltage signal."]</data>
+  <data key="d8">["tmp_1771604354512_aiclab1_1"]</data>
+  <data key="d9">high</data>
+</node>
+<node id="art:1">
+  <data key="d0">ENTITY</data>
+  <data key="d4">article 1</data>
+  <data key="d5">ARTICLE</data>
+  <data key="d6">["1. Assemble the RC coupled common emitter amplifier circuit on a breadboard", "1. Regulated DC power supply"]</data>
+  <data key="d7">["Assemble the RC coupled common emitter amplifier circuit on a breadboard", "Regulated DC power supply"]</data>
+  <data key="d8">["tmp_1771604354512_aiclab1_1"]</data>
+  <data key="d9">high</data>
+</node>
+<node id="art:2">
+  <data key="d0">ENTITY</data>
+  <data key="d4">article 2</data>
+  <data key="d5">ARTICLE</data>
+  <data key="d6">["2. Apply a DC supply voltage of 15 V to the circuit.", "2. Functiongenerator"]</data>
+  <data key="d7">["Functiongenerator", "Apply a DC supply voltage of 15 V to the circuit."]</data>
+  <data key="d8">["tmp_1771604354512_aiclab1_1"]</data>
+  <data key="d9">high</data>
+</node>
+<node id="art:3">
+  <data key="d0">ENTITY</data>
+  <data key="d4">article 3</data>
+  <data key="d5">ARTICLE</data>
+  <data key="d6">["3. CRO / DSO", "3. Connect the function generator to the input through the coupling capacitor."]</data>
+  <data key="d7">["Connect the function generator to the input through the coupling capacitor.", "CRO / DSO"]</data>
+  <data key="d8">["tmp_1771604354512_aiclab1_1"]</data>
+  <data key="d9">high</data>
+</node>
+<node id="art:4">
+  <data key="d0">ENTITY</data>
+  <data key="d4">article 4</data>
+  <data key="d5">ARTICLE</data>
+  <data key="d6">["4. Apply a sine wave input of 500 mV peak-to-peak.", "4. multimeter"]</data>
+  <data key="d7">["Apply a sine wave input of 500 mV peak-to-peak.", "multimeter"]</data>
+  <data key="d8">["tmp_1771604354512_aiclab1_1"]</data>
+  <data key="d9">high</data>
+</node>
+<node id="art:5">
+  <data key="d0">ENTITY</data>
+  <data key="d4">article 5</data>
+  <data key="d5">ARTICLE</data>
+  <data key="d6">["5. Breadboard", "5. Observe the input and output waveforms on the CRO."]</data>
+  <data key="d7">["Observe the input and output waveforms on the CRO.", "Breadboard"]</data>
+  <data key="d8">["tmp_1771604354512_aiclab1_1"]</data>
+  <data key="d9">high</data>
+</node>
+<node id="art:6">
+  <data key="d0">ENTITY</data>
+  <data key="d4">article 6</data>
+  <data key="d5">ARTICLE</data>
+  <data key="d6">["6. Connectingwires", "6. Measure the output peak-to-peak voltage."]</data>
+  <data key="d7">["Measure the output peak-to-peak voltage.", "Connectingwires"]</data>
+  <data key="d8">["tmp_1771604354512_aiclab1_1"]</data>
+  <data key="d9">high</data>
+</node>
+<node id="art:7">
+  <data key="d0">ENTITY</data>
+  <data key="d4">article 7</data>
+  <data key="d5">ARTICLE</data>
+  <data key="d6">["7. BC547 transistor", "7. Vary the input frequency from low to high."]</data>
+  <data key="d7">["BC547 transistor", "Vary the input frequency from low to high."]</data>
+  <data key="d8">["tmp_1771604354512_aiclab1_1"]</data>
+  <data key="d9">high</data>
+</node>
+<node id="art:8">
+  <data key="d0">ENTITY</data>
+  <data key="d4">article 8</data>
+  <data key="d5">ARTICLE</data>
+  <data key="d6">["8. Record the output voltage at each frequency.", "8. Resistors and capacitors"]</data>
+  <data key="d7">["Resistors and capacitors", "Record the output voltage at each frequency."]</data>
+  <data key="d8">["tmp_1771604354512_aiclab1_1"]</data>
+  <data key="d9">high</data>
+</node>
+<node id="art:9">
+  <data key="d0">ENTITY</data>
+  <data key="d4">article 9</data>
+  <data key="d5">ARTICLE</data>
+  <data key="d6">["9. Switch off the power supply after completing the experiment."]</data>
+  <data key="d7">["Switch off the power supply after completing the experiment."]</data>
+  <data key="d8">["tmp_1771604354512_aiclab1_1"]</data>
+  <data key="d9">high</data>
+</node>
+<node id="ent:experiment_1">
+  <data key="d0">ENTITY</data>
+  <data key="d4">Experiment 1</data>
+  <data key="d5">CONCEPT</data>
+  <data key="d10">oneshot_synthesis</data>
+  <data key="d9">medium</data>
+  <data key="d11">Synthesized from a discovery relation in tmp_1771604354512_aiclab1_1.</data>
+</node>
+<node id="ent:voltage_amplifier">
+  <data key="d0">ENTITY</data>
+  <data key="d4">Voltage Amplifier</data>
+  <data key="d5">CONCEPT</data>
+  <data key="d10">oneshot_synthesis</data>
+  <data key="d9">medium</data>
+  <data key="d11">Synthesized from a discovery relation in tmp_1771604354512_aiclab1_1.</data>
+</node>
+<node id="ent:emitter_terminal_common_to_input_and_output">
+  <data key="d0">ENTITY</data>
+  <data key="d4">Emitter Terminal Common to Input and Output</data>
+  <data key="d5">CONCEPT</data>
+  <data key="d10">oneshot_synthesis</data>
+  <data key="d9">medium</data>
+  <data key="d11">Synthesized from a discovery relation in tmp_1771604354512_aiclab1_1.</data>
+</node>
+<node id="ent:input_signal">
+  <data key="d0">ENTITY</data>
+  <data key="d4">Input Signal</data>
+  <data key="d5">CONCEPT</data>
+  <data key="d10">oneshot_synthesis</data>
+  <data key="d9">medium</data>
+  <data key="d11">Synthesized from a discovery relation in tmp_1771604354512_aiclab1_1.</data>
+</node>
+<node id="ent:output_signal">
+  <data key="d0">ENTITY</data>
+  <data key="d4">Output Signal</data>
+  <data key="d5">CONCEPT</data>
+  <data key="d10">oneshot_synthesis</data>
+  <data key="d9">medium</data>
+  <data key="d11">Synthesized from a discovery relation in tmp_1771604354512_aiclab1_1.</data>
+</node>
+<node id="ent:high_voltage_gain">
+  <data key="d0">ENTITY</data>
+  <data key="d4">High Voltage Gain</data>
+  <data key="d5">CONCEPT</data>
+  <data key="d10">oneshot_synthesis</data>
+  <data key="d9">medium</data>
+  <data key="d11">Synthesized from a discovery relation in tmp_1771604354512_aiclab1_1.</data>
+</node>
+<node id="ent:amplifier_gain">
+  <data key="d0">ENTITY</data>
+  <data key="d4">Amplifier Gain</data>
+  <data key="d5">CONCEPT</data>
+  <data key="d10">oneshot_synthesis</data>
+  <data key="d9">medium</data>
+  <data key="d11">Synthesized from a discovery relation in tmp_1771604354512_aiclab1_1.</data>
+</node>
+<node id="ent:frequency">
+  <data key="d0">ENTITY</data>
+  <data key="d4">Frequency</data>
+  <data key="d5">CONCEPT</data>
+  <data key="d10">oneshot_synthesis</data>
+  <data key="d9">medium</data>
+  <data key="d11">Synthesized from a discovery relation in tmp_1771604354512_aiclab1_1.</data>
+</node>
+<node id="ent:experiment">
+  <data key="d0">ENTITY</data>
+  <data key="d4">Experiment</data>
+  <data key="d5">CONCEPT</data>
+  <data key="d10">oneshot_synthesis</data>
+  <data key="d9">medium</data>
+  <data key="d11">Synthesized from a discovery relation in tmp_1771604354512_aiclab1_1.</data>
+</node>
+<node id="ent:voltage_gain_calculation_formula">
+  <data key="d0">ENTITY</data>
+  <data key="d4">Voltage Gain Calculation Formula</data>
+  <data key="d5">CONCEPT</data>
+  <data key="d10">oneshot_synthesis</data>
+  <data key="d9">medium</data>
+  <data key="d11">Synthesized from a discovery relation in tmp_1771604354512_aiclab1_1.</data>
+</node>
+<node id="ent:lower_cutoff_frequency_input">
+  <data key="d0">ENTITY</data>
+  <data key="d4">Lower Cutoff Frequency (Input)</data>
+  <data key="d5">CONCEPT</data>
+  <data key="d10">oneshot_synthesis</data>
+  <data key="d9">medium</data>
+  <data key="d11">Synthesized from a discovery relation in tmp_1771604354512_aiclab1_1.</data>
+</node>
+<node id="ent:lower_cutoff_frequency_due_to_input_capacitor_formula">
+  <data key="d0">ENTITY</data>
+  <data key="d4">Lower Cutoff Frequency due to Input Capacitor Formula</data>
+  <data key="d5">CONCEPT</data>
+  <data key="d10">oneshot_synthesis</data>
+  <data key="d9">medium</data>
+  <data key="d11">Synthesized from a discovery relation in tmp_1771604354512_aiclab1_1.</data>
+</node>
+<node id="ent:lower_cutoff_frequency_output">
+  <data key="d0">ENTITY</data>
+  <data key="d4">Lower Cutoff Frequency (Output)</data>
+  <data key="d5">CONCEPT</data>
+  <data key="d10">oneshot_synthesis</data>
+  <data key="d9">medium</data>
+  <data key="d11">Synthesized from a discovery relation in tmp_1771604354512_aiclab1_1.</data>
+</node>
+<node id="ent:lower_cutoff_due_to_output_capacitor_formula">
+  <data key="d0">ENTITY</data>
+  <data key="d4">Lower Cutoff due to Output Capacitor Formula</data>
+  <data key="d5">CONCEPT</data>
+  <data key="d10">oneshot_synthesis</data>
+  <data key="d9">medium</data>
+  <data key="d11">Synthesized from a discovery relation in tmp_1771604354512_aiclab1_1.</data>
+</node>
+<node id="ent:rc_coupled_common_emitter_amplifier">
+  <data key="d0">ENTITY</data>
+  <data key="d4">RC Coupled Common Emitter Amplifier</data>
+  <data key="d5">CONCEPT</data>
+  <data key="d10">oneshot_synthesis</data>
+  <data key="d9">medium</data>
+  <data key="d11">Synthesized from a discovery relation in tmp_1771604354512_aiclab1_1.</data>
+</node>
+<node id="ent:experimental_results">
+  <data key="d0">ENTITY</data>
+  <data key="d4">Experimental Results</data>
+  <data key="d5">CONCEPT</data>
+  <data key="d10">oneshot_synthesis</data>
+  <data key="d9">medium</data>
+  <data key="d11">Synthesized from a discovery relation in tmp_1771604354512_aiclab1_1.</data>
+</node>
+<node id="comm_l0:2">
+  <data key="d0">COMMUNITY</data>
+  <data key="d12">0</data>
+  <data key="d13">2</data>
+  <data key="d14">13</data>
+  <data key="d15">13</data>
+  <data key="d16"></data>
+  <data key="d17">Common Emitter Amplifier (CIRCUIT_TOPOLOGY), BC547 Transistor (COMPONENT), Voltage Gain (Av) (PARAMETER), Experiment 1: RC Coupled Common Emitter Amplifier (EXPERIMENT), Frequency Response (PARAMETER), Input Impedance (R</data>
+  <data key="d18">Common Emitter Amplifier (CIRCUIT_TOPOLOGY), BC547 Transistor (COMPONENT), Voltage Gain (Av) (PARAMETER), Experiment 1: RC Coupled Common Emitter Amplifier (EXPERIMENT), Frequency Response (PARAMETER), Input Impedance (R</data>
+  <data key="d19">["Common Emitter Amplifier", "BC547 Transistor", "Voltage Gain (Av)", "Experiment 1: RC Coupled Common Emitter Amplifier", "Frequency Response", "Input Impedance (Rin)", "Sine Wave Input Signal", "Bandwidth", "Emitter Terminal", "Emitter Terminal Common to Input and Output"]</data>
+  <data key="d20"></data>
+  <data key="d21">["sent:tmp_1771604354512_aiclab1_1:0", "sent:tmp_1771604354512_aiclab1_1:12", "sent:tmp_1771604354512_aiclab1_1:53", "sent:tmp_1771604354512_aiclab1_1:47", "sent:tmp_1771604354512_aiclab1_1:10", "sent:tmp_1771604354512_aiclab1_1:38", "sent:tmp_1771604354512_aiclab1_1:26"]</data>
+  <data key="d22">0.8421052631578948</data>
+  <data key="d23">6.400000000000002</data>
+  <data key="d24">1.2</data>
+  <data key="d25">0.7919946331102</data>
+</node>
+<node id="comm_l0:1">
+  <data key="d0">COMMUNITY</data>
+  <data key="d12">0</data>
+  <data key="d13">1</data>
+  <data key="d14">15</data>
+  <data key="d15">15</data>
+  <data key="d16"></data>
+  <data key="d17">article 1 (ARTICLE), article 2 (ARTICLE), article 4 (ARTICLE), Function generator (EQUIPMENT), article 3 (ARTICLE), CRO / DSO (EQUIPMENT), article 5 (ARTICLE), Multimeter (EQUIPMENT), Breadboard (EQUIPMENT), Experiment 1</data>
+  <data key="d18">article 1 (ARTICLE), article 2 (ARTICLE), article 4 (ARTICLE), Function generator (EQUIPMENT), article 3 (ARTICLE), CRO / DSO (EQUIPMENT), article 5 (ARTICLE), Multimeter (EQUIPMENT), Breadboard (EQUIPMENT), Experiment 1</data>
+  <data key="d19">["article 1", "article 2", "article 4", "Function generator", "article 3", "CRO / DSO", "article 5", "Multimeter", "Breadboard", "Experiment 1"]</data>
+  <data key="d20"></data>
+  <data key="d21">["sent:tmp_1771604354512_aiclab1_1:3", "sent:tmp_1771604354512_aiclab1_1:2", "sent:tmp_1771604354512_aiclab1_1:28", "sent:tmp_1771604354512_aiclab1_1:26", "sent:tmp_1771604354512_aiclab1_1:27", "sent:tmp_1771604354512_aiclab1_1:29", "sent:tmp_1771604354512_aiclab1_1:1", "sent:tmp_1771604354512_aiclab1_1:30"]</data>
+  <data key="d22">0.9124087591240876</data>
+  <data key="d23">12.499999999999998</data>
+  <data key="d24">1.2</data>
+  <data key="d25">0.7919946331102</data>
+</node>
+<node id="comm_l0:5">
+  <data key="d0">COMMUNITY</data>
+  <data key="d12">0</data>
+  <data key="d13">5</data>
+  <data key="d14">6</data>
+  <data key="d15">6</data>
+  <data key="d16"></data>
+  <data key="d17">RC Coupled Amplifier (CIRCUIT_TOPOLOGY), article 8 (ARTICLE), article 7 (ARTICLE), Amplifier Gain Dependence on Frequency (CONCEPT), Block DC Components (FUNCTION), Voltage Amplifier (CONCEPT)</data>
+  <data key="d18">RC Coupled Amplifier (CIRCUIT_TOPOLOGY), article 8 (ARTICLE), article 7 (ARTICLE), Amplifier Gain Dependence on Frequency (CONCEPT), Block DC Components (FUNCTION), Voltage Amplifier (CONCEPT)</data>
+  <data key="d19">["RC Coupled Amplifier", "article 8", "article 7", "Amplifier Gain Dependence on Frequency", "Block DC Components", "Voltage Amplifier"]</data>
+  <data key="d20"></data>
+  <data key="d21">["sent:tmp_1771604354512_aiclab1_1:7", "sent:tmp_1771604354512_aiclab1_1:21", "sent:tmp_1771604354512_aiclab1_1:32", "sent:tmp_1771604354512_aiclab1_1:33"]</data>
+  <data key="d22">1.0</data>
+  <data key="d23">4.45</data>
+  <data key="d24">0.0</data>
+  <data key="d25">0.7919946331102</data>
+</node>
+<node id="comm_l0:0">
+  <data key="d0">COMMUNITY</data>
+  <data key="d12">0</data>
+  <data key="d13">0</data>
+  <data key="d14">18</data>
+  <data key="d15">18</data>
+  <data key="d16"></data>
+  <data key="d17">Collector Terminal (COMPONENT_PART), Base Terminal (COMPONENT_PART), Collector Resistor (Rc) (COMPONENT), Base Resistor R1 100 kΩ (COMPONENT_VALUE), Base Resistor R2 18 kΩ (COMPONENT_VALUE), Collector Resistor 1.5 kΩ (CO</data>
+  <data key="d18">Collector Terminal (COMPONENT_PART), Base Terminal (COMPONENT_PART), Collector Resistor (Rc) (COMPONENT), Base Resistor R1 100 kΩ (COMPONENT_VALUE), Base Resistor R2 18 kΩ (COMPONENT_VALUE), Collector Resistor 1.5 kΩ (CO</data>
+  <data key="d19">["Collector Terminal", "Base Terminal", "Collector Resistor (Rc)", "Base Resistor R1 100 kΩ", "Base Resistor R2 18 kΩ", "Collector Resistor 1.5 kΩ", "Emitter Bypass Capacitor 22 µF", "Emitter Resistor 1 kΩ", "Input Capacitor 1 µF", "Output Capacitor 1 µF"]</data>
+  <data key="d20"></data>
+  <data key="d21">["sent:tmp_1771604354512_aiclab1_1:35", "sent:tmp_1771604354512_aiclab1_1:15", "sent:tmp_1771604354512_aiclab1_1:16", "sent:tmp_1771604354512_aiclab1_1:11", "sent:tmp_1771604354512_aiclab1_1:19", "sent:tmp_1771604354512_aiclab1_1:18", "sent:tmp_1771604354512_aiclab1_1:39", "sent:tmp_1771604354512_aiclab1_1:50"]</data>
+  <data key="d22">1.0</data>
+  <data key="d23">13.90000000000002</data>
+  <data key="d24">0.0</data>
+  <data key="d25">0.7919946331102</data>
+</node>
+<node id="comm_l0:3">
+  <data key="d0">COMMUNITY</data>
+  <data key="d12">0</data>
+  <data key="d13">3</data>
+  <data key="d14">7</data>
+  <data key="d15">7</data>
+  <data key="d16"></data>
+  <data key="d17">Amplifier Gain (CONCEPT), High Reactance of Capacitors (PARAMETER), Internal Transistor Capacitances (PARAMETER), Miller Effect (CONCEPT), Frequency (CONCEPT), High-Frequency Range (FREQUENCY_RANGE), Low-Frequency Range </data>
+  <data key="d18">Amplifier Gain (CONCEPT), High Reactance of Capacitors (PARAMETER), Internal Transistor Capacitances (PARAMETER), Miller Effect (CONCEPT), Frequency (CONCEPT), High-Frequency Range (FREQUENCY_RANGE), Low-Frequency Range </data>
+  <data key="d19">["Amplifier Gain", "High Reactance of Capacitors", "Internal Transistor Capacitances", "Miller Effect", "Frequency", "High-Frequency Range", "Low-Frequency Range"]</data>
+  <data key="d20"></data>
+  <data key="d21">["sent:tmp_1771604354512_aiclab1_1:24", "sent:tmp_1771604354512_aiclab1_1:22", "sent:tmp_1771604354512_aiclab1_1:48", "sent:tmp_1771604354512_aiclab1_1:55"]</data>
+  <data key="d22">1.0</data>
+  <data key="d23">6.3500000000000005</data>
+  <data key="d24">0.0</data>
+  <data key="d25">0.7919946331102</data>
+</node>
+<node id="comm_l0:4">
+  <data key="d0">COMMUNITY</data>
+  <data key="d12">0</data>
+  <data key="d13">4</data>
+  <data key="d14">6</data>
+  <data key="d15">6</data>
+  <data key="d16"></data>
+  <data key="d17">Experiment (CONCEPT), Check BC547 Pin Configuration (PRECAUTION), Rated Supply Voltage (LIMIT), Expected Behavior (CONCEPT), Input Signal Amplitude (LIMIT), Observe Correct Polarity of Electrolytic Capacitors (PRECAUTION</data>
+  <data key="d18">Experiment (CONCEPT), Check BC547 Pin Configuration (PRECAUTION), Rated Supply Voltage (LIMIT), Expected Behavior (CONCEPT), Input Signal Amplitude (LIMIT), Observe Correct Polarity of Electrolytic Capacitors (PRECAUTION</data>
+  <data key="d19">["Experiment", "Check BC547 Pin Configuration", "Rated Supply Voltage", "Expected Behavior", "Input Signal Amplitude", "Observe Correct Polarity of Electrolytic Capacitors"]</data>
+  <data key="d20"></data>
+  <data key="d21">["sent:tmp_1771604354512_aiclab1_1:56", "sent:tmp_1771604354512_aiclab1_1:57", "sent:tmp_1771604354512_aiclab1_1:58"]</data>
+  <data key="d22">1.0</data>
+  <data key="d23">5.5</data>
+  <data key="d24">0.0</data>
+  <data key="d25">0.7919946331102</data>
+</node>
+<node id="comm_l0:6">
+  <data key="d0">COMMUNITY</data>
+  <data key="d12">0</data>
+  <data key="d13">6</data>
+  <data key="d14">2</data>
+  <data key="d15">2</data>
+  <data key="d16"></data>
+  <data key="d17">Lower Cutoff Frequency due to Input Capacitor Formula (CONCEPT), Lower Cutoff Frequency (Input) (CONCEPT)</data>
+  <data key="d18">Lower Cutoff Frequency due to Input Capacitor Formula (CONCEPT), Lower Cutoff Frequency (Input) (CONCEPT)</data>
+  <data key="d19">["Lower Cutoff Frequency due to Input Capacitor Formula", "Lower Cutoff Frequency (Input)"]</data>
+  <data key="d20"></data>
+  <data key="d21">[]</data>
+  <data key="d22">1.0</data>
+  <data key="d23">1.0</data>
+  <data key="d24">0.0</data>
+  <data key="d25">0.7919946331102</data>
+</node>
+<node id="comm_l0:7">
+  <data key="d0">COMMUNITY</data>
+  <data key="d12">0</data>
+  <data key="d13">7</data>
+  <data key="d14">2</data>
+  <data key="d15">2</data>
+  <data key="d16"></data>
+  <data key="d17">Lower Cutoff due to Output Capacitor Formula (CONCEPT), Lower Cutoff Frequency (Output) (CONCEPT)</data>
+  <data key="d18">Lower Cutoff due to Output Capacitor Formula (CONCEPT), Lower Cutoff Frequency (Output) (CONCEPT)</data>
+  <data key="d19">["Lower Cutoff due to Output Capacitor Formula", "Lower Cutoff Frequency (Output)"]</data>
+  <data key="d20"></data>
+  <data key="d21">[]</data>
+  <data key="d22">1.0</data>
+  <data key="d23">1.0</data>
+  <data key="d24">0.0</data>
+  <data key="d25">0.7919946331102</data>
+</node>
+<edge source="doc:tmp_1771604354512_aiclab1_1" target="sent:tmp_1771604354512_aiclab1_1:0" id="e:doc_sent:tmp_1771604354512_aiclab1_1:0">
+  <data key="d26">HAS_SENTENCE</data>
+  <data key="d27">tmp_1771604354512_aiclab1_1</data>
+  <data key="d28">0</data>
+</edge>
+<edge source="doc:tmp_1771604354512_aiclab1_1" target="sent:tmp_1771604354512_aiclab1_1:1" id="e:doc_sent:tmp_1771604354512_aiclab1_1:1">
+  <data key="d26">HAS_SENTENCE</data>
+  <data key="d27">tmp_1771604354512_aiclab1_1</data>
+  <data key="d28">1</data>
+</edge>
+<edge source="doc:tmp_1771604354512_aiclab1_1" target="sent:tmp_1771604354512_aiclab1_1:2" id="e:doc_sent:tmp_1771604354512_aiclab1_1:2">
+  <data key="d26">HAS_SENTENCE</data>
+  <data key="d27">tmp_1771604354512_aiclab1_1</data>
+  <data key="d28">2</data>
+</edge>
+<edge source="doc:tmp_1771604354512_aiclab1_1" target="sent:tmp_1771604354512_aiclab1_1:3" id="e:doc_sent:tmp_1771604354512_aiclab1_1:3">
+  <data key="d26">HAS_SENTENCE</data>
+  <data key="d27">tmp_1771604354512_aiclab1_1</data>
+  <data key="d28">3</data>
+</edge>
+<edge source="doc:tmp_1771604354512_aiclab1_1" target="sent:tmp_1771604354512_aiclab1_1:7" id="e:doc_sent:tmp_1771604354512_aiclab1_1:7">
+  <data key="d26">HAS_SENTENCE</data>
+  <data key="d27">tmp_1771604354512_aiclab1_1</data>
+  <data key="d28">7</data>
+</edge>
+<edge source="doc:tmp_1771604354512_aiclab1_1" target="sent:tmp_1771604354512_aiclab1_1:8" id="e:doc_sent:tmp_1771604354512_aiclab1_1:8">
+  <data key="d26">HAS_SENTENCE</data>
+  <data key="d27">tmp_1771604354512_aiclab1_1</data>
+  <data key="d28">8</data>
+</edge>
+<edge source="doc:tmp_1771604354512_aiclab1_1" target="sent:tmp_1771604354512_aiclab1_1:10" id="e:doc_sent:tmp_1771604354512_aiclab1_1:10">
+  <data key="d26">HAS_SENTENCE</data>
+  <data key="d27">tmp_1771604354512_aiclab1_1</data>
+  <data key="d28">10</data>
+</edge>
+<edge source="doc:tmp_1771604354512_aiclab1_1" target="sent:tmp_1771604354512_aiclab1_1:11" id="e:doc_sent:tmp_1771604354512_aiclab1_1:11">
+  <data key="d26">HAS_SENTENCE</data>
+  <data key="d27">tmp_1771604354512_aiclab1_1</data>
+  <data key="d28">11</data>
+</edge>
+<edge source="doc:tmp_1771604354512_aiclab1_1" target="sent:tmp_1771604354512_aiclab1_1:12" id="e:doc_sent:tmp_1771604354512_aiclab1_1:12">
+  <data key="d26">HAS_SENTENCE</data>
+  <data key="d27">tmp_1771604354512_aiclab1_1</data>
+  <data key="d28">12</data>
+</edge>
+<edge source="doc:tmp_1771604354512_aiclab1_1" target="sent:tmp_1771604354512_aiclab1_1:14" id="e:doc_sent:tmp_1771604354512_aiclab1_1:14">
+  <data key="d26">HAS_SENTENCE</data>
+  <data key="d27">tmp_1771604354512_aiclab1_1</data>
+  <data key="d28">14</data>
+</edge>
+<edge source="doc:tmp_1771604354512_aiclab1_1" target="sent:tmp_1771604354512_aiclab1_1:15" id="e:doc_sent:tmp_1771604354512_aiclab1_1:15">
+  <data key="d26">HAS_SENTENCE</data>
+  <data key="d27">tmp_1771604354512_aiclab1_1</data>
+  <data key="d28">15</data>
+</edge>
+<edge source="doc:tmp_1771604354512_aiclab1_1" target="sent:tmp_1771604354512_aiclab1_1:16" id="e:doc_sent:tmp_1771604354512_aiclab1_1:16">
+  <data key="d26">HAS_SENTENCE</data>
+  <data key="d27">tmp_1771604354512_aiclab1_1</data>
+  <data key="d28">16</data>
+</edge>
+<edge source="doc:tmp_1771604354512_aiclab1_1" target="sent:tmp_1771604354512_aiclab1_1:18" id="e:doc_sent:tmp_1771604354512_aiclab1_1:18">
+  <data key="d26">HAS_SENTENCE</data>
+  <data key="d27">tmp_1771604354512_aiclab1_1</data>
+  <data key="d28">18</data>
+</edge>
+<edge source="doc:tmp_1771604354512_aiclab1_1" target="sent:tmp_1771604354512_aiclab1_1:19" id="e:doc_sent:tmp_1771604354512_aiclab1_1:19">
+  <data key="d26">HAS_SENTENCE</data>
+  <data key="d27">tmp_1771604354512_aiclab1_1</data>
+  <data key="d28">19</data>
+</edge>
+<edge source="doc:tmp_1771604354512_aiclab1_1" target="sent:tmp_1771604354512_aiclab1_1:21" id="e:doc_sent:tmp_1771604354512_aiclab1_1:21">
+  <data key="d26">HAS_SENTENCE</data>
+  <data key="d27">tmp_1771604354512_aiclab1_1</data>
+  <data key="d28">21</data>
+</edge>
+<edge source="doc:tmp_1771604354512_aiclab1_1" target="sent:tmp_1771604354512_aiclab1_1:22" id="e:doc_sent:tmp_1771604354512_aiclab1_1:22">
+  <data key="d26">HAS_SENTENCE</data>
+  <data key="d27">tmp_1771604354512_aiclab1_1</data>
+  <data key="d28">22</data>
+</edge>
+<edge source="doc:tmp_1771604354512_aiclab1_1" target="sent:tmp_1771604354512_aiclab1_1:23" id="e:doc_sent:tmp_1771604354512_aiclab1_1:23">
+  <data key="d26">HAS_SENTENCE</data>
+  <data key="d27">tmp_1771604354512_aiclab1_1</data>
+  <data key="d28">23</data>
+</edge>
+<edge source="doc:tmp_1771604354512_aiclab1_1" target="sent:tmp_1771604354512_aiclab1_1:24" id="e:doc_sent:tmp_1771604354512_aiclab1_1:24">
+  <data key="d26">HAS_SENTENCE</data>
+  <data key="d27">tmp_1771604354512_aiclab1_1</data>
+  <data key="d28">24</data>
+</edge>
+<edge source="doc:tmp_1771604354512_aiclab1_1" target="sent:tmp_1771604354512_aiclab1_1:26" id="e:doc_sent:tmp_1771604354512_aiclab1_1:26">
+  <data key="d26">HAS_SENTENCE</data>
+  <data key="d27">tmp_1771604354512_aiclab1_1</data>
+  <data key="d28">26</data>
+</edge>
+<edge source="doc:tmp_1771604354512_aiclab1_1" target="sent:tmp_1771604354512_aiclab1_1:27" id="e:doc_sent:tmp_1771604354512_aiclab1_1:27">
+  <data key="d26">HAS_SENTENCE</data>
+  <data key="d27">tmp_1771604354512_aiclab1_1</data>
+  <data key="d28">27</data>
+</edge>
+<edge source="doc:tmp_1771604354512_aiclab1_1" target="sent:tmp_1771604354512_aiclab1_1:28" id="e:doc_sent:tmp_1771604354512_aiclab1_1:28">
+  <data key="d26">HAS_SENTENCE</data>
+  <data key="d27">tmp_1771604354512_aiclab1_1</data>
+  <data key="d28">28</data>
+</edge>
+<edge source="doc:tmp_1771604354512_aiclab1_1" target="sent:tmp_1771604354512_aiclab1_1:29" id="e:doc_sent:tmp_1771604354512_aiclab1_1:29">
+  <data key="d26">HAS_SENTENCE</data>
+  <data key="d27">tmp_1771604354512_aiclab1_1</data>
+  <data key="d28">29</data>
+</edge>
+<edge source="doc:tmp_1771604354512_aiclab1_1" target="sent:tmp_1771604354512_aiclab1_1:30" id="e:doc_sent:tmp_1771604354512_aiclab1_1:30">
+  <data key="d26">HAS_SENTENCE</data>
+  <data key="d27">tmp_1771604354512_aiclab1_1</data>
+  <data key="d28">30</data>
+</edge>
+<edge source="doc:tmp_1771604354512_aiclab1_1" target="sent:tmp_1771604354512_aiclab1_1:31" id="e:doc_sent:tmp_1771604354512_aiclab1_1:31">
+  <data key="d26">HAS_SENTENCE</data>
+  <data key="d27">tmp_1771604354512_aiclab1_1</data>
+  <data key="d28">31</data>
+</edge>
+<edge source="doc:tmp_1771604354512_aiclab1_1" target="sent:tmp_1771604354512_aiclab1_1:32" id="e:doc_sent:tmp_1771604354512_aiclab1_1:32">
+  <data key="d26">HAS_SENTENCE</data>
+  <data key="d27">tmp_1771604354512_aiclab1_1</data>
+  <data key="d28">32</data>
+</edge>
+<edge source="doc:tmp_1771604354512_aiclab1_1" target="sent:tmp_1771604354512_aiclab1_1:33" id="e:doc_sent:tmp_1771604354512_aiclab1_1:33">
+  <data key="d26">HAS_SENTENCE</data>
+  <data key="d27">tmp_1771604354512_aiclab1_1</data>
+  <data key="d28">33</data>
+</edge>
+<edge source="doc:tmp_1771604354512_aiclab1_1" target="sent:tmp_1771604354512_aiclab1_1:34" id="e:doc_sent:tmp_1771604354512_aiclab1_1:34">
+  <data key="d26">HAS_SENTENCE</data>
+  <data key="d27">tmp_1771604354512_aiclab1_1</data>
+  <data key="d28">34</data>
+</edge>
+<edge source="doc:tmp_1771604354512_aiclab1_1" target="sent:tmp_1771604354512_aiclab1_1:35" id="e:doc_sent:tmp_1771604354512_aiclab1_1:35">
+  <data key="d26">HAS_SENTENCE</data>
+  <data key="d27">tmp_1771604354512_aiclab1_1</data>
+  <data key="d28">35</data>
+</edge>
+<edge source="doc:tmp_1771604354512_aiclab1_1" target="sent:tmp_1771604354512_aiclab1_1:36" id="e:doc_sent:tmp_1771604354512_aiclab1_1:36">
+  <data key="d26">HAS_SENTENCE</data>
+  <data key="d27">tmp_1771604354512_aiclab1_1</data>
+  <data key="d28">36</data>
+</edge>
+<edge source="doc:tmp_1771604354512_aiclab1_1" target="sent:tmp_1771604354512_aiclab1_1:38" id="e:doc_sent:tmp_1771604354512_aiclab1_1:38">
+  <data key="d26">HAS_SENTENCE</data>
+  <data key="d27">tmp_1771604354512_aiclab1_1</data>
+  <data key="d28">38</data>
+</edge>
+<edge source="doc:tmp_1771604354512_aiclab1_1" target="sent:tmp_1771604354512_aiclab1_1:39" id="e:doc_sent:tmp_1771604354512_aiclab1_1:39">
+  <data key="d26">HAS_SENTENCE</data>
+  <data key="d27">tmp_1771604354512_aiclab1_1</data>
+  <data key="d28">39</data>
+</edge>
+<edge source="doc:tmp_1771604354512_aiclab1_1" target="sent:tmp_1771604354512_aiclab1_1:40" id="e:doc_sent:tmp_1771604354512_aiclab1_1:40">
+  <data key="d26">HAS_SENTENCE</data>
+  <data key="d27">tmp_1771604354512_aiclab1_1</data>
+  <data key="d28">40</data>
+</edge>
+<edge source="doc:tmp_1771604354512_aiclab1_1" target="sent:tmp_1771604354512_aiclab1_1:41" id="e:doc_sent:tmp_1771604354512_aiclab1_1:41">
+  <data key="d26">HAS_SENTENCE</data>
+  <data key="d27">tmp_1771604354512_aiclab1_1</data>
+  <data key="d28">41</data>
+</edge>
+<edge source="doc:tmp_1771604354512_aiclab1_1" target="sent:tmp_1771604354512_aiclab1_1:43" id="e:doc_sent:tmp_1771604354512_aiclab1_1:43">
+  <data key="d26">HAS_SENTENCE</data>
+  <data key="d27">tmp_1771604354512_aiclab1_1</data>
+  <data key="d28">43</data>
+</edge>
+<edge source="doc:tmp_1771604354512_aiclab1_1" target="sent:tmp_1771604354512_aiclab1_1:44" id="e:doc_sent:tmp_1771604354512_aiclab1_1:44">
+  <data key="d26">HAS_SENTENCE</data>
+  <data key="d27">tmp_1771604354512_aiclab1_1</data>
+  <data key="d28">44</data>
+</edge>
+<edge source="doc:tmp_1771604354512_aiclab1_1" target="sent:tmp_1771604354512_aiclab1_1:45" id="e:doc_sent:tmp_1771604354512_aiclab1_1:45">
+  <data key="d26">HAS_SENTENCE</data>
+  <data key="d27">tmp_1771604354512_aiclab1_1</data>
+  <data key="d28">45</data>
+</edge>
+<edge source="doc:tmp_1771604354512_aiclab1_1" target="sent:tmp_1771604354512_aiclab1_1:46" id="e:doc_sent:tmp_1771604354512_aiclab1_1:46">
+  <data key="d26">HAS_SENTENCE</data>
+  <data key="d27">tmp_1771604354512_aiclab1_1</data>
+  <data key="d28">46</data>
+</edge>
+<edge source="doc:tmp_1771604354512_aiclab1_1" target="sent:tmp_1771604354512_aiclab1_1:47" id="e:doc_sent:tmp_1771604354512_aiclab1_1:47">
+  <data key="d26">HAS_SENTENCE</data>
+  <data key="d27">tmp_1771604354512_aiclab1_1</data>
+  <data key="d28">47</data>
+</edge>
+<edge source="doc:tmp_1771604354512_aiclab1_1" target="sent:tmp_1771604354512_aiclab1_1:48" id="e:doc_sent:tmp_1771604354512_aiclab1_1:48">
+  <data key="d26">HAS_SENTENCE</data>
+  <data key="d27">tmp_1771604354512_aiclab1_1</data>
+  <data key="d28">48</data>
+</edge>
+<edge source="doc:tmp_1771604354512_aiclab1_1" target="sent:tmp_1771604354512_aiclab1_1:49" id="e:doc_sent:tmp_1771604354512_aiclab1_1:49">
+  <data key="d26">HAS_SENTENCE</data>
+  <data key="d27">tmp_1771604354512_aiclab1_1</data>
+  <data key="d28">49</data>
+</edge>
+<edge source="doc:tmp_1771604354512_aiclab1_1" target="sent:tmp_1771604354512_aiclab1_1:50" id="e:doc_sent:tmp_1771604354512_aiclab1_1:50">
+  <data key="d26">HAS_SENTENCE</data>
+  <data key="d27">tmp_1771604354512_aiclab1_1</data>
+  <data key="d28">50</data>
+</edge>
+<edge source="doc:tmp_1771604354512_aiclab1_1" target="sent:tmp_1771604354512_aiclab1_1:52" id="e:doc_sent:tmp_1771604354512_aiclab1_1:52">
+  <data key="d26">HAS_SENTENCE</data>
+  <data key="d27">tmp_1771604354512_aiclab1_1</data>
+  <data key="d28">52</data>
+</edge>
+<edge source="doc:tmp_1771604354512_aiclab1_1" target="sent:tmp_1771604354512_aiclab1_1:53" id="e:doc_sent:tmp_1771604354512_aiclab1_1:53">
+  <data key="d26">HAS_SENTENCE</data>
+  <data key="d27">tmp_1771604354512_aiclab1_1</data>
+  <data key="d28">53</data>
+</edge>
+<edge source="doc:tmp_1771604354512_aiclab1_1" target="sent:tmp_1771604354512_aiclab1_1:54" id="e:doc_sent:tmp_1771604354512_aiclab1_1:54">
+  <data key="d26">HAS_SENTENCE</data>
+  <data key="d27">tmp_1771604354512_aiclab1_1</data>
+  <data key="d28">54</data>
+</edge>
+<edge source="doc:tmp_1771604354512_aiclab1_1" target="sent:tmp_1771604354512_aiclab1_1:55" id="e:doc_sent:tmp_1771604354512_aiclab1_1:55">
+  <data key="d26">HAS_SENTENCE</data>
+  <data key="d27">tmp_1771604354512_aiclab1_1</data>
+  <data key="d28">55</data>
+</edge>
+<edge source="doc:tmp_1771604354512_aiclab1_1" target="sent:tmp_1771604354512_aiclab1_1:56" id="e:doc_sent:tmp_1771604354512_aiclab1_1:56">
+  <data key="d26">HAS_SENTENCE</data>
+  <data key="d27">tmp_1771604354512_aiclab1_1</data>
+  <data key="d28">56</data>
+</edge>
+<edge source="doc:tmp_1771604354512_aiclab1_1" target="sent:tmp_1771604354512_aiclab1_1:57" id="e:doc_sent:tmp_1771604354512_aiclab1_1:57">
+  <data key="d26">HAS_SENTENCE</data>
+  <data key="d27">tmp_1771604354512_aiclab1_1</data>
+  <data key="d28">57</data>
+</edge>
+<edge source="doc:tmp_1771604354512_aiclab1_1" target="sent:tmp_1771604354512_aiclab1_1:58" id="e:doc_sent:tmp_1771604354512_aiclab1_1:58">
+  <data key="d26">HAS_SENTENCE</data>
+  <data key="d27">tmp_1771604354512_aiclab1_1</data>
+  <data key="d28">58</data>
+</edge>
+<edge source="doc:tmp_1771604354512_aiclab1_1" target="art:1" id="e:contains:424ec0fa7cb9f6a8">
+  <data key="d26">CONTAINS</data>
+  <data key="d27">tmp_1771604354512_aiclab1_1</data>
+  <data key="d29">structure</data>
+</edge>
+<edge source="doc:tmp_1771604354512_aiclab1_1" target="art:2" id="e:contains:5ba7b2b25c2f925e">
+  <data key="d26">CONTAINS</data>
+  <data key="d27">tmp_1771604354512_aiclab1_1</data>
+  <data key="d29">structure</data>
+</edge>
+<edge source="doc:tmp_1771604354512_aiclab1_1" target="art:3" id="e:contains:3c35032306a52830">
+  <data key="d26">CONTAINS</data>
+  <data key="d27">tmp_1771604354512_aiclab1_1</data>
+  <data key="d29">structure</data>
+</edge>
+<edge source="doc:tmp_1771604354512_aiclab1_1" target="art:4" id="e:contains:979728626abc9593">
+  <data key="d26">CONTAINS</data>
+  <data key="d27">tmp_1771604354512_aiclab1_1</data>
+  <data key="d29">structure</data>
+</edge>
+<edge source="doc:tmp_1771604354512_aiclab1_1" target="art:5" id="e:contains:870110a3f39ae5f3">
+  <data key="d26">CONTAINS</data>
+  <data key="d27">tmp_1771604354512_aiclab1_1</data>
+  <data key="d29">structure</data>
+</edge>
+<edge source="doc:tmp_1771604354512_aiclab1_1" target="art:6" id="e:contains:454e845f6e460506">
+  <data key="d26">CONTAINS</data>
+  <data key="d27">tmp_1771604354512_aiclab1_1</data>
+  <data key="d29">structure</data>
+</edge>
+<edge source="doc:tmp_1771604354512_aiclab1_1" target="art:7" id="e:contains:ba6e4cbd5be8e230">
+  <data key="d26">CONTAINS</data>
+  <data key="d27">tmp_1771604354512_aiclab1_1</data>
+  <data key="d29">structure</data>
+</edge>
+<edge source="doc:tmp_1771604354512_aiclab1_1" target="art:8" id="e:contains:edacaf9fceffcefd">
+  <data key="d26">CONTAINS</data>
+  <data key="d27">tmp_1771604354512_aiclab1_1</data>
+  <data key="d29">structure</data>
+</edge>
+<edge source="doc:tmp_1771604354512_aiclab1_1" target="art:9" id="e:contains:99eaa8572222c7dd">
+  <data key="d26">CONTAINS</data>
+  <data key="d27">tmp_1771604354512_aiclab1_1</data>
+  <data key="d29">structure</data>
+</edge>
+<edge source="ent:experiment_1_rc_coupled_common_emitter_amplifier" target="sent:tmp_1771604354512_aiclab1_1:0" id="e:0">
+  <data key="d26">MENTION_IN</data>
+  <data key="d30">EXPERIMENT 1: RC COUPLED COMMON EMITTER AMPLIFIER</data>
+  <data key="d27">tmp_1771604354512_aiclab1_1</data>
+  <data key="d31">6</data>
+  <data key="d32">55</data>
+</edge>
+<edge source="ent:experiment_1_rc_coupled_common_emitter_amplifier" target="sent:tmp_1771604354512_aiclab1_1:0" id="e:1">
+  <data key="d26">MENTION_IN</data>
+  <data key="d30">EXPERIMENT 1: RC COUPLED COMMON EMITTER AMPLIFIER USING
+BC547</data>
+  <data key="d27">tmp_1771604354512_aiclab1_1</data>
+  <data key="d31">6</data>
+  <data key="d32">67</data>
+</edge>
+<edge source="ent:experiment_1_rc_coupled_common_emitter_amplifier" target="ent:voltage_gain_av" id="e:98">
+  <data key="d26">CO_OCCURS_WITH</data>
+  <data key="d33">1</data>
+  <data key="d34">0.14285714285714285</data>
+  <data key="d35">["sent:tmp_1771604354512_aiclab1_1:0"]</data>
+</edge>
+<edge source="ent:experiment_1_rc_coupled_common_emitter_amplifier" target="ent:frequency_response" id="e:101">
+  <data key="d26">CO_OCCURS_WITH</data>
+  <data key="d33">1</data>
+  <data key="d34">0.14285714285714285</data>
+  <data key="d35">["sent:tmp_1771604354512_aiclab1_1:0"]</data>
+</edge>
+<edge source="ent:experiment_1_rc_coupled_common_emitter_amplifier" target="ent:sine_wave_input_signal" id="e:102">
+  <data key="d26">CO_OCCURS_WITH</data>
+  <data key="d33">1</data>
+  <data key="d34">0.14285714285714285</data>
+  <data key="d35">["sent:tmp_1771604354512_aiclab1_1:0"]</data>
+</edge>
+<edge source="ent:experiment_1_rc_coupled_common_emitter_amplifier" target="ent:input_impedance_rin" id="e:103">
+  <data key="d26">CO_OCCURS_WITH</data>
+  <data key="d33">1</data>
+  <data key="d34">0.14285714285714285</data>
+  <data key="d35">["sent:tmp_1771604354512_aiclab1_1:0"]</data>
+</edge>
+<edge source="ent:experiment_1_rc_coupled_common_emitter_amplifier" target="comm_l0:2" id="e:comm_member:346">
+  <data key="d26">MEMBER_OF</data>
+  <data key="d36">0</data>
+  <data key="d37">2</data>
+  <data key="d38">0.004220659015179563</data>
+  <data key="d39">True</data>
+</edge>
+<edge source="ent:bc547_transistor" target="sent:tmp_1771604354512_aiclab1_1:0" id="e:2">
+  <data key="d26">MENTION_IN</data>
+  <data key="d30">BC547 transistor</data>
+  <data key="d27">tmp_1771604354512_aiclab1_1</data>
+  <data key="d31">153</data>
+  <data key="d32">169</data>
+</edge>
+<edge source="ent:bc547_transistor" target="ent:experiment_1_rc_coupled_common_emitter_amplifier" id="e:99">
+  <data key="d26">CO_OCCURS_WITH</data>
+  <data key="d33">1</data>
+  <data key="d34">0.14285714285714285</data>
+  <data key="d35">["sent:tmp_1771604354512_aiclab1_1:0"]</data>
+</edge>
+<edge source="ent:bc547_transistor" target="ent:voltage_gain_av" id="e:110">
+  <data key="d26">CO_OCCURS_WITH</data>
+  <data key="d33">1</data>
+  <data key="d34">0.14285714285714285</data>
+  <data key="d35">["sent:tmp_1771604354512_aiclab1_1:0"]</data>
+</edge>
+<edge source="ent:bc547_transistor" target="ent:common_emitter_amplifier" id="e:115">
+  <data key="d26">CO_OCCURS_WITH</data>
+  <data key="d33">1</data>
+  <data key="d34">0.14285714285714285</data>
+  <data key="d35">["sent:tmp_1771604354512_aiclab1_1:0"]</data>
+</edge>
+<edge source="ent:bc547_transistor" target="ent:frequency_response" id="e:116">
+  <data key="d26">CO_OCCURS_WITH</data>
+  <data key="d33">1</data>
+  <data key="d34">0.14285714285714285</data>
+  <data key="d35">["sent:tmp_1771604354512_aiclab1_1:0"]</data>
+</edge>
+<edge source="ent:bc547_transistor" target="ent:sine_wave_input_signal" id="e:117">
+  <data key="d26">CO_OCCURS_WITH</data>
+  <data key="d33">1</data>
+  <data key="d34">0.14285714285714285</data>
+  <data key="d35">["sent:tmp_1771604354512_aiclab1_1:0"]</data>
+</edge>
+<edge source="ent:bc547_transistor" target="ent:input_impedance_rin" id="e:118">
+  <data key="d26">CO_OCCURS_WITH</data>
+  <data key="d33">1</data>
+  <data key="d34">0.14285714285714285</data>
+  <data key="d35">["sent:tmp_1771604354512_aiclab1_1:0"]</data>
+</edge>
+<edge source="ent:bc547_transistor" target="comm_l0:2" id="e:comm_member:347">
+  <data key="d26">MEMBER_OF</data>
+  <data key="d36">0</data>
+  <data key="d37">2</data>
+  <data key="d38">0.009774157719363201</data>
+  <data key="d39">True</data>
+</edge>
+<edge source="ent:voltage_gain_av" target="sent:tmp_1771604354512_aiclab1_1:0" id="e:3">
+  <data key="d26">MENTION_IN</data>
+  <data key="d30">voltage gain</data>
+  <data key="d27">tmp_1771604354512_aiclab1_1</data>
+  <data key="d31">191</data>
+  <data key="d32">203</data>
+</edge>
+<edge source="ent:voltage_gain_av" target="sent:tmp_1771604354512_aiclab1_1:12" id="e:4">
+  <data key="d26">MENTION_IN</data>
+  <data key="d30">voltage gain</data>
+  <data key="d27">tmp_1771604354512_aiclab1_1</data>
+  <data key="d31">947</data>
+  <data key="d32">959</data>
+</edge>
+<edge source="ent:voltage_gain_av" target="sent:tmp_1771604354512_aiclab1_1:38" id="e:5">
+  <data key="d26">MENTION_IN</data>
+  <data key="d30">Voltage gain</data>
+  <data key="d27">tmp_1771604354512_aiclab1_1</data>
+  <data key="d31">3291</data>
+  <data key="d32">3303</data>
+</edge>
+<edge source="ent:voltage_gain_av" target="sent:tmp_1771604354512_aiclab1_1:53" id="e:6">
+  <data key="d26">MENTION_IN</data>
+  <data key="d30">voltage gain</data>
+  <data key="d27">tmp_1771604354512_aiclab1_1</data>
+  <data key="d31">4789</data>
+  <data key="d32">4801</data>
+</edge>
+<edge source="ent:voltage_gain_av" target="ent:voltage_gain_calculation_formula" id="e:rel:d0b36feb9ff3ec2b">
+  <data key="d26">DEFINES</data>
+  <data key="d40">1</data>
+  <data key="d41">sent:tmp_1771604354512_aiclab1_1:0</data>
+  <data key="d42">Voltage gain is calculated using: Av = Vout / Vin</data>
+  <data key="d29">oneshot</data>
+</edge>
+<edge source="ent:voltage_gain_av" target="comm_l0:2" id="e:comm_member:348">
+  <data key="d26">MEMBER_OF</data>
+  <data key="d36">0</data>
+  <data key="d37">2</data>
+  <data key="d38">0.00962606442058497</data>
+  <data key="d39">True</data>
+</edge>
+<edge source="ent:input_impedance_rin" target="sent:tmp_1771604354512_aiclab1_1:0" id="e:7">
+  <data key="d26">MENTION_IN</data>
+  <data key="d30">input impedance = 2 kΩ</data>
+  <data key="d27">tmp_1771604354512_aiclab1_1</data>
+  <data key="d31">205</data>
+  <data key="d32">227</data>
+</edge>
+<edge source="ent:input_impedance_rin" target="ent:voltage_gain_av" id="e:114">
+  <data key="d26">CO_OCCURS_WITH</data>
+  <data key="d33">1</data>
+  <data key="d34">0.14285714285714285</data>
+  <data key="d35">["sent:tmp_1771604354512_aiclab1_1:0"]</data>
+</edge>
+<edge source="ent:input_impedance_rin" target="ent:sine_wave_input_signal" id="e:124">
+  <data key="d26">CO_OCCURS_WITH</data>
+  <data key="d33">1</data>
+  <data key="d34">0.14285714285714285</data>
+  <data key="d35">["sent:tmp_1771604354512_aiclab1_1:0"]</data>
+</edge>
+<edge source="ent:input_impedance_rin" target="comm_l0:2" id="e:comm_member:349">
+  <data key="d26">MEMBER_OF</data>
+  <data key="d36">0</data>
+  <data key="d37">2</data>
+  <data key="d38">0.004220659015179563</data>
+  <data key="d39">True</data>
+</edge>
+<edge source="ent:frequency_response" target="sent:tmp_1771604354512_aiclab1_1:0" id="e:8">
+  <data key="d26">MENTION_IN</data>
+  <data key="d30">frequency response</data>
+  <data key="d27">tmp_1771604354512_aiclab1_1</data>
+  <data key="d31">229</data>
+  <data key="d32">247</data>
+</edge>
+<edge source="ent:frequency_response" target="ent:voltage_gain_av" id="e:112">
+  <data key="d26">CO_OCCURS_WITH</data>
+  <data key="d33">1</data>
+  <data key="d34">0.14285714285714285</data>
+  <data key="d35">["sent:tmp_1771604354512_aiclab1_1:0"]</data>
+</edge>
+<edge source="ent:frequency_response" target="ent:sine_wave_input_signal" id="e:122">
+  <data key="d26">CO_OCCURS_WITH</data>
+  <data key="d33">1</data>
+  <data key="d34">0.14285714285714285</data>
+  <data key="d35">["sent:tmp_1771604354512_aiclab1_1:0"]</data>
+</edge>
+<edge source="ent:frequency_response" target="ent:input_impedance_rin" id="e:123">
+  <data key="d26">CO_OCCURS_WITH</data>
+  <data key="d33">1</data>
+  <data key="d34">0.14285714285714285</data>
+  <data key="d35">["sent:tmp_1771604354512_aiclab1_1:0"]</data>
+</edge>
+<edge source="ent:frequency_response" target="comm_l0:2" id="e:comm_member:350">
+  <data key="d26">MEMBER_OF</data>
+  <data key="d36">0</data>
+  <data key="d37">2</data>
+</edge>
+<edge source="ent:bandwidth" target="sent:tmp_1771604354512_aiclab1_1:0" id="e:9">
+  <data key="d26">MENTION_IN</data>
+  <data key="d30">bandwidth</data>
+  <data key="d27">tmp_1771604354512_aiclab1_1</data>
+  <data key="d31">253</data>
+  <data key="d32">262</data>
+</edge>
+<edge source="ent:bandwidth" target="sent:tmp_1771604354512_aiclab1_1:47" id="e:10">
+  <data key="d26">MENTION_IN</data>
+  <data key="d30">Bandwidth</data>
+  <data key="d27">tmp_1771604354512_aiclab1_1</data>
+  <data key="d31">4050</data>
+  <data key="d32">4059</data>
+</edge>
+<edge source="ent:bandwidth" target="ent:experiment_1_rc_coupled_common_emitter_amplifier" id="e:97">
+  <data key="d26">CO_OCCURS_WITH</data>
+  <data key="d33">1</data>
+  <data key="d34">0.14285714285714285</data>
+  <data key="d35">["sent:tmp_1771604354512_aiclab1_1:0"]</data>
+</edge>
+<edge source="ent:bandwidth" target="ent:voltage_gain_av" id="e:104">
+  <data key="d26">CO_OCCURS_WITH</data>
+  <data key="d33">1</data>
+  <data key="d34">0.14285714285714285</data>
+  <data key="d35">["sent:tmp_1771604354512_aiclab1_1:0"]</data>
+</edge>
+<edge source="ent:bandwidth" target="ent:bc547_transistor" id="e:105">
+  <data key="d26">CO_OCCURS_WITH</data>
+  <data key="d33">1</data>
+  <data key="d34">0.14285714285714285</data>
+  <data key="d35">["sent:tmp_1771604354512_aiclab1_1:0"]</data>
+</edge>
+<edge source="ent:bandwidth" target="ent:common_emitter_amplifier" id="e:106">
+  <data key="d26">CO_OCCURS_WITH</data>
+  <data key="d33">2</data>
+  <data key="d34">1.1428571428571428</data>
+  <data key="d35">["sent:tmp_1771604354512_aiclab1_1:0", "sent:tmp_1771604354512_aiclab1_1:47"]</data>
+</edge>
+<edge source="ent:bandwidth" target="ent:frequency_response" id="e:107">
+  <data key="d26">CO_OCCURS_WITH</data>
+  <data key="d33">1</data>
+  <data key="d34">0.14285714285714285</data>
+  <data key="d35">["sent:tmp_1771604354512_aiclab1_1:0"]</data>
+</edge>
+<edge source="ent:bandwidth" target="ent:sine_wave_input_signal" id="e:108">
+  <data key="d26">CO_OCCURS_WITH</data>
+  <data key="d33">1</data>
+  <data key="d34">0.14285714285714285</data>
+  <data key="d35">["sent:tmp_1771604354512_aiclab1_1:0"]</data>
+</edge>
+<edge source="ent:bandwidth" target="ent:input_impedance_rin" id="e:109">
+  <data key="d26">CO_OCCURS_WITH</data>
+  <data key="d33">1</data>
+  <data key="d34">0.14285714285714285</data>
+  <data key="d35">["sent:tmp_1771604354512_aiclab1_1:0"]</data>
+</edge>
+<edge source="ent:bandwidth" target="comm_l0:2" id="e:comm_member:351">
+  <data key="d26">MEMBER_OF</data>
+  <data key="d36">0</data>
+  <data key="d37">2</data>
+</edge>
+<edge source="ent:sine_wave_input_signal" target="sent:tmp_1771604354512_aiclab1_1:0" id="e:11">
+  <data key="d26">MENTION_IN</data>
+  <data key="d30">sine wave input signal</data>
+  <data key="d27">tmp_1771604354512_aiclab1_1</data>
+  <data key="d31">271</data>
+  <data key="d32">293</data>
+</edge>
+<edge source="ent:sine_wave_input_signal" target="ent:voltage_gain_av" id="e:113">
+  <data key="d26">CO_OCCURS_WITH</data>
+  <data key="d33">1</data>
+  <data key="d34">0.14285714285714285</data>
+  <data key="d35">["sent:tmp_1771604354512_aiclab1_1:0"]</data>
+</edge>
+<edge source="ent:sine_wave_input_signal" target="comm_l0:2" id="e:comm_member:352">
+  <data key="d26">MEMBER_OF</data>
+  <data key="d36">0</data>
+  <data key="d37">2</data>
+</edge>
+<edge source="ent:regulated_dc_power_supply" target="sent:tmp_1771604354512_aiclab1_1:2" id="e:12">
+  <data key="d26">MENTION_IN</data>
+  <data key="d30">Regulated DC power supply</data>
+  <data key="d27">tmp_1771604354512_aiclab1_1</data>
+  <data key="d31">319</data>
+  <data key="d32">344</data>
+</edge>
+<edge source="ent:regulated_dc_power_supply" target="comm_l0:1" id="e:comm_member:359">
+  <data key="d26">MEMBER_OF</data>
+  <data key="d36">0</data>
+  <data key="d37">1</data>
+</edge>
+<edge source="ent:function_generator" target="sent:tmp_1771604354512_aiclab1_1:3" id="e:13">
+  <data key="d26">MENTION_IN</data>
+  <data key="d30">Functiongenerator</data>
+  <data key="d27">tmp_1771604354512_aiclab1_1</data>
+  <data key="d31">348</data>
+  <data key="d32">365</data>
+</edge>
+<edge source="ent:function_generator" target="sent:tmp_1771604354512_aiclab1_1:28" id="e:14">
+  <data key="d26">MENTION_IN</data>
+  <data key="d30">function generator</data>
+  <data key="d27">tmp_1771604354512_aiclab1_1</data>
+  <data key="d31">2063</data>
+  <data key="d32">2081</data>
+</edge>
+<edge source="ent:function_generator" target="ent:multimeter" id="e:132">
+  <data key="d26">CO_OCCURS_WITH</data>
+  <data key="d33">1</data>
+  <data key="d34">0.16666666666666666</data>
+  <data key="d35">["sent:tmp_1771604354512_aiclab1_1:3"]</data>
+</edge>
+<edge source="ent:function_generator" target="ent:procedure_step_3_connect_function_generator" id="e:150">
+  <data key="d26">CO_OCCURS_WITH</data>
+  <data key="d33">1</data>
+  <data key="d34">0.5</data>
+  <data key="d35">["sent:tmp_1771604354512_aiclab1_1:28"]</data>
+</edge>
+<edge source="ent:function_generator" target="comm_l0:1" id="e:comm_member:360">
+  <data key="d26">MEMBER_OF</data>
+  <data key="d36">0</data>
+  <data key="d37">1</data>
+  <data key="d38">0.005923731951129212</data>
+  <data key="d39">True</data>
+</edge>
+<edge source="ent:cro_dso" target="sent:tmp_1771604354512_aiclab1_1:3" id="e:15">
+  <data key="d26">MENTION_IN</data>
+  <data key="d30">CRO / DSO</data>
+  <data key="d27">tmp_1771604354512_aiclab1_1</data>
+  <data key="d31">369</data>
+  <data key="d32">378</data>
+</edge>
+<edge source="ent:cro_dso" target="ent:function_generator" id="e:131">
+  <data key="d26">CO_OCCURS_WITH</data>
+  <data key="d33">1</data>
+  <data key="d34">0.16666666666666666</data>
+  <data key="d35">["sent:tmp_1771604354512_aiclab1_1:3"]</data>
+</edge>
+<edge source="ent:cro_dso" target="ent:multimeter" id="e:144">
+  <data key="d26">CO_OCCURS_WITH</data>
+  <data key="d33">1</data>
+  <data key="d34">0.16666666666666666</data>
+  <data key="d35">["sent:tmp_1771604354512_aiclab1_1:3"]</data>
+</edge>
+<edge source="ent:cro_dso" target="comm_l0:1" id="e:comm_member:361">
+  <data key="d26">MEMBER_OF</data>
+  <data key="d36">0</data>
+  <data key="d37">1</data>
+</edge>
+<edge source="ent:multimeter" target="sent:tmp_1771604354512_aiclab1_1:3" id="e:16">
+  <data key="d26">MENTION_IN</data>
+  <data key="d30">multimeter</data>
+  <data key="d27">tmp_1771604354512_aiclab1_1</data>
+  <data key="d31">382</data>
+  <data key="d32">392</data>
+</edge>
+<edge source="ent:multimeter" target="comm_l0:1" id="e:comm_member:362">
+  <data key="d26">MEMBER_OF</data>
+  <data key="d36">0</data>
+  <data key="d37">1</data>
+</edge>
+<edge source="ent:breadboard" target="sent:tmp_1771604354512_aiclab1_1:26" id="e:17">
+  <data key="d26">MENTION_IN</data>
+  <data key="d30">breadboard</data>
+  <data key="d27">tmp_1771604354512_aiclab1_1</data>
+  <data key="d31">1956</data>
+  <data key="d32">1966</data>
+</edge>
+<edge source="ent:breadboard" target="ent:procedure_step_1_assemble_circuit" id="e:155">
+  <data key="d26">CO_OCCURS_WITH</data>
+  <data key="d33">1</data>
+  <data key="d34">0.3333333333333333</data>
+  <data key="d35">["sent:tmp_1771604354512_aiclab1_1:26"]</data>
+</edge>
+<edge source="ent:breadboard" target="ent:common_emitter_amplifier" id="e:157">
+  <data key="d26">CO_OCCURS_WITH</data>
+  <data key="d33">1</data>
+  <data key="d34">0.3333333333333333</data>
+  <data key="d35">["sent:tmp_1771604354512_aiclab1_1:26"]</data>
+</edge>
+<edge source="ent:breadboard" target="comm_l0:1" id="e:comm_member:363">
+  <data key="d26">MEMBER_OF</data>
+  <data key="d36">0</data>
+  <data key="d37">1</data>
+</edge>
+<edge source="ent:rc_coupled_amplifier" target="sent:tmp_1771604354512_aiclab1_1:7" id="e:18">
+  <data key="d26">MENTION_IN</data>
+  <data key="d30">RC coupled amplifier</data>
+  <data key="d27">tmp_1771604354512_aiclab1_1</data>
+  <data key="d31">488</data>
+  <data key="d32">508</data>
+</edge>
+<edge source="ent:rc_coupled_amplifier" target="sent:tmp_1771604354512_aiclab1_1:21" id="e:19">
+  <data key="d26">MENTION_IN</data>
+  <data key="d30">RC coupled amplifier</data>
+  <data key="d27">tmp_1771604354512_aiclab1_1</data>
+  <data key="d31">1592</data>
+  <data key="d32">1612</data>
+</edge>
+<edge source="ent:rc_coupled_amplifier" target="ent:voltage_amplifier" id="e:rel:0e1cd82445093e6a">
+  <data key="d26">DEFINES</data>
+  <data key="d43">0.95</data>
+  <data key="d41">sent:tmp_1771604354512_aiclab1_1:0</data>
+  <data key="d42">An RC coupled amplifier is a voltage amplifier in which resistors and capacitors are used to couple the AC signal from input to output while blocking DC components.</data>
+  <data key="d29">oneshot</data>
+</edge>
+<edge source="ent:rc_coupled_amplifier" target="comm_l0:5" id="e:comm_member:374">
+  <data key="d26">MEMBER_OF</data>
+  <data key="d36">0</data>
+  <data key="d37">5</data>
+</edge>
+<edge source="ent:coupling_capacitors" target="sent:tmp_1771604354512_aiclab1_1:8" id="e:20">
+  <data key="d26">MENTION_IN</data>
+  <data key="d30">coupling capacitors</data>
+  <data key="d27">tmp_1771604354512_aiclab1_1</data>
+  <data key="d31">654</data>
+  <data key="d32">673</data>
+</edge>
+<edge source="ent:coupling_capacitors" target="ent:block_dc_components" id="e:rel:52f8fdfe963df903">
+  <data key="d26">OBLIGATES</data>
+  <data key="d40">1</data>
+  <data key="d41">sent:tmp_1771604354512_aiclab1_1:0</data>
+  <data key="d42">The coupling capacitors prevent DC from one stage affecting the biasing of another stage.</data>
+  <data key="d29">oneshot</data>
+</edge>
+<edge source="ent:common_emitter_amplifier" target="sent:tmp_1771604354512_aiclab1_1:0" id="e:21">
+  <data key="d26">MENTION_IN</data>
+  <data key="d30">COMMON EMITTER AMPLIFIER</data>
+  <data key="d27">tmp_1771604354512_aiclab1_1</data>
+  <data key="d31">31</data>
+  <data key="d32">55</data>
+</edge>
+<edge source="ent:common_emitter_amplifier" target="sent:tmp_1771604354512_aiclab1_1:0" id="e:22">
+  <data key="d26">MENTION_IN</data>
+  <data key="d30">common emitter amplifier</data>
+  <data key="d27">tmp_1771604354512_aiclab1_1</data>
+  <data key="d31">120</data>
+  <data key="d32">144</data>
+</edge>
+<edge source="ent:common_emitter_amplifier" target="sent:tmp_1771604354512_aiclab1_1:10" id="e:23">
+  <data key="d26">MENTION_IN</data>
+  <data key="d30">common emitter amplifier</data>
+  <data key="d27">tmp_1771604354512_aiclab1_1</data>
+  <data key="d31">747</data>
+  <data key="d32">771</data>
+</edge>
+<edge source="ent:common_emitter_amplifier" target="sent:tmp_1771604354512_aiclab1_1:26" id="e:24">
+  <data key="d26">MENTION_IN</data>
+  <data key="d30">common emitter amplifier</data>
+  <data key="d27">tmp_1771604354512_aiclab1_1</data>
+  <data key="d31">1918</data>
+  <data key="d32">1942</data>
+</edge>
+<edge source="ent:common_emitter_amplifier" target="sent:tmp_1771604354512_aiclab1_1:47" id="e:25">
+  <data key="d26">MENTION_IN</data>
+  <data key="d30">common emitter amplifier</data>
+  <data key="d27">tmp_1771604354512_aiclab1_1</data>
+  <data key="d31">4096</data>
+  <data key="d32">4120</data>
+</edge>
+<edge source="ent:common_emitter_amplifier" target="sent:tmp_1771604354512_aiclab1_1:53" id="e:26">
+  <data key="d26">MENTION_IN</data>
+  <data key="d30">common emitter amplifier</data>
+  <data key="d27">tmp_1771604354512_aiclab1_1</data>
+  <data key="d31">4720</data>
+  <data key="d32">4744</data>
+</edge>
+<edge source="ent:common_emitter_amplifier" target="ent:experiment_1_rc_coupled_common_emitter_amplifier" id="e:100">
+  <data key="d26">CO_OCCURS_WITH</data>
+  <data key="d33">1</data>
+  <data key="d34">0.14285714285714285</data>
+  <data key="d35">["sent:tmp_1771604354512_aiclab1_1:0"]</data>
+</edge>
+<edge source="ent:common_emitter_amplifier" target="ent:voltage_gain_av" id="e:111">
+  <data key="d26">CO_OCCURS_WITH</data>
+  <data key="d33">2</data>
+  <data key="d34">1.1428571428571428</data>
+  <data key="d35">["sent:tmp_1771604354512_aiclab1_1:0", "sent:tmp_1771604354512_aiclab1_1:53"]</data>
+</edge>
+<edge source="ent:common_emitter_amplifier" target="ent:frequency_response" id="e:119">
+  <data key="d26">CO_OCCURS_WITH</data>
+  <data key="d33">1</data>
+  <data key="d34">0.14285714285714285</data>
+  <data key="d35">["sent:tmp_1771604354512_aiclab1_1:0"]</data>
+</edge>
+<edge source="ent:common_emitter_amplifier" target="ent:sine_wave_input_signal" id="e:120">
+  <data key="d26">CO_OCCURS_WITH</data>
+  <data key="d33">1</data>
+  <data key="d34">0.14285714285714285</data>
+  <data key="d35">["sent:tmp_1771604354512_aiclab1_1:0"]</data>
+</edge>
+<edge source="ent:common_emitter_amplifier" target="ent:input_impedance_rin" id="e:121">
+  <data key="d26">CO_OCCURS_WITH</data>
+  <data key="d33">1</data>
+  <data key="d34">0.14285714285714285</data>
+  <data key="d35">["sent:tmp_1771604354512_aiclab1_1:0"]</data>
+</edge>
+<edge source="ent:common_emitter_amplifier" target="ent:procedure_step_1_assemble_circuit" id="e:156">
+  <data key="d26">CO_OCCURS_WITH</data>
+  <data key="d33">1</data>
+  <data key="d34">0.3333333333333333</data>
+  <data key="d35">["sent:tmp_1771604354512_aiclab1_1:26"]</data>
+</edge>
+<edge source="ent:common_emitter_amplifier" target="ent:emitter_terminal" id="e:162">
+  <data key="d26">CO_OCCURS_WITH</data>
+  <data key="d33">1</data>
+  <data key="d34">1.0</data>
+  <data key="d35">["sent:tmp_1771604354512_aiclab1_1:10"]</data>
+</edge>
+<edge source="ent:common_emitter_amplifier" target="ent:emitter_terminal_common_to_input_and_output" id="e:rel:5344205819b832fb">
+  <data key="d26">DEFINES</data>
+  <data key="d40">1</data>
+  <data key="d41">sent:tmp_1771604354512_aiclab1_1:0</data>
+  <data key="d42">In a common emitter amplifier, the emitter terminal is common to both input and output.</data>
+  <data key="d29">oneshot</data>
+</edge>
+<edge source="ent:common_emitter_amplifier" target="ent:high_voltage_gain" id="e:rel:d48736cffc1f9cdf">
+  <data key="d26">PROVIDES_FOR</data>
+  <data key="d40">1</data>
+  <data key="d41">sent:tmp_1771604354512_aiclab1_1:0</data>
+  <data key="d42">This configuration provides high voltage gain and introduces a phase inversion of 180 degrees between input and output.</data>
+  <data key="d29">oneshot</data>
+</edge>
+<edge source="ent:common_emitter_amplifier" target="ent:phase_inversion_of_180_degrees" id="e:rel:c951b151160a4c76">
+  <data key="d26">PROVIDES_FOR</data>
+  <data key="d40">1</data>
+  <data key="d41">sent:tmp_1771604354512_aiclab1_1:0</data>
+  <data key="d42">This configuration provides high voltage gain and introduces a phase inversion of 180 degrees between input and output.</data>
+  <data key="d29">oneshot</data>
+</edge>
+<edge source="ent:common_emitter_amplifier" target="comm_l0:2" id="e:comm_member:353">
+  <data key="d26">MEMBER_OF</data>
+  <data key="d36">0</data>
+  <data key="d37">2</data>
+  <data key="d38">0.09329877823028508</data>
+  <data key="d39">True</data>
+</edge>
+<edge source="ent:emitter_terminal" target="sent:tmp_1771604354512_aiclab1_1:10" id="e:27">
+  <data key="d26">MENTION_IN</data>
+  <data key="d30">emitter terminal</data>
+  <data key="d27">tmp_1771604354512_aiclab1_1</data>
+  <data key="d31">777</data>
+  <data key="d32">793</data>
+</edge>
+<edge source="ent:emitter_terminal" target="comm_l0:2" id="e:comm_member:354">
+  <data key="d26">MEMBER_OF</data>
+  <data key="d36">0</data>
+  <data key="d37">2</data>
+</edge>
+<edge source="ent:base_terminal" target="sent:tmp_1771604354512_aiclab1_1:11" id="e:28">
+  <data key="d26">MENTION_IN</data>
+  <data key="d30">base</data>
+  <data key="d27">tmp_1771604354512_aiclab1_1</data>
+  <data key="d31">865</data>
+  <data key="d32">869</data>
+</edge>
+<edge source="ent:base_terminal" target="sent:tmp_1771604354512_aiclab1_1:15" id="e:29">
+  <data key="d26">MENTION_IN</data>
+  <data key="d30">base</data>
+  <data key="d27">tmp_1771604354512_aiclab1_1</data>
+  <data key="d31">1182</data>
+  <data key="d32">1186</data>
+</edge>
+<edge source="ent:base_terminal" target="sent:tmp_1771604354512_aiclab1_1:18" id="e:30">
+  <data key="d26">MENTION_IN</data>
+  <data key="d30">base</data>
+  <data key="d27">tmp_1771604354512_aiclab1_1</data>
+  <data key="d31">1421</data>
+  <data key="d32">1425</data>
+</edge>
+<edge source="ent:base_terminal" target="sent:tmp_1771604354512_aiclab1_1:35" id="e:31">
+  <data key="d26">MENTION_IN</data>
+  <data key="d30">Base</data>
+  <data key="d27">tmp_1771604354512_aiclab1_1</data>
+  <data key="d31">2551</data>
+  <data key="d32">2555</data>
+</edge>
+<edge source="ent:base_terminal" target="sent:tmp_1771604354512_aiclab1_1:35" id="e:32">
+  <data key="d26">MENTION_IN</data>
+  <data key="d30">Base</data>
+  <data key="d27">tmp_1771604354512_aiclab1_1</data>
+  <data key="d31">2575</data>
+  <data key="d32">2579</data>
+</edge>
+<edge source="ent:base_terminal" target="sent:tmp_1771604354512_aiclab1_1:39" id="e:33">
+  <data key="d26">MENTION_IN</data>
+  <data key="d30">Base</data>
+  <data key="d27">tmp_1771604354512_aiclab1_1</data>
+  <data key="d31">3470</data>
+  <data key="d32">3474</data>
+</edge>
+<edge source="ent:base_terminal" target="ent:collector_terminal" id="e:163">
+  <data key="d26">CO_OCCURS_WITH</data>
+  <data key="d33">3</data>
+  <data key="d34">1.5833333333333333</data>
+  <data key="d35">["sent:tmp_1771604354512_aiclab1_1:11", "sent:tmp_1771604354512_aiclab1_1:15", "sent:tmp_1771604354512_aiclab1_1:35"]</data>
+</edge>
+<edge source="ent:base_terminal" target="ent:transistor_operation_in_active_region" id="e:165">
+  <data key="d26">CO_OCCURS_WITH</data>
+  <data key="d33">1</data>
+  <data key="d34">0.5</data>
+  <data key="d35">["sent:tmp_1771604354512_aiclab1_1:15"]</data>
+</edge>
+<edge source="ent:base_terminal" target="ent:output_capacitor_1_f" id="e:177">
+  <data key="d26">CO_OCCURS_WITH</data>
+  <data key="d33">1</data>
+  <data key="d34">0.08333333333333333</data>
+  <data key="d35">["sent:tmp_1771604354512_aiclab1_1:35"]</data>
+</edge>
+<edge source="ent:base_terminal" target="ent:supply_voltage_12_v" id="e:188">
+  <data key="d26">CO_OCCURS_WITH</data>
+  <data key="d33">1</data>
+  <data key="d34">0.08333333333333333</data>
+  <data key="d35">["sent:tmp_1771604354512_aiclab1_1:35"]</data>
+</edge>
+<edge source="ent:base_terminal" target="ent:input_voltage_500_mv_p_p" id="e:207">
+  <data key="d26">CO_OCCURS_WITH</data>
+  <data key="d33">1</data>
+  <data key="d34">0.08333333333333333</data>
+  <data key="d35">["sent:tmp_1771604354512_aiclab1_1:35"]</data>
+</edge>
+<edge source="ent:base_terminal" target="ent:frequency_range_1_hz_10_mhz" id="e:215">
+  <data key="d26">CO_OCCURS_WITH</data>
+  <data key="d33">1</data>
+  <data key="d34">0.08333333333333333</data>
+  <data key="d35">["sent:tmp_1771604354512_aiclab1_1:35"]</data>
+</edge>
+<edge source="ent:base_terminal" target="ent:emitter_resistor_1_k" id="e:222">
+  <data key="d26">CO_OCCURS_WITH</data>
+  <data key="d33">1</data>
+  <data key="d34">0.08333333333333333</data>
+  <data key="d35">["sent:tmp_1771604354512_aiclab1_1:35"]</data>
+</edge>
+<edge source="ent:base_terminal" target="ent:collector_resistor_1_5_k" id="e:228">
+  <data key="d26">CO_OCCURS_WITH</data>
+  <data key="d33">1</data>
+  <data key="d34">0.08333333333333333</data>
+  <data key="d35">["sent:tmp_1771604354512_aiclab1_1:35"]</data>
+</edge>
+<edge source="ent:base_terminal" target="ent:emitter_bypass_capacitor_22_f" id="e:233">
+  <data key="d26">CO_OCCURS_WITH</data>
+  <data key="d33">1</data>
+  <data key="d34">0.08333333333333333</data>
+  <data key="d35">["sent:tmp_1771604354512_aiclab1_1:35"]</data>
+</edge>
+<edge source="ent:base_terminal" target="ent:collector_resistor_rc" id="e:239">
+  <data key="d26">CO_OCCURS_WITH</data>
+  <data key="d33">1</data>
+  <data key="d34">0.08333333333333333</data>
+  <data key="d35">["sent:tmp_1771604354512_aiclab1_1:35"]</data>
+</edge>
+<edge source="ent:base_terminal" target="ent:input_capacitor_1_f" id="e:242">
+  <data key="d26">CO_OCCURS_WITH</data>
+  <data key="d33">1</data>
+  <data key="d34">0.08333333333333333</data>
+  <data key="d35">["sent:tmp_1771604354512_aiclab1_1:35"]</data>
+</edge>
+<edge source="ent:base_terminal" target="comm_l0:0" id="e:comm_member:380">
+  <data key="d26">MEMBER_OF</data>
+  <data key="d36">0</data>
+  <data key="d37">0</data>
+  <data key="d38">0.008330248056275453</data>
+  <data key="d39">True</data>
+</edge>
+<edge source="ent:collector_terminal" target="sent:tmp_1771604354512_aiclab1_1:11" id="e:34">
+  <data key="d26">MENTION_IN</data>
+  <data key="d30">collector</data>
+  <data key="d27">tmp_1771604354512_aiclab1_1</data>
+  <data key="d31">903</data>
+  <data key="d32">912</data>
+</edge>
+<edge source="ent:collector_terminal" target="sent:tmp_1771604354512_aiclab1_1:15" id="e:35">
+  <data key="d26">MENTION_IN</data>
+  <data key="d30">collector</data>
+  <data key="d27">tmp_1771604354512_aiclab1_1</data>
+  <data key="d31">1220</data>
+  <data key="d32">1229</data>
+</edge>
+<edge source="ent:collector_terminal" target="sent:tmp_1771604354512_aiclab1_1:16" id="e:36">
+  <data key="d26">MENTION_IN</data>
+  <data key="d30">collector</data>
+  <data key="d27">tmp_1771604354512_aiclab1_1</data>
+  <data key="d31">1243</data>
+  <data key="d32">1252</data>
+</edge>
+<edge source="ent:collector_terminal" target="sent:tmp_1771604354512_aiclab1_1:19" id="e:37">
+  <data key="d26">MENTION_IN</data>
+  <data key="d30">collector</data>
+  <data key="d27">tmp_1771604354512_aiclab1_1</data>
+  <data key="d31">1481</data>
+  <data key="d32">1490</data>
+</edge>
+<edge source="ent:collector_terminal" target="sent:tmp_1771604354512_aiclab1_1:19" id="e:38">
+  <data key="d26">MENTION_IN</data>
+  <data key="d30">collector</data>
+  <data key="d27">tmp_1771604354512_aiclab1_1</data>
+  <data key="d31">1547</data>
+  <data key="d32">1556</data>
+</edge>
+<edge source="ent:collector_terminal" target="sent:tmp_1771604354512_aiclab1_1:35" id="e:39">
+  <data key="d26">MENTION_IN</data>
+  <data key="d30">Collector</data>
+  <data key="d27">tmp_1771604354512_aiclab1_1</data>
+  <data key="d31">2503</data>
+  <data key="d32">2512</data>
+</edge>
+<edge source="ent:collector_terminal" target="ent:transistor_operation_in_active_region" id="e:164">
+  <data key="d26">CO_OCCURS_WITH</data>
+  <data key="d33">1</data>
+  <data key="d34">0.5</data>
+  <data key="d35">["sent:tmp_1771604354512_aiclab1_1:15"]</data>
+</edge>
+<edge source="ent:collector_terminal" target="ent:output_capacitor_1_f" id="e:173">
+  <data key="d26">CO_OCCURS_WITH</data>
+  <data key="d33">1</data>
+  <data key="d34">0.08333333333333333</data>
+  <data key="d35">["sent:tmp_1771604354512_aiclab1_1:35"]</data>
+</edge>
+<edge source="ent:collector_terminal" target="ent:supply_voltage_12_v" id="e:184">
+  <data key="d26">CO_OCCURS_WITH</data>
+  <data key="d33">1</data>
+  <data key="d34">0.08333333333333333</data>
+  <data key="d35">["sent:tmp_1771604354512_aiclab1_1:35"]</data>
+</edge>
+<edge source="ent:collector_terminal" target="ent:input_voltage_500_mv_p_p" id="e:203">
+  <data key="d26">CO_OCCURS_WITH</data>
+  <data key="d33">1</data>
+  <data key="d34">0.08333333333333333</data>
+  <data key="d35">["sent:tmp_1771604354512_aiclab1_1:35"]</data>
+</edge>
+<edge source="ent:collector_terminal" target="ent:frequency_range_1_hz_10_mhz" id="e:211">
+  <data key="d26">CO_OCCURS_WITH</data>
+  <data key="d33">1</data>
+  <data key="d34">0.08333333333333333</data>
+  <data key="d35">["sent:tmp_1771604354512_aiclab1_1:35"]</data>
+</edge>
+<edge source="ent:collector_terminal" target="ent:emitter_resistor_1_k" id="e:218">
+  <data key="d26">CO_OCCURS_WITH</data>
+  <data key="d33">1</data>
+  <data key="d34">0.08333333333333333</data>
+  <data key="d35">["sent:tmp_1771604354512_aiclab1_1:35"]</data>
+</edge>
+<edge source="ent:collector_terminal" target="ent:emitter_bypass_capacitor_22_f" id="e:229">
+  <data key="d26">CO_OCCURS_WITH</data>
+  <data key="d33">1</data>
+  <data key="d34">0.08333333333333333</data>
+  <data key="d35">["sent:tmp_1771604354512_aiclab1_1:35"]</data>
+</edge>
+<edge source="ent:collector_terminal" target="ent:input_capacitor_1_f" id="e:236">
+  <data key="d26">CO_OCCURS_WITH</data>
+  <data key="d33">1</data>
+  <data key="d34">0.08333333333333333</data>
+  <data key="d35">["sent:tmp_1771604354512_aiclab1_1:35"]</data>
+</edge>
+<edge source="ent:collector_terminal" target="ent:convert_current_variations_to_voltage_variations" id="e:243">
+  <data key="d26">CO_OCCURS_WITH</data>
+  <data key="d33">1</data>
+  <data key="d34">0.5</data>
+  <data key="d35">["sent:tmp_1771604354512_aiclab1_1:16"]</data>
+</edge>
+<edge source="ent:collector_terminal" target="comm_l0:0" id="e:comm_member:381">
+  <data key="d26">MEMBER_OF</data>
+  <data key="d36">0</data>
+  <data key="d37">0</data>
+  <data key="d38">0.01036653091447612</data>
+  <data key="d39">True</data>
+</edge>
+<edge source="ent:phase_inversion_of_180_degrees" target="sent:tmp_1771604354512_aiclab1_1:12" id="e:40">
+  <data key="d26">MENTION_IN</data>
+  <data key="d30">phase
+inversion of 180 degrees</data>
+  <data key="d27">tmp_1771604354512_aiclab1_1</data>
+  <data key="d31">977</data>
+  <data key="d32">1007</data>
+</edge>
+<edge source="ent:phase_inversion_of_180_degrees" target="ent:voltage_gain_av" id="e:125">
+  <data key="d26">CO_OCCURS_WITH</data>
+  <data key="d33">1</data>
+  <data key="d34">1.0</data>
+  <data key="d35">["sent:tmp_1771604354512_aiclab1_1:12"]</data>
+</edge>
+<edge source="ent:phase_inversion_of_180_degrees" target="comm_l0:2" id="e:comm_member:355">
+  <data key="d26">MEMBER_OF</data>
+  <data key="d36">0</data>
+  <data key="d37">2</data>
+</edge>
+<edge source="ent:voltage_divider_bias_network" target="sent:tmp_1771604354512_aiclab1_1:14" id="e:41">
+  <data key="d26">MENTION_IN</data>
+  <data key="d30">voltage divider bias network</data>
+  <data key="d27">tmp_1771604354512_aiclab1_1</data>
+  <data key="d31">1069</data>
+  <data key="d32">1097</data>
+</edge>
+<edge source="ent:voltage_divider_bias_network" target="ent:transistor_operation_in_active_region" id="e:rel:6621dcd7827ea350">
+  <data key="d26">OBLIGATES</data>
+  <data key="d40">1</data>
+  <data key="d41">sent:tmp_1771604354512_aiclab1_1:0</data>
+  <data key="d42">The transistor is biased using a voltage divider bias network. This keeps the transistor operating in the active region</data>
+  <data key="d29">oneshot</data>
+</edge>
+<edge source="ent:transistor_operation_in_active_region" target="sent:tmp_1771604354512_aiclab1_1:15" id="e:42">
+  <data key="d26">MENTION_IN</data>
+  <data key="d30">active region</data>
+  <data key="d27">tmp_1771604354512_aiclab1_1</data>
+  <data key="d31">1142</data>
+  <data key="d32">1155</data>
+</edge>
+<edge source="ent:transistor_operation_in_active_region" target="sent:tmp_1771604354512_aiclab1_1:50" id="e:43">
+  <data key="d26">MENTION_IN</data>
+  <data key="d30">active region</data>
+  <data key="d27">tmp_1771604354512_aiclab1_1</data>
+  <data key="d31">4465</data>
+  <data key="d32">4478</data>
+</edge>
+<edge source="ent:transistor_operation_in_active_region" target="comm_l0:0" id="e:comm_member:382">
+  <data key="d26">MEMBER_OF</data>
+  <data key="d36">0</data>
+  <data key="d37">0</data>
+</edge>
+<edge source="ent:collector_resistor_rc" target="sent:tmp_1771604354512_aiclab1_1:16" id="e:44">
+  <data key="d26">MENTION_IN</data>
+  <data key="d30">collector resistor</data>
+  <data key="d27">tmp_1771604354512_aiclab1_1</data>
+  <data key="d31">1243</data>
+  <data key="d32">1261</data>
+</edge>
+<edge source="ent:collector_resistor_rc" target="sent:tmp_1771604354512_aiclab1_1:35" id="e:45">
+  <data key="d26">MENTION_IN</data>
+  <data key="d30">Collector resistor</data>
+  <data key="d27">tmp_1771604354512_aiclab1_1</data>
+  <data key="d31">2503</data>
+  <data key="d32">2521</data>
+</edge>
+<edge source="ent:collector_resistor_rc" target="ent:output_capacitor_1_f" id="e:174">
+  <data key="d26">CO_OCCURS_WITH</data>
+  <data key="d33">1</data>
+  <data key="d34">0.08333333333333333</data>
+  <data key="d35">["sent:tmp_1771604354512_aiclab1_1:35"]</data>
+</edge>
+<edge source="ent:collector_resistor_rc" target="ent:supply_voltage_12_v" id="e:185">
+  <data key="d26">CO_OCCURS_WITH</data>
+  <data key="d33">1</data>
+  <data key="d34">0.08333333333333333</data>
+  <data key="d35">["sent:tmp_1771604354512_aiclab1_1:35"]</data>
+</edge>
+<edge source="ent:collector_resistor_rc" target="ent:input_voltage_500_mv_p_p" id="e:204">
+  <data key="d26">CO_OCCURS_WITH</data>
+  <data key="d33">1</data>
+  <data key="d34">0.08333333333333333</data>
+  <data key="d35">["sent:tmp_1771604354512_aiclab1_1:35"]</data>
+</edge>
+<edge source="ent:collector_resistor_rc" target="ent:frequency_range_1_hz_10_mhz" id="e:212">
+  <data key="d26">CO_OCCURS_WITH</data>
+  <data key="d33">1</data>
+  <data key="d34">0.08333333333333333</data>
+  <data key="d35">["sent:tmp_1771604354512_aiclab1_1:35"]</data>
+</edge>
+<edge source="ent:collector_resistor_rc" target="ent:emitter_resistor_1_k" id="e:219">
+  <data key="d26">CO_OCCURS_WITH</data>
+  <data key="d33">1</data>
+  <data key="d34">0.08333333333333333</data>
+  <data key="d35">["sent:tmp_1771604354512_aiclab1_1:35"]</data>
+</edge>
+<edge source="ent:collector_resistor_rc" target="ent:emitter_bypass_capacitor_22_f" id="e:230">
+  <data key="d26">CO_OCCURS_WITH</data>
+  <data key="d33">1</data>
+  <data key="d34">0.08333333333333333</data>
+  <data key="d35">["sent:tmp_1771604354512_aiclab1_1:35"]</data>
+</edge>
+<edge source="ent:collector_resistor_rc" target="ent:collector_terminal" id="e:234">
+  <data key="d26">CO_OCCURS_WITH</data>
+  <data key="d33">2</data>
+  <data key="d34">0.5833333333333334</data>
+  <data key="d35">["sent:tmp_1771604354512_aiclab1_1:35", "sent:tmp_1771604354512_aiclab1_1:16"]</data>
+</edge>
+<edge source="ent:collector_resistor_rc" target="ent:input_capacitor_1_f" id="e:238">
+  <data key="d26">CO_OCCURS_WITH</data>
+  <data key="d33">1</data>
+  <data key="d34">0.08333333333333333</data>
+  <data key="d35">["sent:tmp_1771604354512_aiclab1_1:35"]</data>
+</edge>
+<edge source="ent:collector_resistor_rc" target="ent:convert_current_variations_to_voltage_variations" id="e:244">
+  <data key="d26">CO_OCCURS_WITH</data>
+  <data key="d33">1</data>
+  <data key="d34">0.5</data>
+  <data key="d35">["sent:tmp_1771604354512_aiclab1_1:16"]</data>
+</edge>
+<edge source="ent:collector_resistor_rc" target="ent:convert_current_variations_to_voltage_variations" id="e:rel:43ec9c9a3c6f7ad3">
+  <data key="d26">OBLIGATES</data>
+  <data key="d40">1</data>
+  <data key="d41">sent:tmp_1771604354512_aiclab1_1:0</data>
+  <data key="d42">The collector resistor converts these current variations into voltage variations, producing amplification.</data>
+  <data key="d29">oneshot</data>
+</edge>
+<edge source="ent:collector_resistor_rc" target="comm_l0:0" id="e:comm_member:383">
+  <data key="d26">MEMBER_OF</data>
+  <data key="d36">0</data>
+  <data key="d37">0</data>
+</edge>
+<edge source="ent:amplifier_gain_dependence_on_frequency" target="sent:tmp_1771604354512_aiclab1_1:21" id="e:46">
+  <data key="d26">MENTION_IN</data>
+  <data key="d30">gain of an RC coupled amplifier depends on frequency</data>
+  <data key="d27">tmp_1771604354512_aiclab1_1</data>
+  <data key="d31">1581</data>
+  <data key="d32">1633</data>
+</edge>
+<edge source="ent:amplifier_gain_dependence_on_frequency" target="ent:rc_coupled_amplifier" id="e:161">
+  <data key="d26">CO_OCCURS_WITH</data>
+  <data key="d33">1</data>
+  <data key="d34">1.0</data>
+  <data key="d35">["sent:tmp_1771604354512_aiclab1_1:21"]</data>
+</edge>
+<edge source="ent:amplifier_gain_dependence_on_frequency" target="comm_l0:5" id="e:comm_member:375">
+  <data key="d26">MEMBER_OF</data>
+  <data key="d36">0</data>
+  <data key="d37">5</data>
+</edge>
+<edge source="ent:low_frequency_range" target="sent:tmp_1771604354512_aiclab1_1:22" id="e:47">
+  <data key="d26">MENTION_IN</data>
+  <data key="d30">low frequencies</data>
+  <data key="d27">tmp_1771604354512_aiclab1_1</data>
+  <data key="d31">1637</data>
+  <data key="d32">1652</data>
+</edge>
+<edge source="ent:low_frequency_range" target="sent:tmp_1771604354512_aiclab1_1:48" id="e:48">
+  <data key="d26">MENTION_IN</data>
+  <data key="d30">low frequencies</data>
+  <data key="d27">tmp_1771604354512_aiclab1_1</data>
+  <data key="d31">4163</data>
+  <data key="d32">4178</data>
+</edge>
+<edge source="ent:low_frequency_range" target="comm_l0:3" id="e:comm_member:398">
+  <data key="d26">MEMBER_OF</data>
+  <data key="d36">0</data>
+  <data key="d37">3</data>
+</edge>
+<edge source="ent:mid_frequency_range" target="sent:tmp_1771604354512_aiclab1_1:49" id="e:49">
+  <data key="d26">MENTION_IN</data>
+  <data key="d30">mid-frequency range</data>
+  <data key="d27">tmp_1771604354512_aiclab1_1</data>
+  <data key="d31">4330</data>
+  <data key="d32">4349</data>
+</edge>
+<edge source="ent:mid_frequency_range" target="sent:tmp_1771604354512_aiclab1_1:54" id="e:50">
+  <data key="d26">MENTION_IN</data>
+  <data key="d30">mid-frequency range</data>
+  <data key="d27">tmp_1771604354512_aiclab1_1</data>
+  <data key="d31">4863</data>
+  <data key="d32">4882</data>
+</edge>
+<edge source="ent:mid_frequency_range" target="sent:tmp_1771604354512_aiclab1_1:23" id="e:51">
+  <data key="d26">MENTION_IN</data>
+  <data key="d30">mid
+frequencies</data>
+  <data key="d27">tmp_1771604354512_aiclab1_1</data>
+  <data key="d31">1729</data>
+  <data key="d32">1744</data>
+</edge>
+<edge source="ent:high_frequency_range" target="sent:tmp_1771604354512_aiclab1_1:24" id="e:52">
+  <data key="d26">MENTION_IN</data>
+  <data key="d30">high frequencies</data>
+  <data key="d27">tmp_1771604354512_aiclab1_1</data>
+  <data key="d31">1783</data>
+  <data key="d32">1799</data>
+</edge>
+<edge source="ent:high_frequency_range" target="sent:tmp_1771604354512_aiclab1_1:55" id="e:53">
+  <data key="d26">MENTION_IN</data>
+  <data key="d30">high frequencies</data>
+  <data key="d27">tmp_1771604354512_aiclab1_1</data>
+  <data key="d31">4911</data>
+  <data key="d32">4927</data>
+</edge>
+<edge source="ent:high_frequency_range" target="ent:internal_transistor_capacitances" id="e:246">
+  <data key="d26">CO_OCCURS_WITH</data>
+  <data key="d33">1</data>
+  <data key="d34">0.5</data>
+  <data key="d35">["sent:tmp_1771604354512_aiclab1_1:24"]</data>
+</edge>
+<edge source="ent:high_frequency_range" target="ent:miller_effect" id="e:248">
+  <data key="d26">CO_OCCURS_WITH</data>
+  <data key="d33">1</data>
+  <data key="d34">0.5</data>
+  <data key="d35">["sent:tmp_1771604354512_aiclab1_1:24"]</data>
+</edge>
+<edge source="ent:high_frequency_range" target="comm_l0:3" id="e:comm_member:399">
+  <data key="d26">MEMBER_OF</data>
+  <data key="d36">0</data>
+  <data key="d37">3</data>
+</edge>
+<edge source="ent:high_reactance_of_capacitors" target="sent:tmp_1771604354512_aiclab1_1:22" id="e:54">
+  <data key="d26">MENTION_IN</data>
+  <data key="d30">reactance of coupling and bypass capacitors is high</data>
+  <data key="d27">tmp_1771604354512_aiclab1_1</data>
+  <data key="d31">1658</data>
+  <data key="d32">1709</data>
+</edge>
+<edge source="ent:high_reactance_of_capacitors" target="ent:low_frequency_range" id="e:245">
+  <data key="d26">CO_OCCURS_WITH</data>
+  <data key="d33">1</data>
+  <data key="d34">1.0</data>
+  <data key="d35">["sent:tmp_1771604354512_aiclab1_1:22"]</data>
+</edge>
+<edge source="ent:high_reactance_of_capacitors" target="ent:amplifier_gain" id="e:rel:803333179f7f6e8b">
+  <data key="d26">LIMITS</data>
+  <data key="d43">0.95</data>
+  <data key="d41">sent:tmp_1771604354512_aiclab1_1:0</data>
+  <data key="d42">At low frequencies, the reactance of coupling and bypass capacitors is high, reducing gain.</data>
+  <data key="d29">oneshot</data>
+</edge>
+<edge source="ent:high_reactance_of_capacitors" target="comm_l0:3" id="e:comm_member:400">
+  <data key="d26">MEMBER_OF</data>
+  <data key="d36">0</data>
+  <data key="d37">3</data>
+</edge>
+<edge source="ent:internal_transistor_capacitances" target="sent:tmp_1771604354512_aiclab1_1:24" id="e:55">
+  <data key="d26">MENTION_IN</data>
+  <data key="d30">internal transistor capacitances</data>
+  <data key="d27">tmp_1771604354512_aiclab1_1</data>
+  <data key="d31">1823</data>
+  <data key="d32">1855</data>
+</edge>
+<edge source="ent:internal_transistor_capacitances" target="ent:miller_effect" id="e:247">
+  <data key="d26">CO_OCCURS_WITH</data>
+  <data key="d33">1</data>
+  <data key="d34">0.5</data>
+  <data key="d35">["sent:tmp_1771604354512_aiclab1_1:24"]</data>
+</edge>
+<edge source="ent:internal_transistor_capacitances" target="ent:amplifier_gain" id="e:rel:8f0ea18ffc6f420f">
+  <data key="d26">LIMITS</data>
+  <data key="d43">0.95</data>
+  <data key="d41">sent:tmp_1771604354512_aiclab1_1:0</data>
+  <data key="d42">At high frequencies, gain decreases due to internal transistor capacitances and the Miller effect.</data>
+  <data key="d29">oneshot</data>
+</edge>
+<edge source="ent:internal_transistor_capacitances" target="comm_l0:3" id="e:comm_member:401">
+  <data key="d26">MEMBER_OF</data>
+  <data key="d36">0</data>
+  <data key="d37">3</data>
+</edge>
+<edge source="ent:miller_effect" target="sent:tmp_1771604354512_aiclab1_1:24" id="e:56">
+  <data key="d26">MENTION_IN</data>
+  <data key="d30">Miller effect</data>
+  <data key="d27">tmp_1771604354512_aiclab1_1</data>
+  <data key="d31">1864</data>
+  <data key="d32">1877</data>
+</edge>
+<edge source="ent:miller_effect" target="ent:amplifier_gain" id="e:rel:ab198c13353d9ceb">
+  <data key="d26">LIMITS</data>
+  <data key="d43">0.95</data>
+  <data key="d41">sent:tmp_1771604354512_aiclab1_1:0</data>
+  <data key="d42">At high frequencies, gain decreases due to internal transistor capacitances and the Miller effect.</data>
+  <data key="d29">oneshot</data>
+</edge>
+<edge source="ent:miller_effect" target="comm_l0:3" id="e:comm_member:402">
+  <data key="d26">MEMBER_OF</data>
+  <data key="d36">0</data>
+  <data key="d37">3</data>
+</edge>
+<edge source="ent:procedure_step_1_assemble_circuit" target="sent:tmp_1771604354512_aiclab1_1:26" id="e:57">
+  <data key="d26">MENTION_IN</data>
+  <data key="d30">Assemble the RC coupled common emitter amplifier circuit on a breadboard</data>
+  <data key="d27">tmp_1771604354512_aiclab1_1</data>
+  <data key="d31">1894</data>
+  <data key="d32">1966</data>
+</edge>
+<edge source="ent:procedure_step_1_assemble_circuit" target="ent:procedure_step_2_apply_dc_supply" id="e:rel:aa6e9beeda0658b0">
+  <data key="d26">PRECEDES</data>
+  <data key="d40">1</data>
+  <data key="d41">sent:tmp_1771604354512_aiclab1_1:0</data>
+  <data key="d42">1. Assemble the RC coupled common emitter amplifier circuit... 2. Apply a DC supply voltage of 15 V to the circuit.</data>
+  <data key="d29">oneshot</data>
+</edge>
+<edge source="ent:procedure_step_1_assemble_circuit" target="comm_l0:1" id="e:comm_member:364">
+  <data key="d26">MEMBER_OF</data>
+  <data key="d36">0</data>
+  <data key="d37">1</data>
+</edge>
+<edge source="ent:procedure_step_2_apply_dc_supply" target="sent:tmp_1771604354512_aiclab1_1:27" id="e:58">
+  <data key="d26">MENTION_IN</data>
+  <data key="d30">Apply a DC supply voltage of 15 V to the circuit</data>
+  <data key="d27">tmp_1771604354512_aiclab1_1</data>
+  <data key="d31">1998</data>
+  <data key="d32">2046</data>
+</edge>
+<edge source="ent:procedure_step_2_apply_dc_supply" target="ent:procedure_step_3_connect_function_generator" id="e:rel:5687d8445549d70a">
+  <data key="d26">PRECEDES</data>
+  <data key="d40">1</data>
+  <data key="d41">sent:tmp_1771604354512_aiclab1_1:0</data>
+  <data key="d42">2. Apply a DC supply voltage of 15 V to the circuit. 3. Connect the function generator to the input through the coupling capacitor.</data>
+  <data key="d29">oneshot</data>
+</edge>
+<edge source="ent:procedure_step_2_apply_dc_supply" target="comm_l0:1" id="e:comm_member:365">
+  <data key="d26">MEMBER_OF</data>
+  <data key="d36">0</data>
+  <data key="d37">1</data>
+</edge>
+<edge source="ent:procedure_step_3_connect_function_generator" target="sent:tmp_1771604354512_aiclab1_1:28" id="e:59">
+  <data key="d26">MENTION_IN</data>
+  <data key="d30">Connect the function generator to the input through the coupling capacitor</data>
+  <data key="d27">tmp_1771604354512_aiclab1_1</data>
+  <data key="d31">2051</data>
+  <data key="d32">2125</data>
+</edge>
+<edge source="ent:procedure_step_3_connect_function_generator" target="comm_l0:1" id="e:comm_member:366">
+  <data key="d26">MEMBER_OF</data>
+  <data key="d36">0</data>
+  <data key="d37">1</data>
+</edge>
+<edge source="ent:procedure_step_4_apply_input_signal" target="sent:tmp_1771604354512_aiclab1_1:29" id="e:60">
+  <data key="d26">MENTION_IN</data>
+  <data key="d30">Apply a sine wave input of 500 mV peak-to-peak</data>
+  <data key="d27">tmp_1771604354512_aiclab1_1</data>
+  <data key="d31">2130</data>
+  <data key="d32">2176</data>
+</edge>
+<edge source="ent:procedure_step_4_apply_input_signal" target="comm_l0:1" id="e:comm_member:367">
+  <data key="d26">MEMBER_OF</data>
+  <data key="d36">0</data>
+  <data key="d37">1</data>
+</edge>
+<edge source="ent:collector_resistor_1_5_k" target="sent:tmp_1771604354512_aiclab1_1:35" id="e:61">
+  <data key="d26">MENTION_IN</data>
+  <data key="d30">Collector resistor 1.5 kΩ</data>
+  <data key="d27">tmp_1771604354512_aiclab1_1</data>
+  <data key="d31">2503</data>
+  <data key="d32">2528</data>
+</edge>
+<edge source="ent:collector_resistor_1_5_k" target="ent:output_capacitor_1_f" id="e:171">
+  <data key="d26">CO_OCCURS_WITH</data>
+  <data key="d33">1</data>
+  <data key="d34">0.08333333333333333</data>
+  <data key="d35">["sent:tmp_1771604354512_aiclab1_1:35"]</data>
+</edge>
+<edge source="ent:collector_resistor_1_5_k" target="ent:supply_voltage_12_v" id="e:182">
+  <data key="d26">CO_OCCURS_WITH</data>
+  <data key="d33">1</data>
+  <data key="d34">0.08333333333333333</data>
+  <data key="d35">["sent:tmp_1771604354512_aiclab1_1:35"]</data>
+</edge>
+<edge source="ent:collector_resistor_1_5_k" target="ent:input_voltage_500_mv_p_p" id="e:201">
+  <data key="d26">CO_OCCURS_WITH</data>
+  <data key="d33">1</data>
+  <data key="d34">0.08333333333333333</data>
+  <data key="d35">["sent:tmp_1771604354512_aiclab1_1:35"]</data>
+</edge>
+<edge source="ent:collector_resistor_1_5_k" target="ent:frequency_range_1_hz_10_mhz" id="e:209">
+  <data key="d26">CO_OCCURS_WITH</data>
+  <data key="d33">1</data>
+  <data key="d34">0.08333333333333333</data>
+  <data key="d35">["sent:tmp_1771604354512_aiclab1_1:35"]</data>
+</edge>
+<edge source="ent:collector_resistor_1_5_k" target="ent:emitter_resistor_1_k" id="e:216">
+  <data key="d26">CO_OCCURS_WITH</data>
+  <data key="d33">1</data>
+  <data key="d34">0.08333333333333333</data>
+  <data key="d35">["sent:tmp_1771604354512_aiclab1_1:35"]</data>
+</edge>
+<edge source="ent:collector_resistor_1_5_k" target="ent:emitter_bypass_capacitor_22_f" id="e:223">
+  <data key="d26">CO_OCCURS_WITH</data>
+  <data key="d33">1</data>
+  <data key="d34">0.08333333333333333</data>
+  <data key="d35">["sent:tmp_1771604354512_aiclab1_1:35"]</data>
+</edge>
+<edge source="ent:collector_resistor_1_5_k" target="ent:collector_terminal" id="e:224">
+  <data key="d26">CO_OCCURS_WITH</data>
+  <data key="d33">1</data>
+  <data key="d34">0.08333333333333333</data>
+  <data key="d35">["sent:tmp_1771604354512_aiclab1_1:35"]</data>
+</edge>
+<edge source="ent:collector_resistor_1_5_k" target="ent:collector_resistor_rc" id="e:225">
+  <data key="d26">CO_OCCURS_WITH</data>
+  <data key="d33">1</data>
+  <data key="d34">0.08333333333333333</data>
+  <data key="d35">["sent:tmp_1771604354512_aiclab1_1:35"]</data>
+</edge>
+<edge source="ent:collector_resistor_1_5_k" target="ent:input_capacitor_1_f" id="e:227">
+  <data key="d26">CO_OCCURS_WITH</data>
+  <data key="d33">1</data>
+  <data key="d34">0.08333333333333333</data>
+  <data key="d35">["sent:tmp_1771604354512_aiclab1_1:35"]</data>
+</edge>
+<edge source="ent:collector_resistor_1_5_k" target="comm_l0:0" id="e:comm_member:384">
+  <data key="d26">MEMBER_OF</data>
+  <data key="d36">0</data>
+  <data key="d37">0</data>
+</edge>
+<edge source="ent:emitter_resistor_1_k" target="sent:tmp_1771604354512_aiclab1_1:35" id="e:62">
+  <data key="d26">MENTION_IN</data>
+  <data key="d30">Emitter resistor 1 kΩ</data>
+  <data key="d27">tmp_1771604354512_aiclab1_1</data>
+  <data key="d31">2529</data>
+  <data key="d32">2550</data>
+</edge>
+<edge source="ent:emitter_resistor_1_k" target="ent:output_capacitor_1_f" id="e:170">
+  <data key="d26">CO_OCCURS_WITH</data>
+  <data key="d33">1</data>
+  <data key="d34">0.08333333333333333</data>
+  <data key="d35">["sent:tmp_1771604354512_aiclab1_1:35"]</data>
+</edge>
+<edge source="ent:emitter_resistor_1_k" target="ent:supply_voltage_12_v" id="e:181">
+  <data key="d26">CO_OCCURS_WITH</data>
+  <data key="d33">1</data>
+  <data key="d34">0.08333333333333333</data>
+  <data key="d35">["sent:tmp_1771604354512_aiclab1_1:35"]</data>
+</edge>
+<edge source="ent:emitter_resistor_1_k" target="ent:input_voltage_500_mv_p_p" id="e:200">
+  <data key="d26">CO_OCCURS_WITH</data>
+  <data key="d33">1</data>
+  <data key="d34">0.08333333333333333</data>
+  <data key="d35">["sent:tmp_1771604354512_aiclab1_1:35"]</data>
+</edge>
+<edge source="ent:emitter_resistor_1_k" target="ent:frequency_range_1_hz_10_mhz" id="e:208">
+  <data key="d26">CO_OCCURS_WITH</data>
+  <data key="d33">1</data>
+  <data key="d34">0.08333333333333333</data>
+  <data key="d35">["sent:tmp_1771604354512_aiclab1_1:35"]</data>
+</edge>
+<edge source="ent:emitter_resistor_1_k" target="ent:input_capacitor_1_f" id="e:221">
+  <data key="d26">CO_OCCURS_WITH</data>
+  <data key="d33">1</data>
+  <data key="d34">0.08333333333333333</data>
+  <data key="d35">["sent:tmp_1771604354512_aiclab1_1:35"]</data>
+</edge>
+<edge source="ent:emitter_resistor_1_k" target="comm_l0:0" id="e:comm_member:385">
+  <data key="d26">MEMBER_OF</data>
+  <data key="d36">0</data>
+  <data key="d37">0</data>
+</edge>
+<edge source="ent:base_resistor_r1_100_k" target="sent:tmp_1771604354512_aiclab1_1:35" id="e:63">
+  <data key="d26">MENTION_IN</data>
+  <data key="d30">Base resistor R1 100 kΩ</data>
+  <data key="d27">tmp_1771604354512_aiclab1_1</data>
+  <data key="d31">2551</data>
+  <data key="d32">2574</data>
+</edge>
+<edge source="ent:base_resistor_r1_100_k" target="ent:output_capacitor_1_f" id="e:175">
+  <data key="d26">CO_OCCURS_WITH</data>
+  <data key="d33">1</data>
+  <data key="d34">0.08333333333333333</data>
+  <data key="d35">["sent:tmp_1771604354512_aiclab1_1:35"]</data>
+</edge>
+<edge source="ent:base_resistor_r1_100_k" target="ent:supply_voltage_12_v" id="e:186">
+  <data key="d26">CO_OCCURS_WITH</data>
+  <data key="d33">1</data>
+  <data key="d34">0.08333333333333333</data>
+  <data key="d35">["sent:tmp_1771604354512_aiclab1_1:35"]</data>
+</edge>
+<edge source="ent:base_resistor_r1_100_k" target="ent:base_resistor_r2_18_k" id="e:196">
+  <data key="d26">CO_OCCURS_WITH</data>
+  <data key="d33">1</data>
+  <data key="d34">0.08333333333333333</data>
+  <data key="d35">["sent:tmp_1771604354512_aiclab1_1:35"]</data>
+</edge>
+<edge source="ent:base_resistor_r1_100_k" target="ent:input_voltage_500_mv_p_p" id="e:205">
+  <data key="d26">CO_OCCURS_WITH</data>
+  <data key="d33">1</data>
+  <data key="d34">0.08333333333333333</data>
+  <data key="d35">["sent:tmp_1771604354512_aiclab1_1:35"]</data>
+</edge>
+<edge source="ent:base_resistor_r1_100_k" target="ent:frequency_range_1_hz_10_mhz" id="e:213">
+  <data key="d26">CO_OCCURS_WITH</data>
+  <data key="d33">1</data>
+  <data key="d34">0.08333333333333333</data>
+  <data key="d35">["sent:tmp_1771604354512_aiclab1_1:35"]</data>
+</edge>
+<edge source="ent:base_resistor_r1_100_k" target="ent:emitter_resistor_1_k" id="e:220">
+  <data key="d26">CO_OCCURS_WITH</data>
+  <data key="d33">1</data>
+  <data key="d34">0.08333333333333333</data>
+  <data key="d35">["sent:tmp_1771604354512_aiclab1_1:35"]</data>
+</edge>
+<edge source="ent:base_resistor_r1_100_k" target="ent:collector_resistor_1_5_k" id="e:226">
+  <data key="d26">CO_OCCURS_WITH</data>
+  <data key="d33">1</data>
+  <data key="d34">0.08333333333333333</data>
+  <data key="d35">["sent:tmp_1771604354512_aiclab1_1:35"]</data>
+</edge>
+<edge source="ent:base_resistor_r1_100_k" target="ent:emitter_bypass_capacitor_22_f" id="e:231">
+  <data key="d26">CO_OCCURS_WITH</data>
+  <data key="d33">1</data>
+  <data key="d34">0.08333333333333333</data>
+  <data key="d35">["sent:tmp_1771604354512_aiclab1_1:35"]</data>
+</edge>
+<edge source="ent:base_resistor_r1_100_k" target="ent:collector_terminal" id="e:235">
+  <data key="d26">CO_OCCURS_WITH</data>
+  <data key="d33">1</data>
+  <data key="d34">0.08333333333333333</data>
+  <data key="d35">["sent:tmp_1771604354512_aiclab1_1:35"]</data>
+</edge>
+<edge source="ent:base_resistor_r1_100_k" target="ent:collector_resistor_rc" id="e:237">
+  <data key="d26">CO_OCCURS_WITH</data>
+  <data key="d33">1</data>
+  <data key="d34">0.08333333333333333</data>
+  <data key="d35">["sent:tmp_1771604354512_aiclab1_1:35"]</data>
+</edge>
+<edge source="ent:base_resistor_r1_100_k" target="ent:input_capacitor_1_f" id="e:240">
+  <data key="d26">CO_OCCURS_WITH</data>
+  <data key="d33">1</data>
+  <data key="d34">0.08333333333333333</data>
+  <data key="d35">["sent:tmp_1771604354512_aiclab1_1:35"]</data>
+</edge>
+<edge source="ent:base_resistor_r1_100_k" target="ent:base_terminal" id="e:241">
+  <data key="d26">CO_OCCURS_WITH</data>
+  <data key="d33">1</data>
+  <data key="d34">0.08333333333333333</data>
+  <data key="d35">["sent:tmp_1771604354512_aiclab1_1:35"]</data>
+</edge>
+<edge source="ent:base_resistor_r1_100_k" target="comm_l0:0" id="e:comm_member:386">
+  <data key="d26">MEMBER_OF</data>
+  <data key="d36">0</data>
+  <data key="d37">0</data>
+</edge>
+<edge source="ent:base_resistor_r2_18_k" target="sent:tmp_1771604354512_aiclab1_1:35" id="e:64">
+  <data key="d26">MENTION_IN</data>
+  <data key="d30">Base resistor R2 18 kΩ</data>
+  <data key="d27">tmp_1771604354512_aiclab1_1</data>
+  <data key="d31">2575</data>
+  <data key="d32">2597</data>
+</edge>
+<edge source="ent:base_resistor_r2_18_k" target="ent:output_capacitor_1_f" id="e:167">
+  <data key="d26">CO_OCCURS_WITH</data>
+  <data key="d33">1</data>
+  <data key="d34">0.08333333333333333</data>
+  <data key="d35">["sent:tmp_1771604354512_aiclab1_1:35"]</data>
+</edge>
+<edge source="ent:base_resistor_r2_18_k" target="ent:supply_voltage_12_v" id="e:178">
+  <data key="d26">CO_OCCURS_WITH</data>
+  <data key="d33">1</data>
+  <data key="d34">0.08333333333333333</data>
+  <data key="d35">["sent:tmp_1771604354512_aiclab1_1:35"]</data>
+</edge>
+<edge source="ent:base_resistor_r2_18_k" target="ent:input_voltage_500_mv_p_p" id="e:189">
+  <data key="d26">CO_OCCURS_WITH</data>
+  <data key="d33">1</data>
+  <data key="d34">0.08333333333333333</data>
+  <data key="d35">["sent:tmp_1771604354512_aiclab1_1:35"]</data>
+</edge>
+<edge source="ent:base_resistor_r2_18_k" target="ent:frequency_range_1_hz_10_mhz" id="e:190">
+  <data key="d26">CO_OCCURS_WITH</data>
+  <data key="d33">1</data>
+  <data key="d34">0.08333333333333333</data>
+  <data key="d35">["sent:tmp_1771604354512_aiclab1_1:35"]</data>
+</edge>
+<edge source="ent:base_resistor_r2_18_k" target="ent:emitter_resistor_1_k" id="e:191">
+  <data key="d26">CO_OCCURS_WITH</data>
+  <data key="d33">1</data>
+  <data key="d34">0.08333333333333333</data>
+  <data key="d35">["sent:tmp_1771604354512_aiclab1_1:35"]</data>
+</edge>
+<edge source="ent:base_resistor_r2_18_k" target="ent:collector_resistor_1_5_k" id="e:192">
+  <data key="d26">CO_OCCURS_WITH</data>
+  <data key="d33">1</data>
+  <data key="d34">0.08333333333333333</data>
+  <data key="d35">["sent:tmp_1771604354512_aiclab1_1:35"]</data>
+</edge>
+<edge source="ent:base_resistor_r2_18_k" target="ent:emitter_bypass_capacitor_22_f" id="e:193">
+  <data key="d26">CO_OCCURS_WITH</data>
+  <data key="d33">1</data>
+  <data key="d34">0.08333333333333333</data>
+  <data key="d35">["sent:tmp_1771604354512_aiclab1_1:35"]</data>
+</edge>
+<edge source="ent:base_resistor_r2_18_k" target="ent:collector_terminal" id="e:194">
+  <data key="d26">CO_OCCURS_WITH</data>
+  <data key="d33">1</data>
+  <data key="d34">0.08333333333333333</data>
+  <data key="d35">["sent:tmp_1771604354512_aiclab1_1:35"]</data>
+</edge>
+<edge source="ent:base_resistor_r2_18_k" target="ent:collector_resistor_rc" id="e:195">
+  <data key="d26">CO_OCCURS_WITH</data>
+  <data key="d33">1</data>
+  <data key="d34">0.08333333333333333</data>
+  <data key="d35">["sent:tmp_1771604354512_aiclab1_1:35"]</data>
+</edge>
+<edge source="ent:base_resistor_r2_18_k" target="ent:input_capacitor_1_f" id="e:197">
+  <data key="d26">CO_OCCURS_WITH</data>
+  <data key="d33">1</data>
+  <data key="d34">0.08333333333333333</data>
+  <data key="d35">["sent:tmp_1771604354512_aiclab1_1:35"]</data>
+</edge>
+<edge source="ent:base_resistor_r2_18_k" target="ent:base_terminal" id="e:198">
+  <data key="d26">CO_OCCURS_WITH</data>
+  <data key="d33">1</data>
+  <data key="d34">0.08333333333333333</data>
+  <data key="d35">["sent:tmp_1771604354512_aiclab1_1:35"]</data>
+</edge>
+<edge source="ent:base_resistor_r2_18_k" target="comm_l0:0" id="e:comm_member:387">
+  <data key="d26">MEMBER_OF</data>
+  <data key="d36">0</data>
+  <data key="d37">0</data>
+</edge>
+<edge source="ent:input_capacitor_1_f" target="sent:tmp_1771604354512_aiclab1_1:35" id="e:65">
+  <data key="d26">MENTION_IN</data>
+  <data key="d30">Input capacitor 1 µF</data>
+  <data key="d27">tmp_1771604354512_aiclab1_1</data>
+  <data key="d31">2598</data>
+  <data key="d32">2618</data>
+</edge>
+<edge source="ent:input_capacitor_1_f" target="ent:output_capacitor_1_f" id="e:176">
+  <data key="d26">CO_OCCURS_WITH</data>
+  <data key="d33">1</data>
+  <data key="d34">0.08333333333333333</data>
+  <data key="d35">["sent:tmp_1771604354512_aiclab1_1:35"]</data>
+</edge>
+<edge source="ent:input_capacitor_1_f" target="ent:supply_voltage_12_v" id="e:187">
+  <data key="d26">CO_OCCURS_WITH</data>
+  <data key="d33">1</data>
+  <data key="d34">0.08333333333333333</data>
+  <data key="d35">["sent:tmp_1771604354512_aiclab1_1:35"]</data>
+</edge>
+<edge source="ent:input_capacitor_1_f" target="ent:input_voltage_500_mv_p_p" id="e:206">
+  <data key="d26">CO_OCCURS_WITH</data>
+  <data key="d33">1</data>
+  <data key="d34">0.08333333333333333</data>
+  <data key="d35">["sent:tmp_1771604354512_aiclab1_1:35"]</data>
+</edge>
+<edge source="ent:input_capacitor_1_f" target="comm_l0:0" id="e:comm_member:388">
+  <data key="d26">MEMBER_OF</data>
+  <data key="d36">0</data>
+  <data key="d37">0</data>
+</edge>
+<edge source="ent:output_capacitor_1_f" target="sent:tmp_1771604354512_aiclab1_1:35" id="e:66">
+  <data key="d26">MENTION_IN</data>
+  <data key="d30">Output capacitor 1 µF</data>
+  <data key="d27">tmp_1771604354512_aiclab1_1</data>
+  <data key="d31">2619</data>
+  <data key="d32">2640</data>
+</edge>
+<edge source="ent:output_capacitor_1_f" target="ent:supply_voltage_12_v" id="e:166">
+  <data key="d26">CO_OCCURS_WITH</data>
+  <data key="d33">1</data>
+  <data key="d34">0.08333333333333333</data>
+  <data key="d35">["sent:tmp_1771604354512_aiclab1_1:35"]</data>
+</edge>
+<edge source="ent:output_capacitor_1_f" target="comm_l0:0" id="e:comm_member:389">
+  <data key="d26">MEMBER_OF</data>
+  <data key="d36">0</data>
+  <data key="d37">0</data>
+</edge>
+<edge source="ent:emitter_bypass_capacitor_22_f" target="sent:tmp_1771604354512_aiclab1_1:35" id="e:67">
+  <data key="d26">MENTION_IN</data>
+  <data key="d30">Emitter bypass capacitor 22 µF</data>
+  <data key="d27">tmp_1771604354512_aiclab1_1</data>
+  <data key="d31">2641</data>
+  <data key="d32">2671</data>
+</edge>
+<edge source="ent:emitter_bypass_capacitor_22_f" target="ent:output_capacitor_1_f" id="e:172">
+  <data key="d26">CO_OCCURS_WITH</data>
+  <data key="d33">1</data>
+  <data key="d34">0.08333333333333333</data>
+  <data key="d35">["sent:tmp_1771604354512_aiclab1_1:35"]</data>
+</edge>
+<edge source="ent:emitter_bypass_capacitor_22_f" target="ent:supply_voltage_12_v" id="e:183">
+  <data key="d26">CO_OCCURS_WITH</data>
+  <data key="d33">1</data>
+  <data key="d34">0.08333333333333333</data>
+  <data key="d35">["sent:tmp_1771604354512_aiclab1_1:35"]</data>
+</edge>
+<edge source="ent:emitter_bypass_capacitor_22_f" target="ent:input_voltage_500_mv_p_p" id="e:202">
+  <data key="d26">CO_OCCURS_WITH</data>
+  <data key="d33">1</data>
+  <data key="d34">0.08333333333333333</data>
+  <data key="d35">["sent:tmp_1771604354512_aiclab1_1:35"]</data>
+</edge>
+<edge source="ent:emitter_bypass_capacitor_22_f" target="ent:frequency_range_1_hz_10_mhz" id="e:210">
+  <data key="d26">CO_OCCURS_WITH</data>
+  <data key="d33">1</data>
+  <data key="d34">0.08333333333333333</data>
+  <data key="d35">["sent:tmp_1771604354512_aiclab1_1:35"]</data>
+</edge>
+<edge source="ent:emitter_bypass_capacitor_22_f" target="ent:emitter_resistor_1_k" id="e:217">
+  <data key="d26">CO_OCCURS_WITH</data>
+  <data key="d33">1</data>
+  <data key="d34">0.08333333333333333</data>
+  <data key="d35">["sent:tmp_1771604354512_aiclab1_1:35"]</data>
+</edge>
+<edge source="ent:emitter_bypass_capacitor_22_f" target="ent:input_capacitor_1_f" id="e:232">
+  <data key="d26">CO_OCCURS_WITH</data>
+  <data key="d33">1</data>
+  <data key="d34">0.08333333333333333</data>
+  <data key="d35">["sent:tmp_1771604354512_aiclab1_1:35"]</data>
+</edge>
+<edge source="ent:emitter_bypass_capacitor_22_f" target="comm_l0:0" id="e:comm_member:390">
+  <data key="d26">MEMBER_OF</data>
+  <data key="d36">0</data>
+  <data key="d37">0</data>
+</edge>
+<edge source="ent:supply_voltage_12_v" target="sent:tmp_1771604354512_aiclab1_1:35" id="e:68">
+  <data key="d26">MENTION_IN</data>
+  <data key="d30">Supply voltage 12 V</data>
+  <data key="d27">tmp_1771604354512_aiclab1_1</data>
+  <data key="d31">2672</data>
+  <data key="d32">2691</data>
+</edge>
+<edge source="ent:supply_voltage_12_v" target="comm_l0:0" id="e:comm_member:391">
+  <data key="d26">MEMBER_OF</data>
+  <data key="d36">0</data>
+  <data key="d37">0</data>
+</edge>
+<edge source="ent:input_voltage_500_mv_p_p" target="sent:tmp_1771604354512_aiclab1_1:35" id="e:69">
+  <data key="d26">MENTION_IN</data>
+  <data key="d30">Input voltage 500 mV p-p</data>
+  <data key="d27">tmp_1771604354512_aiclab1_1</data>
+  <data key="d31">2729</data>
+  <data key="d32">2753</data>
+</edge>
+<edge source="ent:input_voltage_500_mv_p_p" target="ent:output_capacitor_1_f" id="e:168">
+  <data key="d26">CO_OCCURS_WITH</data>
+  <data key="d33">1</data>
+  <data key="d34">0.08333333333333333</data>
+  <data key="d35">["sent:tmp_1771604354512_aiclab1_1:35"]</data>
+</edge>
+<edge source="ent:input_voltage_500_mv_p_p" target="ent:supply_voltage_12_v" id="e:179">
+  <data key="d26">CO_OCCURS_WITH</data>
+  <data key="d33">1</data>
+  <data key="d34">0.08333333333333333</data>
+  <data key="d35">["sent:tmp_1771604354512_aiclab1_1:35"]</data>
+</edge>
+<edge source="ent:input_voltage_500_mv_p_p" target="comm_l0:0" id="e:comm_member:392">
+  <data key="d26">MEMBER_OF</data>
+  <data key="d36">0</data>
+  <data key="d37">0</data>
+</edge>
+<edge source="ent:frequency_range_1_hz_10_mhz" target="sent:tmp_1771604354512_aiclab1_1:35" id="e:70">
+  <data key="d26">MENTION_IN</data>
+  <data key="d30">Frequency range 1 Hz – 10 MHz</data>
+  <data key="d27">tmp_1771604354512_aiclab1_1</data>
+  <data key="d31">2754</data>
+  <data key="d32">2783</data>
+</edge>
+<edge source="ent:frequency_range_1_hz_10_mhz" target="ent:output_capacitor_1_f" id="e:169">
+  <data key="d26">CO_OCCURS_WITH</data>
+  <data key="d33">1</data>
+  <data key="d34">0.08333333333333333</data>
+  <data key="d35">["sent:tmp_1771604354512_aiclab1_1:35"]</data>
+</edge>
+<edge source="ent:frequency_range_1_hz_10_mhz" target="ent:supply_voltage_12_v" id="e:180">
+  <data key="d26">CO_OCCURS_WITH</data>
+  <data key="d33">1</data>
+  <data key="d34">0.08333333333333333</data>
+  <data key="d35">["sent:tmp_1771604354512_aiclab1_1:35"]</data>
+</edge>
+<edge source="ent:frequency_range_1_hz_10_mhz" target="ent:input_voltage_500_mv_p_p" id="e:199">
+  <data key="d26">CO_OCCURS_WITH</data>
+  <data key="d33">1</data>
+  <data key="d34">0.08333333333333333</data>
+  <data key="d35">["sent:tmp_1771604354512_aiclab1_1:35"]</data>
+</edge>
+<edge source="ent:frequency_range_1_hz_10_mhz" target="ent:input_capacitor_1_f" id="e:214">
+  <data key="d26">CO_OCCURS_WITH</data>
+  <data key="d33">1</data>
+  <data key="d34">0.08333333333333333</data>
+  <data key="d35">["sent:tmp_1771604354512_aiclab1_1:35"]</data>
+</edge>
+<edge source="ent:frequency_range_1_hz_10_mhz" target="comm_l0:0" id="e:comm_member:393">
+  <data key="d26">MEMBER_OF</data>
+  <data key="d36">0</data>
+  <data key="d37">0</data>
+</edge>
+<edge source="ent:check_bc547_pin_configuration" target="sent:tmp_1771604354512_aiclab1_1:56" id="e:71">
+  <data key="d26">MENTION_IN</data>
+  <data key="d30">Check BC547 pin configuration before connecting</data>
+  <data key="d27">tmp_1771604354512_aiclab1_1</data>
+  <data key="d31">4991</data>
+  <data key="d32">5038</data>
+</edge>
+<edge source="ent:check_bc547_pin_configuration" target="sent:tmp_1771604354512_aiclab1_1:56" id="e:72">
+  <data key="d26">MENTION_IN</data>
+  <data key="d30">Check BC547 pin configuration</data>
+  <data key="d27">tmp_1771604354512_aiclab1_1</data>
+  <data key="d31">4991</data>
+  <data key="d32">5020</data>
+</edge>
+<edge source="ent:check_bc547_pin_configuration" target="ent:rated_supply_voltage" id="e:252">
+  <data key="d26">CO_OCCURS_WITH</data>
+  <data key="d33">1</data>
+  <data key="d34">0.5</data>
+  <data key="d35">["sent:tmp_1771604354512_aiclab1_1:56"]</data>
+</edge>
+<edge source="ent:check_bc547_pin_configuration" target="ent:expected_behavior" id="e:253">
+  <data key="d26">CO_OCCURS_WITH</data>
+  <data key="d33">1</data>
+  <data key="d34">0.5</data>
+  <data key="d35">["sent:tmp_1771604354512_aiclab1_1:56"]</data>
+</edge>
+<edge source="ent:check_bc547_pin_configuration" target="comm_l0:4" id="e:comm_member:405">
+  <data key="d26">MEMBER_OF</data>
+  <data key="d36">0</data>
+  <data key="d37">4</data>
+</edge>
+<edge source="ent:rated_supply_voltage" target="sent:tmp_1771604354512_aiclab1_1:56" id="e:73">
+  <data key="d26">MENTION_IN</data>
+  <data key="d30">rated supply voltage</data>
+  <data key="d27">tmp_1771604354512_aiclab1_1</data>
+  <data key="d31">5055</data>
+  <data key="d32">5075</data>
+</edge>
+<edge source="ent:rated_supply_voltage" target="comm_l0:4" id="e:comm_member:406">
+  <data key="d26">MEMBER_OF</data>
+  <data key="d36">0</data>
+  <data key="d37">4</data>
+</edge>
+<edge source="ent:input_signal_amplitude" target="sent:tmp_1771604354512_aiclab1_1:57" id="e:74">
+  <data key="d26">MENTION_IN</data>
+  <data key="d30">input signal amplitude</data>
+  <data key="d27">tmp_1771604354512_aiclab1_1</data>
+  <data key="d31">5083</data>
+  <data key="d32">5105</data>
+</edge>
+<edge source="ent:input_signal_amplitude" target="comm_l0:4" id="e:comm_member:407">
+  <data key="d26">MEMBER_OF</data>
+  <data key="d36">0</data>
+  <data key="d37">4</data>
+</edge>
+<edge source="ent:observe_correct_polarity_of_electrolytic_capacitors" target="sent:tmp_1771604354512_aiclab1_1:58" id="e:75">
+  <data key="d26">MENTION_IN</data>
+  <data key="d30">Observe correct polarity of electrolytic capacitors</data>
+  <data key="d27">tmp_1771604354512_aiclab1_1</data>
+  <data key="d31">5114</data>
+  <data key="d32">5165</data>
+</edge>
+<edge source="ent:observe_correct_polarity_of_electrolytic_capacitors" target="comm_l0:4" id="e:comm_member:408">
+  <data key="d26">MEMBER_OF</data>
+  <data key="d36">0</data>
+  <data key="d37">4</data>
+</edge>
+<edge source="ent:expected_behavior" target="sent:tmp_1771604354512_aiclab1_1:56" id="e:76">
+  <data key="d26">MENTION_IN</data>
+  <data key="d30">expected behavior</data>
+  <data key="d27">tmp_1771604354512_aiclab1_1</data>
+  <data key="d31">4957</data>
+  <data key="d32">4974</data>
+</edge>
+<edge source="ent:expected_behavior" target="ent:rated_supply_voltage" id="e:251">
+  <data key="d26">CO_OCCURS_WITH</data>
+  <data key="d33">1</data>
+  <data key="d34">0.5</data>
+  <data key="d35">["sent:tmp_1771604354512_aiclab1_1:56"]</data>
+</edge>
+<edge source="ent:expected_behavior" target="comm_l0:4" id="e:comm_member:409">
+  <data key="d26">MEMBER_OF</data>
+  <data key="d36">0</data>
+  <data key="d37">4</data>
+</edge>
+<edge source="ent:block_dc_components" target="sent:tmp_1771604354512_aiclab1_1:7" id="e:77">
+  <data key="d26">MENTION_IN</data>
+  <data key="d30">blocking DC
+components</data>
+  <data key="d27">tmp_1771604354512_aiclab1_1</data>
+  <data key="d31">626</data>
+  <data key="d32">648</data>
+</edge>
+<edge source="ent:block_dc_components" target="ent:rc_coupled_amplifier" id="e:160">
+  <data key="d26">CO_OCCURS_WITH</data>
+  <data key="d33">1</data>
+  <data key="d34">0.5</data>
+  <data key="d35">["sent:tmp_1771604354512_aiclab1_1:7"]</data>
+</edge>
+<edge source="ent:block_dc_components" target="comm_l0:5" id="e:comm_member:376">
+  <data key="d26">MEMBER_OF</data>
+  <data key="d36">0</data>
+  <data key="d37">5</data>
+</edge>
+<edge source="ent:convert_current_variations_to_voltage_variations" target="sent:tmp_1771604354512_aiclab1_1:16" id="e:78">
+  <data key="d26">MENTION_IN</data>
+  <data key="d30">converts these
+current variations into voltage variations</data>
+  <data key="d27">tmp_1771604354512_aiclab1_1</data>
+  <data key="d31">1262</data>
+  <data key="d32">1319</data>
+</edge>
+<edge source="ent:convert_current_variations_to_voltage_variations" target="comm_l0:0" id="e:comm_member:394">
+  <data key="d26">MEMBER_OF</data>
+  <data key="d36">0</data>
+  <data key="d37">0</data>
+</edge>
+<edge source="art:1" target="sent:tmp_1771604354512_aiclab1_1:1" id="e:79">
+  <data key="d26">MENTION_IN</data>
+  <data key="d30">1. Regulated DC power supply</data>
+  <data key="d27">tmp_1771604354512_aiclab1_1</data>
+  <data key="d31">316</data>
+  <data key="d32">344</data>
+</edge>
+<edge source="art:1" target="sent:tmp_1771604354512_aiclab1_1:2" id="e:80">
+  <data key="d26">MENTION_IN</data>
+  <data key="d30">1. Regulated DC power supply</data>
+  <data key="d27">tmp_1771604354512_aiclab1_1</data>
+  <data key="d31">316</data>
+  <data key="d32">344</data>
+</edge>
+<edge source="art:1" target="sent:tmp_1771604354512_aiclab1_1:26" id="e:87">
+  <data key="d26">MENTION_IN</data>
+  <data key="d30">1. Assemble the RC coupled common emitter amplifier circuit on a breadboard</data>
+  <data key="d27">tmp_1771604354512_aiclab1_1</data>
+  <data key="d31">1891</data>
+  <data key="d32">1966</data>
+</edge>
+<edge source="art:1" target="art:2" id="e:126">
+  <data key="d26">CO_OCCURS_WITH</data>
+  <data key="d33">1</data>
+  <data key="d34">0.5</data>
+  <data key="d35">["sent:tmp_1771604354512_aiclab1_1:2"]</data>
+</edge>
+<edge source="art:1" target="ent:regulated_dc_power_supply" id="e:127">
+  <data key="d26">CO_OCCURS_WITH</data>
+  <data key="d33">1</data>
+  <data key="d34">0.5</data>
+  <data key="d35">["sent:tmp_1771604354512_aiclab1_1:2"]</data>
+</edge>
+<edge source="art:1" target="ent:procedure_step_1_assemble_circuit" id="e:152">
+  <data key="d26">CO_OCCURS_WITH</data>
+  <data key="d33">1</data>
+  <data key="d34">0.3333333333333333</data>
+  <data key="d35">["sent:tmp_1771604354512_aiclab1_1:26"]</data>
+</edge>
+<edge source="art:1" target="ent:breadboard" id="e:153">
+  <data key="d26">CO_OCCURS_WITH</data>
+  <data key="d33">1</data>
+  <data key="d34">0.3333333333333333</data>
+  <data key="d35">["sent:tmp_1771604354512_aiclab1_1:26"]</data>
+</edge>
+<edge source="art:1" target="ent:common_emitter_amplifier" id="e:154">
+  <data key="d26">CO_OCCURS_WITH</data>
+  <data key="d33">1</data>
+  <data key="d34">0.3333333333333333</data>
+  <data key="d35">["sent:tmp_1771604354512_aiclab1_1:26"]</data>
+</edge>
+<edge source="art:1" target="comm_l0:1" id="e:comm_member:368">
+  <data key="d26">MEMBER_OF</data>
+  <data key="d36">0</data>
+  <data key="d37">1</data>
+  <data key="d38">0.061088485746019994</data>
+  <data key="d39">True</data>
+</edge>
+<edge source="art:2" target="sent:tmp_1771604354512_aiclab1_1:2" id="e:81">
+  <data key="d26">MENTION_IN</data>
+  <data key="d30">2. Functiongenerator</data>
+  <data key="d27">tmp_1771604354512_aiclab1_1</data>
+  <data key="d31">345</data>
+  <data key="d32">365</data>
+</edge>
+<edge source="art:2" target="sent:tmp_1771604354512_aiclab1_1:3" id="e:82">
+  <data key="d26">MENTION_IN</data>
+  <data key="d30">2. Functiongenerator</data>
+  <data key="d27">tmp_1771604354512_aiclab1_1</data>
+  <data key="d31">345</data>
+  <data key="d32">365</data>
+</edge>
+<edge source="art:2" target="sent:tmp_1771604354512_aiclab1_1:27" id="e:88">
+  <data key="d26">MENTION_IN</data>
+  <data key="d30">2. Apply a DC supply voltage of 15 V to the circuit.</data>
+  <data key="d27">tmp_1771604354512_aiclab1_1</data>
+  <data key="d31">1995</data>
+  <data key="d32">2047</data>
+</edge>
+<edge source="art:2" target="ent:regulated_dc_power_supply" id="e:128">
+  <data key="d26">CO_OCCURS_WITH</data>
+  <data key="d33">1</data>
+  <data key="d34">0.5</data>
+  <data key="d35">["sent:tmp_1771604354512_aiclab1_1:2"]</data>
+</edge>
+<edge source="art:2" target="ent:function_generator" id="e:129">
+  <data key="d26">CO_OCCURS_WITH</data>
+  <data key="d33">1</data>
+  <data key="d34">0.16666666666666666</data>
+  <data key="d35">["sent:tmp_1771604354512_aiclab1_1:3"]</data>
+</edge>
+<edge source="art:2" target="art:4" id="e:135">
+  <data key="d26">CO_OCCURS_WITH</data>
+  <data key="d33">1</data>
+  <data key="d34">0.16666666666666666</data>
+  <data key="d35">["sent:tmp_1771604354512_aiclab1_1:3"]</data>
+</edge>
+<edge source="art:2" target="ent:cro_dso" id="e:136">
+  <data key="d26">CO_OCCURS_WITH</data>
+  <data key="d33">1</data>
+  <data key="d34">0.16666666666666666</data>
+  <data key="d35">["sent:tmp_1771604354512_aiclab1_1:3"]</data>
+</edge>
+<edge source="art:2" target="ent:multimeter" id="e:137">
+  <data key="d26">CO_OCCURS_WITH</data>
+  <data key="d33">1</data>
+  <data key="d34">0.16666666666666666</data>
+  <data key="d35">["sent:tmp_1771604354512_aiclab1_1:3"]</data>
+</edge>
+<edge source="art:2" target="art:3" id="e:138">
+  <data key="d26">CO_OCCURS_WITH</data>
+  <data key="d33">1</data>
+  <data key="d34">0.16666666666666666</data>
+  <data key="d35">["sent:tmp_1771604354512_aiclab1_1:3"]</data>
+</edge>
+<edge source="art:2" target="art:5" id="e:139">
+  <data key="d26">CO_OCCURS_WITH</data>
+  <data key="d33">1</data>
+  <data key="d34">0.16666666666666666</data>
+  <data key="d35">["sent:tmp_1771604354512_aiclab1_1:3"]</data>
+</edge>
+<edge source="art:2" target="ent:procedure_step_2_apply_dc_supply" id="e:249">
+  <data key="d26">CO_OCCURS_WITH</data>
+  <data key="d33">1</data>
+  <data key="d34">1.0</data>
+  <data key="d35">["sent:tmp_1771604354512_aiclab1_1:27"]</data>
+</edge>
+<edge source="art:2" target="comm_l0:1" id="e:comm_member:369">
+  <data key="d26">MEMBER_OF</data>
+  <data key="d36">0</data>
+  <data key="d37">1</data>
+  <data key="d38">0.06005183265457238</data>
+  <data key="d39">True</data>
+</edge>
+<edge source="art:3" target="sent:tmp_1771604354512_aiclab1_1:3" id="e:83">
+  <data key="d26">MENTION_IN</data>
+  <data key="d30">3. CRO / DSO</data>
+  <data key="d27">tmp_1771604354512_aiclab1_1</data>
+  <data key="d31">366</data>
+  <data key="d32">378</data>
+</edge>
+<edge source="art:3" target="sent:tmp_1771604354512_aiclab1_1:28" id="e:89">
+  <data key="d26">MENTION_IN</data>
+  <data key="d30">3. Connect the function generator to the input through the coupling capacitor.</data>
+  <data key="d27">tmp_1771604354512_aiclab1_1</data>
+  <data key="d31">2048</data>
+  <data key="d32">2126</data>
+</edge>
+<edge source="art:3" target="ent:function_generator" id="e:133">
+  <data key="d26">CO_OCCURS_WITH</data>
+  <data key="d33">2</data>
+  <data key="d34">0.6666666666666666</data>
+  <data key="d35">["sent:tmp_1771604354512_aiclab1_1:3", "sent:tmp_1771604354512_aiclab1_1:28"]</data>
+</edge>
+<edge source="art:3" target="art:4" id="e:142">
+  <data key="d26">CO_OCCURS_WITH</data>
+  <data key="d33">1</data>
+  <data key="d34">0.16666666666666666</data>
+  <data key="d35">["sent:tmp_1771604354512_aiclab1_1:3"]</data>
+</edge>
+<edge source="art:3" target="ent:cro_dso" id="e:145">
+  <data key="d26">CO_OCCURS_WITH</data>
+  <data key="d33">1</data>
+  <data key="d34">0.16666666666666666</data>
+  <data key="d35">["sent:tmp_1771604354512_aiclab1_1:3"]</data>
+</edge>
+<edge source="art:3" target="ent:multimeter" id="e:147">
+  <data key="d26">CO_OCCURS_WITH</data>
+  <data key="d33">1</data>
+  <data key="d34">0.16666666666666666</data>
+  <data key="d35">["sent:tmp_1771604354512_aiclab1_1:3"]</data>
+</edge>
+<edge source="art:3" target="art:5" id="e:149">
+  <data key="d26">CO_OCCURS_WITH</data>
+  <data key="d33">1</data>
+  <data key="d34">0.16666666666666666</data>
+  <data key="d35">["sent:tmp_1771604354512_aiclab1_1:3"]</data>
+</edge>
+<edge source="art:3" target="ent:procedure_step_3_connect_function_generator" id="e:151">
+  <data key="d26">CO_OCCURS_WITH</data>
+  <data key="d33">1</data>
+  <data key="d34">0.5</data>
+  <data key="d35">["sent:tmp_1771604354512_aiclab1_1:28"]</data>
+</edge>
+<edge source="art:3" target="comm_l0:1" id="e:comm_member:370">
+  <data key="d26">MEMBER_OF</data>
+  <data key="d36">0</data>
+  <data key="d37">1</data>
+  <data key="d38">0.004442798963346909</data>
+  <data key="d39">True</data>
+</edge>
+<edge source="art:4" target="sent:tmp_1771604354512_aiclab1_1:3" id="e:84">
+  <data key="d26">MENTION_IN</data>
+  <data key="d30">4. multimeter</data>
+  <data key="d27">tmp_1771604354512_aiclab1_1</data>
+  <data key="d31">379</data>
+  <data key="d32">392</data>
+</edge>
+<edge source="art:4" target="sent:tmp_1771604354512_aiclab1_1:29" id="e:90">
+  <data key="d26">MENTION_IN</data>
+  <data key="d30">4. Apply a sine wave input of 500 mV peak-to-peak.</data>
+  <data key="d27">tmp_1771604354512_aiclab1_1</data>
+  <data key="d31">2127</data>
+  <data key="d32">2177</data>
+</edge>
+<edge source="art:4" target="ent:function_generator" id="e:130">
+  <data key="d26">CO_OCCURS_WITH</data>
+  <data key="d33">1</data>
+  <data key="d34">0.16666666666666666</data>
+  <data key="d35">["sent:tmp_1771604354512_aiclab1_1:3"]</data>
+</edge>
+<edge source="art:4" target="ent:cro_dso" id="e:140">
+  <data key="d26">CO_OCCURS_WITH</data>
+  <data key="d33">1</data>
+  <data key="d34">0.16666666666666666</data>
+  <data key="d35">["sent:tmp_1771604354512_aiclab1_1:3"]</data>
+</edge>
+<edge source="art:4" target="ent:multimeter" id="e:141">
+  <data key="d26">CO_OCCURS_WITH</data>
+  <data key="d33">1</data>
+  <data key="d34">0.16666666666666666</data>
+  <data key="d35">["sent:tmp_1771604354512_aiclab1_1:3"]</data>
+</edge>
+<edge source="art:4" target="art:5" id="e:143">
+  <data key="d26">CO_OCCURS_WITH</data>
+  <data key="d33">1</data>
+  <data key="d34">0.16666666666666666</data>
+  <data key="d35">["sent:tmp_1771604354512_aiclab1_1:3"]</data>
+</edge>
+<edge source="art:4" target="ent:procedure_step_4_apply_input_signal" id="e:250">
+  <data key="d26">CO_OCCURS_WITH</data>
+  <data key="d33">1</data>
+  <data key="d34">1.0</data>
+  <data key="d35">["sent:tmp_1771604354512_aiclab1_1:29"]</data>
+</edge>
+<edge source="art:4" target="comm_l0:1" id="e:comm_member:371">
+  <data key="d26">MEMBER_OF</data>
+  <data key="d36">0</data>
+  <data key="d37">1</data>
+  <data key="d38">0.009700111069974085</data>
+  <data key="d39">True</data>
+</edge>
+<edge source="art:5" target="sent:tmp_1771604354512_aiclab1_1:3" id="e:85">
+  <data key="d26">MENTION_IN</data>
+  <data key="d30">5. Breadboard</data>
+  <data key="d27">tmp_1771604354512_aiclab1_1</data>
+  <data key="d31">393</data>
+  <data key="d32">406</data>
+</edge>
+<edge source="art:5" target="sent:tmp_1771604354512_aiclab1_1:30" id="e:91">
+  <data key="d26">MENTION_IN</data>
+  <data key="d30">5. Observe the input and output waveforms on the CRO.</data>
+  <data key="d27">tmp_1771604354512_aiclab1_1</data>
+  <data key="d31">2178</data>
+  <data key="d32">2231</data>
+</edge>
+<edge source="art:5" target="ent:function_generator" id="e:134">
+  <data key="d26">CO_OCCURS_WITH</data>
+  <data key="d33">1</data>
+  <data key="d34">0.16666666666666666</data>
+  <data key="d35">["sent:tmp_1771604354512_aiclab1_1:3"]</data>
+</edge>
+<edge source="art:5" target="ent:cro_dso" id="e:146">
+  <data key="d26">CO_OCCURS_WITH</data>
+  <data key="d33">1</data>
+  <data key="d34">0.16666666666666666</data>
+  <data key="d35">["sent:tmp_1771604354512_aiclab1_1:3"]</data>
+</edge>
+<edge source="art:5" target="ent:multimeter" id="e:148">
+  <data key="d26">CO_OCCURS_WITH</data>
+  <data key="d33">1</data>
+  <data key="d34">0.16666666666666666</data>
+  <data key="d35">["sent:tmp_1771604354512_aiclab1_1:3"]</data>
+</edge>
+<edge source="art:5" target="comm_l0:1" id="e:comm_member:372">
+  <data key="d26">MEMBER_OF</data>
+  <data key="d36">0</data>
+  <data key="d37">1</data>
+</edge>
+<edge source="art:6" target="sent:tmp_1771604354512_aiclab1_1:31" id="e:92">
+  <data key="d26">MENTION_IN</data>
+  <data key="d30">6. Measure the output peak-to-peak voltage.</data>
+  <data key="d27">tmp_1771604354512_aiclab1_1</data>
+  <data key="d31">2232</data>
+  <data key="d32">2275</data>
+</edge>
+<edge source="art:7" target="sent:tmp_1771604354512_aiclab1_1:32" id="e:93">
+  <data key="d26">MENTION_IN</data>
+  <data key="d30">7. Vary the input frequency from low to high.</data>
+  <data key="d27">tmp_1771604354512_aiclab1_1</data>
+  <data key="d31">2276</data>
+  <data key="d32">2321</data>
+</edge>
+<edge source="art:7" target="art:8" id="e:254">
+  <data key="d26">CO_OCCURS_WITH</data>
+  <data key="d33">1</data>
+  <data key="d34">1.0</data>
+  <data key="d35">["sent:tmp_1771604354512_aiclab1_1:32"]</data>
+</edge>
+<edge source="art:7" target="comm_l0:5" id="e:comm_member:377">
+  <data key="d26">MEMBER_OF</data>
+  <data key="d36">0</data>
+  <data key="d37">5</data>
+</edge>
+<edge source="art:8" target="sent:tmp_1771604354512_aiclab1_1:7" id="e:86">
+  <data key="d26">MENTION_IN</data>
+  <data key="d30">8. Resistors and capacitors</data>
+  <data key="d27">tmp_1771604354512_aiclab1_1</data>
+  <data key="d31">446</data>
+  <data key="d32">473</data>
+</edge>
+<edge source="art:8" target="sent:tmp_1771604354512_aiclab1_1:32" id="e:94">
+  <data key="d26">MENTION_IN</data>
+  <data key="d30">8. Record the output voltage at each frequency.</data>
+  <data key="d27">tmp_1771604354512_aiclab1_1</data>
+  <data key="d31">2322</data>
+  <data key="d32">2369</data>
+</edge>
+<edge source="art:8" target="sent:tmp_1771604354512_aiclab1_1:33" id="e:95">
+  <data key="d26">MENTION_IN</data>
+  <data key="d30">8. Record the output voltage at each frequency.</data>
+  <data key="d27">tmp_1771604354512_aiclab1_1</data>
+  <data key="d31">2322</data>
+  <data key="d32">2369</data>
+</edge>
+<edge source="art:8" target="ent:rc_coupled_amplifier" id="e:158">
+  <data key="d26">CO_OCCURS_WITH</data>
+  <data key="d33">1</data>
+  <data key="d34">0.5</data>
+  <data key="d35">["sent:tmp_1771604354512_aiclab1_1:7"]</data>
+</edge>
+<edge source="art:8" target="ent:block_dc_components" id="e:159">
+  <data key="d26">CO_OCCURS_WITH</data>
+  <data key="d33">1</data>
+  <data key="d34">0.5</data>
+  <data key="d35">["sent:tmp_1771604354512_aiclab1_1:7"]</data>
+</edge>
+<edge source="art:8" target="comm_l0:5" id="e:comm_member:378">
+  <data key="d26">MEMBER_OF</data>
+  <data key="d36">0</data>
+  <data key="d37">5</data>
+</edge>
+<edge source="art:9" target="sent:tmp_1771604354512_aiclab1_1:34" id="e:96">
+  <data key="d26">MENTION_IN</data>
+  <data key="d30">9. Switch off the power supply after completing the experiment.</data>
+  <data key="d27">tmp_1771604354512_aiclab1_1</data>
+  <data key="d31">2370</data>
+  <data key="d32">2433</data>
+</edge>
+<edge source="ent:experiment_1" target="ent:bc547_transistor" id="e:rel:9d0b5ecfac95b4d0">
+  <data key="d26">REQUIRES</data>
+  <data key="d40">1</data>
+  <data key="d41">sent:tmp_1771604354512_aiclab1_1:0</data>
+  <data key="d42">To design and study a single stage RC coupled common emitter amplifier using a BC547 transistor</data>
+  <data key="d29">oneshot</data>
+</edge>
+<edge source="ent:experiment_1" target="ent:regulated_dc_power_supply" id="e:rel:6c4ad78a5cc21cb1">
+  <data key="d26">REQUIRES</data>
+  <data key="d40">1</data>
+  <data key="d41">sent:tmp_1771604354512_aiclab1_1:0</data>
+  <data key="d42">APPARATUS REQUIRED - 1. Regulated DC power supply</data>
+  <data key="d29">oneshot</data>
+</edge>
+<edge source="ent:experiment_1" target="ent:function_generator" id="e:rel:d6f2dbbdc84f1526">
+  <data key="d26">REQUIRES</data>
+  <data key="d40">1</data>
+  <data key="d41">sent:tmp_1771604354512_aiclab1_1:0</data>
+  <data key="d42">APPARATUS REQUIRED - 2. Functiongenerator</data>
+  <data key="d29">oneshot</data>
+</edge>
+<edge source="ent:experiment_1" target="ent:cro_dso" id="e:rel:242c3007fd56e6c0">
+  <data key="d26">REQUIRES</data>
+  <data key="d40">1</data>
+  <data key="d41">sent:tmp_1771604354512_aiclab1_1:0</data>
+  <data key="d42">APPARATUS REQUIRED - 3. CRO / DSO</data>
+  <data key="d29">oneshot</data>
+</edge>
+<edge source="ent:experiment_1" target="comm_l0:1" id="e:comm_member:373">
+  <data key="d26">MEMBER_OF</data>
+  <data key="d36">0</data>
+  <data key="d37">1</data>
+</edge>
+<edge source="ent:voltage_amplifier" target="comm_l0:5" id="e:comm_member:379">
+  <data key="d26">MEMBER_OF</data>
+  <data key="d36">0</data>
+  <data key="d37">5</data>
+</edge>
+<edge source="ent:emitter_terminal_common_to_input_and_output" target="comm_l0:2" id="e:comm_member:356">
+  <data key="d26">MEMBER_OF</data>
+  <data key="d36">0</data>
+  <data key="d37">2</data>
+</edge>
+<edge source="ent:input_signal" target="ent:base_terminal" id="e:rel:783e2a0d38e0ffef">
+  <data key="d26">APPLIES_TO</data>
+  <data key="d40">1</data>
+  <data key="d41">sent:tmp_1771604354512_aiclab1_1:0</data>
+  <data key="d42">The input signal is applied at the base and the output is taken from the collector.</data>
+  <data key="d29">oneshot</data>
+</edge>
+<edge source="ent:input_signal" target="comm_l0:0" id="e:comm_member:395">
+  <data key="d26">MEMBER_OF</data>
+  <data key="d36">0</data>
+  <data key="d37">0</data>
+</edge>
+<edge source="ent:output_signal" target="ent:collector_terminal" id="e:rel:46bb981b98855a1b">
+  <data key="d26">APPLIES_TO</data>
+  <data key="d40">1</data>
+  <data key="d41">sent:tmp_1771604354512_aiclab1_1:0</data>
+  <data key="d42">The input signal is applied at the base and the output is taken from the collector.</data>
+  <data key="d29">oneshot</data>
+</edge>
+<edge source="ent:output_signal" target="comm_l0:0" id="e:comm_member:396">
+  <data key="d26">MEMBER_OF</data>
+  <data key="d36">0</data>
+  <data key="d37">0</data>
+</edge>
+<edge source="ent:high_voltage_gain" target="comm_l0:2" id="e:comm_member:357">
+  <data key="d26">MEMBER_OF</data>
+  <data key="d36">0</data>
+  <data key="d37">2</data>
+</edge>
+<edge source="ent:amplifier_gain" target="ent:frequency" id="e:rel:34cedfb592b34a66">
+  <data key="d26">SUBJECT_TO</data>
+  <data key="d40">1</data>
+  <data key="d41">sent:tmp_1771604354512_aiclab1_1:21</data>
+  <data key="d42">The gain of an RC coupled amplifier depends on frequency.</data>
+  <data key="d29">oneshot</data>
+</edge>
+<edge source="ent:amplifier_gain" target="comm_l0:3" id="e:comm_member:403">
+  <data key="d26">MEMBER_OF</data>
+  <data key="d36">0</data>
+  <data key="d37">3</data>
+</edge>
+<edge source="ent:frequency" target="comm_l0:3" id="e:comm_member:404">
+  <data key="d26">MEMBER_OF</data>
+  <data key="d36">0</data>
+  <data key="d37">3</data>
+</edge>
+<edge source="ent:experiment" target="ent:rated_supply_voltage" id="e:rel:965da6760d20773e">
+  <data key="d26">LIMITS</data>
+  <data key="d40">1</data>
+  <data key="d41">sent:tmp_1771604354512_aiclab1_1:56</data>
+  <data key="d42">Do not exceed rated supply voltage</data>
+  <data key="d29">oneshot</data>
+</edge>
+<edge source="ent:experiment" target="ent:input_signal_amplitude" id="e:rel:4f1ed90682f61680">
+  <data key="d26">LIMITS</data>
+  <data key="d40">1</data>
+  <data key="d41">sent:tmp_1771604354512_aiclab1_1:0</data>
+  <data key="d42">Keep input signal amplitude small</data>
+  <data key="d29">oneshot</data>
+</edge>
+<edge source="ent:experiment" target="ent:check_bc547_pin_configuration" id="e:rel:97cd442b0a1029fb">
+  <data key="d26">REQUIRES</data>
+  <data key="d40">1</data>
+  <data key="d41">sent:tmp_1771604354512_aiclab1_1:56</data>
+  <data key="d42">Check BC547 pin configuration before connecting</data>
+  <data key="d29">oneshot</data>
+</edge>
+<edge source="ent:experiment" target="ent:observe_correct_polarity_of_electrolytic_capacitors" id="e:rel:b26652d49fa05f2b">
+  <data key="d26">REQUIRES</data>
+  <data key="d40">1</data>
+  <data key="d41">sent:tmp_1771604354512_aiclab1_1:58</data>
+  <data key="d42">Observe correct polarity of electrolytic capacitors</data>
+  <data key="d29">oneshot</data>
+</edge>
+<edge source="ent:experiment" target="comm_l0:4" id="e:comm_member:410">
+  <data key="d26">MEMBER_OF</data>
+  <data key="d36">0</data>
+  <data key="d37">4</data>
+</edge>
+<edge source="ent:voltage_gain_calculation_formula" target="comm_l0:2" id="e:comm_member:358">
+  <data key="d26">MEMBER_OF</data>
+  <data key="d36">0</data>
+  <data key="d37">2</data>
+</edge>
+<edge source="ent:lower_cutoff_frequency_input" target="ent:lower_cutoff_frequency_due_to_input_capacitor_formula" id="e:rel:20ca5f84a577338c">
+  <data key="d26">DEFINES</data>
+  <data key="d40">1</data>
+  <data key="d41">sent:tmp_1771604354512_aiclab1_1:0</data>
+  <data key="d42">Lower cutoff frequency due to input capacitor: f1 = 1 / (2π * Rin * Cin)</data>
+  <data key="d29">oneshot</data>
+</edge>
+<edge source="ent:lower_cutoff_frequency_input" target="comm_l0:6" id="e:comm_member:411">
+  <data key="d26">MEMBER_OF</data>
+  <data key="d36">0</data>
+  <data key="d37">6</data>
+</edge>
+<edge source="ent:lower_cutoff_frequency_due_to_input_capacitor_formula" target="comm_l0:6" id="e:comm_member:412">
+  <data key="d26">MEMBER_OF</data>
+  <data key="d36">0</data>
+  <data key="d37">6</data>
+</edge>
+<edge source="ent:lower_cutoff_frequency_output" target="ent:lower_cutoff_due_to_output_capacitor_formula" id="e:rel:275493def0d4683a">
+  <data key="d26">DEFINES</data>
+  <data key="d40">1</data>
+  <data key="d41">sent:tmp_1771604354512_aiclab1_1:0</data>
+  <data key="d42">Lower cutoff due to output capacitor: f2 = 1 / (2π * RL * Cout)</data>
+  <data key="d29">oneshot</data>
+</edge>
+<edge source="ent:lower_cutoff_frequency_output" target="comm_l0:7" id="e:comm_member:413">
+  <data key="d26">MEMBER_OF</data>
+  <data key="d36">0</data>
+  <data key="d37">7</data>
+</edge>
+<edge source="ent:lower_cutoff_due_to_output_capacitor_formula" target="comm_l0:7" id="e:comm_member:414">
+  <data key="d26">MEMBER_OF</data>
+  <data key="d36">0</data>
+  <data key="d37">7</data>
+</edge>
+<edge source="ent:rc_coupled_common_emitter_amplifier" target="ent:collector_resistor_1_5_k" id="e:rel:894f30bfed8becae">
+  <data key="d26">REQUIRES</data>
+  <data key="d40">1</data>
+  <data key="d41">sent:tmp_1771604354512_aiclab1_1:35</data>
+  <data key="d42">Collector resistor 1.5 kΩ</data>
+  <data key="d29">oneshot</data>
+</edge>
+<edge source="ent:rc_coupled_common_emitter_amplifier" target="ent:emitter_resistor_1_k" id="e:rel:a8e915b96e6dcc3a">
+  <data key="d26">REQUIRES</data>
+  <data key="d40">1</data>
+  <data key="d41">sent:tmp_1771604354512_aiclab1_1:35</data>
+  <data key="d42">Emitter resistor 1 kΩ</data>
+  <data key="d29">oneshot</data>
+</edge>
+<edge source="ent:rc_coupled_common_emitter_amplifier" target="ent:base_resistor_r1_100_k" id="e:rel:7593b1628df3a45e">
+  <data key="d26">REQUIRES</data>
+  <data key="d40">1</data>
+  <data key="d41">sent:tmp_1771604354512_aiclab1_1:35</data>
+  <data key="d42">Base resistor R1 100 kΩ</data>
+  <data key="d29">oneshot</data>
+</edge>
+<edge source="ent:rc_coupled_common_emitter_amplifier" target="ent:base_resistor_r2_18_k" id="e:rel:f5e35cb0e8b31aa1">
+  <data key="d26">REQUIRES</data>
+  <data key="d40">1</data>
+  <data key="d41">sent:tmp_1771604354512_aiclab1_1:35</data>
+  <data key="d42">Base resistor R2 18 kΩ</data>
+  <data key="d29">oneshot</data>
+</edge>
+<edge source="ent:rc_coupled_common_emitter_amplifier" target="ent:input_capacitor_1_f" id="e:rel:88d9f8e44edb596a">
+  <data key="d26">REQUIRES</data>
+  <data key="d40">1</data>
+  <data key="d41">sent:tmp_1771604354512_aiclab1_1:35</data>
+  <data key="d42">Input capacitor 1 µF</data>
+  <data key="d29">oneshot</data>
+</edge>
+<edge source="ent:rc_coupled_common_emitter_amplifier" target="ent:output_capacitor_1_f" id="e:rel:66e497d732859b78">
+  <data key="d26">REQUIRES</data>
+  <data key="d40">1</data>
+  <data key="d41">sent:tmp_1771604354512_aiclab1_1:35</data>
+  <data key="d42">Output capacitor 1 µF</data>
+  <data key="d29">oneshot</data>
+</edge>
+<edge source="ent:rc_coupled_common_emitter_amplifier" target="ent:emitter_bypass_capacitor_22_f" id="e:rel:763fa7ac2f2838c3">
+  <data key="d26">REQUIRES</data>
+  <data key="d40">1</data>
+  <data key="d41">sent:tmp_1771604354512_aiclab1_1:35</data>
+  <data key="d42">Emitter bypass capacitor 22 µF</data>
+  <data key="d29">oneshot</data>
+</edge>
+<edge source="ent:rc_coupled_common_emitter_amplifier" target="comm_l0:0" id="e:comm_member:397">
+  <data key="d26">MEMBER_OF</data>
+  <data key="d36">0</data>
+  <data key="d37">0</data>
+</edge>
+<edge source="ent:experimental_results" target="ent:expected_behavior" id="e:rel:0c3ad38fdf5078b3">
+  <data key="d26">MATCHES</data>
+  <data key="d40">1</data>
+  <data key="d41">sent:tmp_1771604354512_aiclab1_1:56</data>
+  <data key="d42">Experimental results match expected behavior</data>
+  <data key="d29">oneshot</data>
+</edge>
+</graph></graphml>
