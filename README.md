@@ -148,7 +148,9 @@ npm run dev
 ### 📉 Recommended Config for Production
 ```env
 GEMINI_MODEL=gemini-2.5-pro
-KG_EMBEDDING_PROVIDER=gemini
+KG_EMBEDDING_PROVIDER=local
+KG_EMBEDDING_MODEL=sentence-transformers/all-MiniLM-L6-v2
+KG_EMBEDDING_DIM=384
 KG_DOC_WORKERS=2
 KG_RELATION_BATCH_SIZE=10
 ```

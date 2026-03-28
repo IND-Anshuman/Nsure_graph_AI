@@ -167,11 +167,6 @@ def get_embeddings_with_cache(texts: List[str]) -> np.ndarray:
         Embedding matrix of shape [len(texts), embedding_dim]
         Each row is the embedding vector for the corresponding text.
     """
-    if not texts:
-        return np.array([]).reshape(0, 384)  # default dim
-
-    model = get_embedding_model()
-
     model_id = os.getenv("KG_EMBEDDING_MODEL", "sentence-transformers/all-MiniLM-L6-v2")
     dim_default = int(os.getenv("KG_EMBEDDING_DIM", "384") or 384)
     provider = (os.getenv("KG_EMBEDDING_PROVIDER", "local") or "local").strip().lower()
@@ -179,6 +174,11 @@ def get_embeddings_with_cache(texts: List[str]) -> np.ndarray:
     if provider == "gemini":
         model_id = os.getenv("GEMINI_EMBEDDING_MODEL", "text-embedding-004")
         dim_default = 768 # Default for text-embedding-004
+
+    if not texts:
+        return np.zeros((0, dim_default), dtype=np.float32)
+
+    model = get_embedding_model()
 
     def _cache_key_for_text(t: str) -> str:
         # Namespaced key avoids mixing vectors from different models/dims.

@@ -11,7 +11,7 @@ Nsure AI is a production-grade GraphRAG (Graph Retrieval-Augmented Generation) s
 - **Extraction Strategy**: Hybrid (One-shot + Iterative) for higher recall
 - **LLM Integration**: Google Gemini (Primary), OpenAI (Supported)
 - **Document Processing**: PDFPlumber, BeautifulSoup
-- **Embeddings**: Google Gemini (`text-embedding-004`), Sentence Transformers
+- **Embeddings**: Sentence Transformers (local, non-API) or Google Gemini (`text-embedding-004`)
 
 ### Frontend (React + TypeScript)
 - **Framework**: React 18 + TypeScript + Vite
@@ -200,9 +200,10 @@ GOOGLE_API_KEY=...
 
 # Core Configuration
 KG_EXTRACTION_STRATEGY=hybrid   # Options: hybrid, one_shot
-KG_EMBEDDING_PROVIDER=gemini    # Options: gemini, openai
-KG_EMBEDDING_MODEL=text-embedding-004
-KG_EMBEDDING_DIM=768
+# Embeddings (non-API by default)
+KG_EMBEDDING_PROVIDER=local     # Options: local, gemini
+KG_EMBEDDING_MODEL=sentence-transformers/all-MiniLM-L6-v2
+KG_EMBEDDING_DIM=384
 
 # Performance & Memory Optimization
 KG_DOC_WORKERS=1                # Concurrent documents
