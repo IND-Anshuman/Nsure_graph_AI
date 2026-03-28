@@ -1,4 +1,4 @@
-# 🌌 Nsure AI: The Architecture of Infinite Intelligence
+# 🌌 [Nsure AI](https://nsure-graph-ai.onrender.com): The Architecture of Infinite Intelligence
 
 > **"In a world drowning in data, Nsure AI provides the lighthouse of structured knowledge."**
 
